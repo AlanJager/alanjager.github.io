@@ -5,10 +5,11 @@ subtitle: This is a subtitle!
 tags: [note, machine learning]
 ---
 
-"""Softmax."""
-    scores = [3.0, 1.0, 0.2]
-
+code for simple softmax and do some test
+    """Softmax."""
     import numpy as np
+
+    scores = [3.0, 1.0, 0.2]
 
     def softmax(x):
         """Compute softmax values for each sets of scores in x."""

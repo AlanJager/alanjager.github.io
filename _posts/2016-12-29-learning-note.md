@@ -1,11 +1,12 @@
 ---
 layout: post
-title: First post!
-subtitle: This is a subtitle!
+title: Learning note!
+subtitle: Softmax code!
 tags: [note, machine learning]
 ---
 
 code for simple softmax and do some test
+    
     """Softmax."""
     import numpy as np
 

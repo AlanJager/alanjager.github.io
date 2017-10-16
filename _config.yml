@@ -1,11 +1,9 @@
 # left-side user profile
-avatar: # by default https://octodex.github.com/images/baracktocat.jpg
-location:
-email:
+avatar: https://avatars3.githubusercontent.com/u/8843214?s=460&v=4 
+location: China
+email: msjdxhc@gmail.com
 social:
-  github:
-  weibo:
-  linkedin:
+  github: https://github.com/AlanJager
 
 # navbar menu
 menu:

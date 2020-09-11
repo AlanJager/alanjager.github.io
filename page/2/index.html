@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+
+  
+  <meta name="keywords" content="ブログ" />
+  
+  
+  
+  
+  
+  
+  <title>花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="花の様に">
+<meta property="og:url" content="http://hanayo.cn/page/2/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:locale">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="ブログ">
+<meta name="twitter:card" content="summary">
+  
+  
+    <link rel="icon" href="/css/images/favicon.ico">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+
+  
+  <!-- baidu webmaster push -->
+  <script src='//push.zhanzhang.baidu.com/push.js'></script>
+<meta name="generator" content="Hexo 5.1.1"></head>
+<body class="home blog custom-background custom-font-enabled single-author">
+  <div id="page" class="hfeed site">
+      <header id="masthead" class="site-header" role="banner">
+    <hgroup>
+      <h1 class="site-title">
+        <a href="/" title="花の様に" rel="home">花の様に</a>
+      </h1>
+      
+        <h2 class="site-description hitokoto"></h2>
+        <script type="text/javascript" src="https://v1.hitokoto.cn/?encode=js"></script>
+      
+    </hgroup>
+
+    <nav id="site-navigation" class="main-navigation" role="navigation">
+            <button class="menu-toggle">菜单</button>
+            <a class="assistive-text" href="/#content" title="跳至内容">跳至内容</a><!--TODO-->
+            <div class="menu-main-container">
+                <ul id="menu-main" class="nav-menu">
+                
+                    <li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="/">Home</a></li>
+                
+                    <li class="menu-item menu-item-type-post_type menu-item-object-page"><a href="/archives">Archives</a></li>
+                
+                </ul>
+            </div>
+    </nav>
+</header>
+
+      <div id="main" class="wrapper">
+        <div id="primary" class="site-content"><div id="content" role="main">
+  
+    <article id="post-2016-12-29-learning-note" class="post-2016-12-29-learning-note post type-post status-publish format-standard hentry">
+    <!---->
+
+      <header class="entry-header">
+        
+        
+  
+    <h1 class="entry-title">
+      <a class="article-title" href="/2020/09/10/2016-12-29-learning-note/">Learning note!</a>
+    </h1>
+  
+
+        
+        <div class="comments-link">
+            
+            <a href="javascript:void(0);" data-url="http://hanayo.cn/2020/09/10/2016-12-29-learning-note/" data-id="cjt3tjk1e0000g0d8mni81g1f" class="leave-reply bdsharebuttonbox" data-cmd="more">Share</a>
+        </div><!-- .comments-link -->
+      </header><!-- .entry-header -->
+
+    <div class="entry-content">
+      
+        <p>code for simple softmax and do some test</p>
+<pre><code>&quot;&quot;&quot;Softmax.&quot;&quot;&quot;
+import numpy as np
+
+scores = [3.0, 1.0, 0.2]
+
+def softmax(x):
+    &quot;&quot;&quot;Compute softmax values for each sets of scores in x.&quot;&quot;&quot;
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+print(softmax(scores))
+
+# Plot softmax curves
+import matplotlib.pyplot as plt
+x = np.arange(-2.0, 6.0, 0.1)
+scores = np.vstack([x, np.ones_like(x), 0.2 * np.ones_like(x)])
+
+plt.plot(x, softmax(scores).T, linewidth=2)
+plt.show()</code></pre>
+
+      
+    </div><!-- .entry-content -->
+
+    <footer class="entry-meta">
+    <a href="/2020/09/10/2016-12-29-learning-note/">
+    <time datetime="2020-09-10T12:40:07.389Z" class="entry-date">
+        2020-09-10
+    </time>
+</a>
+    
+    
+  <span class="article-delim">&#8226;</span>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/machine-learning/" rel="tag">machine learning</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/note/" rel="tag">note</a></li></ul>
+
+    </footer>
+</article>
+
+
+
+
+
+
+  
+    <article id="post-2017-1-29-diary" class="post-2017-1-29-diary post type-post status-publish format-standard hentry">
+    <!---->
+
+      <header class="entry-header">
+        
+        
+  
+    <h1 class="entry-title">
+      <a class="article-title" href="/2020/09/10/2017-1-29-diary/">2016.1.29 Diary!</a>
+    </h1>
+  
+
+        
+        <div class="comments-link">
+            
+            <a href="javascript:void(0);" data-url="http://hanayo.cn/2020/09/10/2017-1-29-diary/" data-id="cjt3tjk1j0001g0d88sjvif65" class="leave-reply bdsharebuttonbox" data-cmd="more">Share</a>
+        </div><!-- .comments-link -->
+      </header><!-- .entry-header -->
+
+    <div class="entry-content">
+      
+        <p>We create an new organization named provocatively.</p>
+<p>And our team try to use slack for communication and</p>
+<p>maybe strict peer review. So will do help us work better</p>
+<p>through github.</p>
+
+      
+    </div><!-- .entry-content -->
+
+    <footer class="entry-meta">
+    <a href="/2020/09/10/2017-1-29-diary/">
+    <time datetime="2020-09-10T12:40:07.389Z" class="entry-date">
+        2020-09-10
+    </time>
+</a>
+    
+    
+  <span class="article-delim">&#8226;</span>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/diary/" rel="tag">diary</a></li></ul>
+
+    </footer>
+</article>
+
+
+
+
+
+
+  
+    <article id="post-2017-2-12-diary" class="post-2017-2-12-diary post type-post status-publish format-standard hentry">
+    <!---->
+
+      <header class="entry-header">
+        
+        
+  
+    <h1 class="entry-title">
+      <a class="article-title" href="/2020/09/10/2017-2-12-diary/">2017.2.12</a>
+    </h1>
+  
+
+        
+        <div class="comments-link">
+            
+            <a href="javascript:void(0);" data-url="http://hanayo.cn/2020/09/10/2017-2-12-diary/" data-id="cjt3tjk1n0003g0d891dyv7bp" class="leave-reply bdsharebuttonbox" data-cmd="more">Share</a>
+        </div><!-- .comments-link -->
+      </header><!-- .entry-header -->
+
+    <div class="entry-content">
+      
+        <p>ことし、はじめましての休憩時間ですか、ちゃんと遊んだ</p>
+<p>あしたから、すぐ会社に戻るなので、早めに寝ろうよ</p>
+<p>おやすみなさい</p>
+
+      
+    </div><!-- .entry-content -->
+
+    <footer class="entry-meta">
+    <a href="/2020/09/10/2017-2-12-diary/">
+    <time datetime="2020-09-10T12:40:07.389Z" class="entry-date">
+        2020-09-10
+    </time>
+</a>
+    
+    
+  <span class="article-delim">&#8226;</span>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/diary/" rel="tag">diary</a></li></ul>
+
+    </footer>
+</article>
+
+
+
+
+
+
+  
+    <article id="post-2017-2-4-diary" class="post-2017-2-4-diary post type-post status-publish format-standard hentry">
+    <!---->
+
+      <header class="entry-header">
+        
+        
+  
+    <h1 class="entry-title">
+      <a class="article-title" href="/2020/09/10/2017-2-4-diary/">2017.2.4</a>
+    </h1>
+  
+
+        
+        <div class="comments-link">
+            
+            <a href="javascript:void(0);" data-url="http://hanayo.cn/2020/09/10/2017-2-4-diary/" data-id="cjt3tjk1o0004g0d87kiifkjp" class="leave-reply bdsharebuttonbox" data-cmd="more">Share</a>
+        </div><!-- .comments-link -->
+      </header><!-- .entry-header -->
+
+    <div class="entry-content">
+      
+        <p>今日は荷物を片付けるというつもりですか、母は花陽の人形を見るとすぐに言う「なぜこの人形を連れて行くですかい」<br>はっきり言うと、これは俺の嫁さんなんだから<br>でもちゃんと言わないし、ただ「うるさい」で繰り返した<br>休み時間は明日まで終わり、最後の日々は楽しみだー</p>
+<p>それでは、さらばだー</p>
+
+      
+    </div><!-- .entry-content -->
+
+    <footer class="entry-meta">
+    <a href="/2020/09/10/2017-2-4-diary/">
+    <time datetime="2020-09-10T12:40:07.389Z" class="entry-date">
+        2020-09-10
+    </time>
+</a>
+    
+    
+  <span class="article-delim">&#8226;</span>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/diary/" rel="tag">diary</a></li></ul>
+
+    </footer>
+</article>
+
+
+
+
+
+
+  
+    <article id="post-2017-2-2-diary" class="post-2017-2-2-diary post type-post status-publish format-standard hentry">
+    <!---->
+
+      <header class="entry-header">
+        
+        
+  
+    <h1 class="entry-title">
+      <a class="article-title" href="/2020/09/10/2017-2-2-diary/">2017.2.2</a>
+    </h1>
+  
+
+        
+        <div class="comments-link">
+            
+            <a href="javascript:void(0);" data-url="http://hanayo.cn/2020/09/10/2017-2-2-diary/" data-id="cjt3tjk1q0005g0d8kgbp6gyt" class="leave-reply bdsharebuttonbox" data-cmd="more">Share</a>
+        </div><!-- .comments-link -->
+      </header><!-- .entry-header -->
+
+    <div class="entry-content">
+      
+        <p>久々に高校時代の友達と会うのは嬉しいね</p>
+<p>今年の同窓会は、同窓会じゃないかも、ただ関係が良いの十二人です</p>
+<p>楽しみだなあー</p>
+<p>今日のお仕事は一応置いて、たまには遊ぶなら、帰ればもっと頑張れになると思う</p>
+<p>最後ー、みんなさんーあけましておめでとうございますー</p>
+<p>さらばー</p>
+
+      
+    </div><!-- .entry-content -->
+
+    <footer class="entry-meta">
+    <a href="/2020/09/10/2017-2-2-diary/">
+    <time datetime="2020-09-10T12:40:07.389Z" class="entry-date">
+        2020-09-10
+    </time>
+</a>
+    
+    
+  <span class="article-delim">&#8226;</span>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/diary/" rel="tag">diary</a></li></ul>
+
+    </footer>
+</article>
+
+
+
+
+
+
+  
+  
+    <nav id="pagination">
+      <nav id="page-nav">
+        <a class="extend prev" rel="prev" href="/">&amp;laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
+      </nav>
+    </nav>
+  
+
+</div></div>
+        <div id="secondary" class="widget-area" role="complementary">
+  
+    <aside id="search" class="widget widget_search"><form role="search" method="get" accept-charset="utf-8" id="searchform" class="searchform" action="//google.com/search">
+    <div>
+        <input type="text" value="" name="s" id="s" />
+        <input type="submit" id="searchsubmit" value="搜索" />
+    </div>
+</form></aside>
+  
+    
+  
+    
+  
+    
+  <aside class="widget">
+    <h3 class="widget-title">Recents</h3>
+    <div class="widget-content">
+      <ul>
+        
+          <li>
+            <a href="/2020/09/11/2020-9-11-diary/">今日からインスタ始めます</a>
+          </li>
+        
+          <li>
+            <a href="/2020/09/10/2017-9-8-summary/">2017.9.8 Diary!</a>
+          </li>
+        
+          <li>
+            <a href="/2020/09/10/2018-12-18-diary/">2018.12.18</a>
+          </li>
+        
+          <li>
+            <a href="/2020/09/10/2017-3-24-diary/">2017.3.24</a>
+          </li>
+        
+          <li>
+            <a href="/2020/09/10/2017-4-18-diary/">2017.4.18</a>
+          </li>
+        
+      </ul>
+    </div>
+  </aside>
+
+  
+    
+  <aside class="widget">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget-content">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/diary/" rel="tag">diary</a><span class="tag-list-count">12</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/instagram/" rel="tag">instagram</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/machine-learning/" rel="tag">machine learning</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/note/" rel="tag">note</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/notes/" rel="tag">notes</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </aside>
+
+  
+    
+  <aside class="widget">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget-content tagcloud">
+      <a href="/tags/diary/" style="font-size: 20px;">diary</a> <a href="/tags/instagram/" style="font-size: 10px;">instagram</a> <a href="/tags/machine-learning/" style="font-size: 10px;">machine learning</a> <a href="/tags/note/" style="font-size: 10px;">note</a> <a href="/tags/notes/" style="font-size: 10px;">notes</a>
+    </div>
+  </aside>
+
+  
+</div>
+      </div>
+      <footer id="colophon" role="contentinfo">
+    <p>&copy; 2020 Alan Jager
+    All rights reserved.</p>
+    <p>Powered by <a href="http://hexo.io/" target="_blank">Hexo</a></p>
+</footer>
+    <script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"1","bdMiniList":false,"bdPic":"","bdStyle":"2","bdSize":"16"},"share":{}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='/js/share.js'];</script>
+
+<script src="/js/jquery-3.3.1.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+<script src="/js/navigation.js"></script>
+
+<div id="bg"></div>
+
+  </div>
+</body>
+</html>

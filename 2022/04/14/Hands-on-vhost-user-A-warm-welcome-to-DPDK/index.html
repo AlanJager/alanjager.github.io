@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Hands on vhost-user: A warm welcome to DPDK | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hands on vhost-user: A warm welcome to DPDK">
+<meta property="og:url" content="http://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-04-14T07:33:37.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.309Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="virtio-networking">
+<meta property="article:tag" content="vhost-net">
+<meta property="article:tag" content="virtio-net">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="DPDK">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Hands-on-vhost-user-A-warm-welcome-to-DPDK" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" class="article-date">
+  <time class="dt-published" datetime="2022-04-14T07:33:37.000Z" itemprop="datePublished">2022-04-14</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Hands on vhost-user: A warm welcome to DPDK
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能。</p>
+<h1 id="Setting-up"><a href="#Setting-up" class="headerlink" title="Setting up"></a>Setting up</h1><p>对于乐意使用DPDK但不希望配置和安装相关软件的，我们提供了一个ansible playbooks在github的repo里，自动化了所有步骤，我们就基于这个配置开始吧。</p>
+<h1 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements:"></a>Requirements:</h1><ul>
+<li>一台运行了Linux发行版的电脑。本文使用Centos 7，不过不同的Linux发行版之间命令的差别也不会特别大，特别是Red Hat Enterprise Linux 7</li>
+<li>一个有sudo权限的用户</li>
+<li>home目录下有大于25GB的空闲空间</li>
+<li>至少8GB的RAM</li>
+</ul>
+<p>首先我们先安装我们需要的包</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install qemu-kvm libvirt-daemon-qemu libvirt-daemon-kvm libvirt virt-install libguestfs-tools-c kernel-tools dpdk dpdk-tools</span><br></pre></td></tr></table></figure>
+
+<h1 id="Creating-a-VM"><a href="#Creating-a-VM" class="headerlink" title="Creating a VM"></a>Creating a VM</h1><p>首先从下面的网站下载一个最新的Centos-Cloud-Base镜像</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo wget -O &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2 http:&#x2F;&#x2F;cloud.centos.org&#x2F;centos&#x2F;7&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2</span><br></pre></td></tr></table></figure>
+
+<p>这个下载的是一个预安装的Centos7，用来在OpenStack环境运行的。因为我们不使用OpenStack，所以我们需要清理一下这个虚拟机。不过首先我们需要做一个镜像的copy。以此保证我们之后能重复使用这个镜像。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-img create -f qcow2 -b  &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2  &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2 20G</span><br></pre></td></tr></table></figure>
+
+<p>通过下面的配置我们可以允许非特权用户使用libvirt命令（推荐）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export LIBVIRT_DEFAULT_URI&#x3D;&quot;qemu:&#x2F;&#x2F;&#x2F;system&quot;</span><br></pre></td></tr></table></figure>
+
+<p>然后使用清理命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo virt-sysprep --root-password password:changeme --uninstall cloud-init --selinux-relabel -a &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2 --network --install &quot;dpdk,dpdk-tools,pciutils&quot;</span><br></pre></td></tr></table></figure>
+
+<p>这个命令回挂载文件系统并自动应用一些基础配置，然后这个镜像就可以用来启动虚拟机了</p>
+<p>我们需要一个网络来连接我们的虚拟机，Libvirt处理网络的方式类似管理虚拟机，你可以通过XML文件定义网络并且通过命令行控制它的启动和停止。</p>
+<p>举个例子，我们将使用一个叫做’default’的网络libvirt自带的方便网络。用下面的命令定义’default’网络，启动并检查网络运行状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# virsh net-define &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line">Network default defined from &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line"></span><br><span class="line">[root@10-0-117-158 ~]# virsh net-start default</span><br><span class="line">Network default started</span><br><span class="line"></span><br><span class="line">[root@10-0-117-158 ~]# virsh net-list</span><br><span class="line"> Name      State    Autostart   Persistent</span><br><span class="line">--------------------------------------------</span><br><span class="line"> default   active   no          yes</span><br></pre></td></tr></table></figure>
+
+<p>最后我们使用virt-install来创建虚拟机。这个命令行工具包含了一系列常用的操作系统配置定义。然后我们可以基于这个基本定义做一些改动：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">virt-install --import  --name vhuser-test1 --ram&#x3D;4096 --vcpus&#x3D;3 \</span><br><span class="line">--nographics --accelerate \</span><br><span class="line">       --network network:default,model&#x3D;virtio --mac 02:ca:fe:fa:ce:aa \</span><br><span class="line">      --debug --wait 0 --console pty \</span><br><span class="line">      --disk &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2,bus&#x3D;virtio --os-variant centos7.0</span><br></pre></td></tr></table></figure>
+
+<p>这些参数分别制定了。vCPUs的数量，RAM的大小，磁盘的路径，以及虚拟机要连接的网络。</p>
+<p>出了通过我们指定的这些参数定义VM之外，virt-install会把虚拟机同时创建出来，所以我们应该可以看到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# virsh list</span><br><span class="line"> Id   Name           State</span><br><span class="line">------------------------------</span><br><span class="line"> 7    vhuser-test1   running</span><br></pre></td></tr></table></figure>
+
+<p>很好，虚拟机已经运行了。接下来我们先把虚拟机停下来然后做一些额外的配置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh shutdown vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<h1 id="Preparing-the-host"><a href="#Preparing-the-host" class="headerlink" title="Preparing the host"></a>Preparing the host</h1><p>DPDK对内存缓存的分配和管理做了优化。在Linux上这个需要使用hugepage的支持，所以必须要在kernel上打开。使用的page大小通常需要大于4K，以此通过使用更少的page数量，以及更少的TLB来提升性能。在翻译虚拟地址到物理地址的时候会产生这些查询。为了在启动时分配hugepage，我们需要在bootloader配置里加上kernel参数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo grubby --args&#x3D;&quot;default_hugepagesz&#x3D;1G hugepagesz&#x3D;1G hugepages&#x3D;6 iommu&#x3D;pt intel_iommu&#x3D;on&quot; --update-kernel &#x2F;boot&#x2F;vmlinuz-3.10.0-957.27.2.el7.x86_64</span><br></pre></td></tr></table></figure>
+
+<p>当然我们来解释一下这些参数做了什么：</p>
+<p><code>default_hugepagesz=1G</code> 默认创建出来的hugepages默认是1GB</p>
+<p><code>hugepagesz=1G</code> 启动过程中创建出来的hugepage大小也是1GB</p>
+<p><code>hugepages=6</code> 最开始启动的时候创建6个大小为1GB的hugepage，这个在重启之后可以在/proc/meminfo里看到</p>
+<p>注意，补充说明hugepages的设置增加了两个IOMMU相关的参数 <code>iommu=pt intel_iommu=on</code> 这个会初始化Intel VT-d以及IOMMU Pass-Through模式，在Linux用户态处理IO的时候需要用到他们。因此我们修改了kernel参数，现在刚好可以做一下重启。</p>
+<p>等到重启完成之后，我们可以通过命令行查看对应的参数已经生效了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# cat &#x2F;proc&#x2F;cmdline</span><br><span class="line">BOOT_IMAGE&#x3D;&#x2F;vmlinuz-3.10.0-957.27.2.el7.x86_64 root&#x3D;&#x2F;dev&#x2F;mapper&#x2F;zstack-root ro noibrs noibpb nopti nospectre_v2 nospectre_v1 l1tf&#x3D;off nospec_store_bypass_disable no_stf_barrier mds&#x3D;off mitigations&#x3D;off crashkernel&#x3D;auto rd.lvm.lv&#x3D;zstack&#x2F;root rd.lvm.lv&#x3D;zstack&#x2F;swap rhgb quiet LANG&#x3D;en_US.UTF-8 default_hugepagesz&#x3D;1G hugepagesz&#x3D;1G hugepages&#x3D;6 iommu&#x3D;pt intel_iommu&#x3D;on</span><br></pre></td></tr></table></figure>
+
+<h1 id="Prepare-the-guest"><a href="#Prepare-the-guest" class="headerlink" title="Prepare the guest"></a>Prepare the guest</h1><p>virt-install命令通过libvirt创建并启动了一个虚拟机。为了将基于DPDK的vswitch TestPMD连接到QEMU，我们需要增加如下的定义到XML的device部分：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh edit vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<p>在<code>&lt;device&gt;</code>部分增加</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;interface type&#x3D;&#39;vhostuser&#39;&gt;</span><br><span class="line">  &lt;mac address&#x3D;&#39;56:48:4f:53:54:01&#39;&#x2F;&gt;</span><br><span class="line">  &lt;source type&#x3D;&#39;unix&#39; path&#x3D;&#39;&#x2F;tmp&#x2F;vhost-user1&#39; mode&#x3D;&#39;client&#39;&#x2F;&gt;</span><br><span class="line">  &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">  &lt;driver name&#x3D;&#39;vhost&#39; rx_queue_size&#x3D;&#39;256&#39; &#x2F;&gt;</span><br><span class="line">&lt;&#x2F;interface&gt;</span><br><span class="line">&lt;interface type&#x3D;&#39;vhostuser&#39;&gt;</span><br><span class="line">  &lt;mac address&#x3D;&#39;56:48:4f:53:54:02&#39;&#x2F;&gt;</span><br><span class="line">  &lt;source type&#x3D;&#39;unix&#39; path&#x3D;&#39;&#x2F;tmp&#x2F;vhost-user2&#39; mode&#x3D;&#39;client&#39;&#x2F;&gt;</span><br><span class="line">  &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">  &lt;driver name&#x3D;&#39;vhost&#39; rx_queue_size&#x3D;&#39;256&#39; &#x2F;&gt;</span><br><span class="line">&lt;&#x2F;interface&gt;</span><br></pre></td></tr></table></figure>
+
+<p>另一个和vhost-net不同的guest配置就是hugepages。因此我们需要给guest增加如下定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;memoryBacking&gt;</span><br><span class="line">  &lt;hugepages&gt;</span><br><span class="line">    &lt;page size&#x3D;&#39;1048576&#39; unit&#x3D;&#39;KiB&#39; nodeset&#x3D;&#39;0&#39;&#x2F;&gt;</span><br><span class="line">  &lt;&#x2F;hugepages&gt;</span><br><span class="line">  &lt;locked&#x2F;&gt;</span><br><span class="line">&lt;&#x2F;memoryBacking&gt;</span><br><span class="line"> &lt;numatune&gt;</span><br><span class="line">  &lt;memory mode&#x3D;&#39;strict&#39; nodeset&#x3D;&#39;0&#39;&#x2F;&gt;</span><br><span class="line">&lt;&#x2F;numatune&gt;</span><br></pre></td></tr></table></figure>
+
+<p>这样就有内存了，然后再修改guest里的配置，这是非常重要的配置，没有的话就没办法收发数据包了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"> &lt;cpu mode&#x3D;&#39;host-passthrough&#39; check&#x3D;&#39;none&#39;&gt;</span><br><span class="line">  &lt;topology sockets&#x3D;&#39;1&#39; cores&#x3D;&#39;3&#39; threads&#x3D;&#39;1&#39;&#x2F;&gt;</span><br><span class="line">  &lt;numa&gt;</span><br><span class="line">    &lt;cell id&#x3D;&#39;0&#39; cpus&#x3D;&#39;0-2&#39; memory&#x3D;&#39;3145728&#39; unit&#x3D;&#39;KiB&#39; memAccess&#x3D;&#39;shared&#39;&#x2F;&gt;</span><br><span class="line">  &lt;&#x2F;numa&gt;</span><br><span class="line">&lt;&#x2F;cpu&gt;</span><br></pre></td></tr></table></figure>
+
+<p>然后我们需要启动我们的guest。因为我们配置了让虚拟机连接到vhost-user的UNIX sockets，因此我们需要确保guest启动的时候这些sockets时可用的。这是通过启动testpmd实现的，这个操作会创建我们需要的sockets。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo testpmd -l 0,2,3,4,5 --socket-mem&#x3D;1024 -n 4 \</span><br><span class="line">    --vdev &#39;net_vhost0,iface&#x3D;&#x2F;tmp&#x2F;vhost-user1&#39; \</span><br><span class="line">    --vdev &#39;net_vhost1,iface&#x3D;&#x2F;tmp&#x2F;vhost-user2&#39; -- \</span><br><span class="line">    --portmask&#x3D;f -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --nb-cores&#x3D;4 --forward-mode&#x3D;io</span><br></pre></td></tr></table></figure>
+
+<p>最后，这个实验需要连接到vhost-user unix sockets，因此启动QEMU的时候需要用root。所以在<code>/etc/libvirt/qemu.conf</code> 中设置 <code>user=root</code>。 这是因为我们呢的特殊验证场景需要这样配置，生产环境通常不建议这样配置。实际上读者需要在本文演示结束之后把 <code>user=root</code> 这个配置去掉。</p>
+<p>现在我们可以通过命令启动虚拟机了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start vhuser-test1.</span><br></pre></td></tr></table></figure>
+
+<p>通过root登陆之后，我们要做的第一件事就是绑定virtio设备到vfio-pci驱动。为了能够完成这个操作，我们需要加载一些内核模块</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# modprobe  vfio enable_unsafe_noiommu_mode&#x3D;1</span><br><span class="line">[   90.462919] VFIO - User Level meta-driver version: 0.3</span><br><span class="line">[root@localhost ~]# cat &#x2F;sys&#x2F;module&#x2F;vfio&#x2F;parameters&#x2F;enable_unsafe_noiommu_mode</span><br><span class="line">Y</span><br><span class="line">[root@localhost ~]# modprobe vfio-pci</span><br></pre></td></tr></table></figure>
+
+<p>然后找出virtio-net设备的PCI地址：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# dpdk-devbind --status net</span><br><span class="line"></span><br><span class="line">Network devices using kernel driver</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">0000:00:02.0 &#39;Virtio network device 1000&#39; if&#x3D;eth0 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci *Active*</span><br><span class="line">0000:00:08.0 &#39;Virtio network device 1000&#39; if&#x3D;eth1 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci</span><br><span class="line">0000:00:09.0 &#39;Virtio network device 1000&#39; if&#x3D;eth2 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci</span><br><span class="line"></span><br><span class="line">No &#39;Crypto&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Eventdev&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Mempool&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Compress&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>在dpdk-devbind的输出中找到virtio-devices的部分，并且没有被标记Active状态的。我们可以用这些设备来进行实验。注意：地址可能是不一样的。当我们首次启动这些设备的时候将会自动绑定到virtio-pci驱动，因为我们需要和非kernel的驱动一起使用，首先就是要将这些设备和virtio-pci设备解绑，然后再绑定到vfio-pci驱动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# dpdk-devbind -b vfio-pci 0000:00:08.0 0000:00:09.0</span><br><span class="line">[  360.862724] iommu: Adding device 0000:00:08.0 to group 0</span><br><span class="line">[  360.871147] vfio-pci 0000:00:08.0: Adding kernel taint for vfio-noiommu group on device</span><br><span class="line">[  360.951240] iommu: Adding device 0000:00:09.0 to group 1</span><br><span class="line">[  360.960126] vfio-pci 0000:00:09.0: Adding kernel taint for vfio-noiommu group on device</span><br></pre></td></tr></table></figure>
+
+<h1 id="Generating-traffic"><a href="#Generating-traffic" class="headerlink" title="Generating traffic"></a>Generating traffic</h1><p>我们已经安装并配置好所有东西了，接下来就是运行网络负载了。首先在host上我们需要启动testpmd实例作为虚拟交换机。然后设置它转发所有在net_vhost0收到的数据包到net_vhost1。testpmd需要在虚拟机启动之前启动，因为它会尝试连接到由QEMU创建的属于vhost-user设备初始化出来的unix sockets。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">testpmd -l 0,2,3,4,5 --socket-mem&#x3D;1024 -n 4 \</span><br><span class="line">    --vdev &#39;net_vhost0,iface&#x3D;&#x2F;tmp&#x2F;vhost-user1&#39; \</span><br><span class="line">    --vdev &#39;net_vhost1,iface&#x3D;&#x2F;tmp&#x2F;vhost-user2&#39; -- \</span><br><span class="line">    --portmask&#x3D;f -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --nb-cores&#x3D;4 --forward-mode&#x3D;io</span><br></pre></td></tr></table></figure>
+
+<p>然后我们来启动之前准备好的虚拟机：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<p>注意这时候我们能够在testpmd看到vhost-user收到的数据包了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Port 1: link state change event</span><br><span class="line">VHOST_CONFIG: vring base idx:0 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line">VHOST_CONFIG: vring base idx:1 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line"></span><br><span class="line">Port 0: link state change event</span><br><span class="line">VHOST_CONFIG: vring base idx:0 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line">VHOST_CONFIG: vring base idx:1 file:0</span><br></pre></td></tr></table></figure>
+
+<p>当guest启动之后我们就能够启动testpmd了。testpmd会初始化端口以及DPDK实现的virtio-net驱动。另外还有virtio特性的协商以及其他一些通用功能的协商也都在这一步发生了。</p>
+<p>在我们启动testpmd之前，需要确认vfio内核模块已经加载并绑定了virtio-net设备到vfio-pci驱动：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dpdk-devbind -b vfio-pci 0000:00:08.0 0000:00:09.0</span><br></pre></td></tr></table></figure>
+
+<p>然后可以启动testpmd：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">testpmd -l 0,1,2 --socket-mem 1024 -n 4 \</span><br><span class="line">    --proc-type auto --file-prefix pg -- \</span><br><span class="line">    --portmask&#x3D;3 --forward-mode&#x3D;macswap --port-topology&#x3D;chained \</span><br><span class="line">    --disable-rss -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --rxd&#x3D;256 --txd&#x3D;256 --nb-cores&#x3D;2 --auto-start</span><br></pre></td></tr></table></figure>
+
+<p>现在我们可以检查testpmd处理了多少数据包了，我们可以通过输入命令 <code>show port stats all</code> 来看对应（RX/TX）方向的信息，比如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">testpmd&gt; show port stats all</span><br><span class="line"></span><br><span class="line">  ######################## NIC statistics for port 0  ########################</span><br><span class="line">  RX-packets: 75525952   RX-missed: 0          RX-bytes:  4833660928</span><br><span class="line">  RX-errors: 0</span><br><span class="line">  RX-nombuf:  0         </span><br><span class="line">  TX-packets: 75525984   TX-errors: 0          TX-bytes:  4833662976</span><br><span class="line"></span><br><span class="line">  Throughput (since last show)</span><br><span class="line">  Rx-pps:      4684120</span><br><span class="line">  Tx-pps:      4684120</span><br><span class="line">  #########################################################################</span><br><span class="line"></span><br><span class="line">  ######################## NIC statistics for port 1  ########################</span><br><span class="line">  RX-packets: 75525984   RX-missed: 0          RX-bytes:  4833662976</span><br><span class="line">  RX-errors: 0</span><br><span class="line">  RX-nombuf:  0         </span><br><span class="line">  TX-packets: 75526016   TX-errors: 0          TX-bytes:  4833665024</span><br><span class="line"></span><br><span class="line">  Throughput (since last show)</span><br><span class="line">  Rx-pps:      4681229</span><br><span class="line">  Tx-pps:      4681229</span><br><span class="line"></span><br><span class="line">  #########################################################################</span><br></pre></td></tr></table></figure>
+
+<p>testpmd有不同的转发模式，这个例子里面我们用的是macswap，此模式会交换目标和源头的mac地址。另外的转发模式，比如’io’则不会处理包，所以会给出更高深职很不现实的数据。另外一个转发模式就是’noisy’，可以模拟调整包的缓存/内存的查找。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" data-id="cld1mhea00006yuwb46p57oqf" data-title="Hands on vhost-user: A warm welcome to DPDK" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/06/04/linux-memory-management-1/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Linux memory management(1)
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/02/09/A-journey-to-the-vhost-users-realm/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">A journey to the vhost-users realm</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

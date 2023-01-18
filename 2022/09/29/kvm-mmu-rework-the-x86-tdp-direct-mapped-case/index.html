@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>kvm: mmu: Rework the x86 TDP direct mapped case | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="123456789101112Over the years, the needs for KVM&#39;s x86 MMU have grown from running smallguests to live migrating multi-terabyte VMs with hundreds of vCPUs. Wherewe previously depended upon shadow">
+<meta property="og:type" content="article">
+<meta property="og:title" content="kvm: mmu: Rework the x86 TDP direct mapped case">
+<meta property="og:url" content="http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="123456789101112Over the years, the needs for KVM&#39;s x86 MMU have grown from running smallguests to live migrating multi-terabyte VMs with hundreds of vCPUs. Wherewe previously depended upon shadow">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-09-29T04:03:02.000Z">
+<meta property="article:modified_time" content="2022-09-29T04:05:03.969Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="virt">
+<meta property="article:tag" content="kvm">
+<meta property="article:tag" content="TDP">
+<meta property="article:tag" content="code-reading">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-kvm-mmu-rework-the-x86-tdp-direct-mapped-case" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" class="article-date">
+  <time class="dt-published" datetime="2022-09-29T04:03:02.000Z" itemprop="datePublished">2022-09-29</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/kvm/">kvm</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      kvm: mmu: Rework the x86 TDP direct mapped case
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Over the years, the needs for KVM&#39;s x86 MMU have grown from running small</span><br><span class="line">guests to live migrating multi-terabyte VMs with hundreds of vCPUs. Where</span><br><span class="line">we previously depended upon shadow paging to run all guests, we now have</span><br><span class="line">the use of two dimensional paging (TDP). This RFC proposes and</span><br><span class="line">demonstrates two major changes to the MMU. First, an iterator abstraction </span><br><span class="line">that simplifies traversal of TDP paging structures when running an L1</span><br><span class="line">guest. This abstraction takes advantage of the relative simplicity of TDP</span><br><span class="line">to simplify the implementation of MMU functions. Second, this RFC changes</span><br><span class="line">the synchronization model to enable more parallelism than the monolithic</span><br><span class="line">MMU lock. This &quot;direct mode&quot; MMU is currently in use at Google and has</span><br><span class="line">given us the performance necessary to live migrate our 416 vCPU, 12TiB</span><br><span class="line">m2-ultramem-416 VMs.</span><br></pre></td></tr></table></figure>
+
+<p>过去的数年里，对KVM’s x86 MMU的需求从运行小虚拟机发展到需要支持在线迁移数T内存上百个vCPU的虚拟机。而我们以前试用shadow paging来运行虚拟机，目前我们使用two dimensional paging(TDP)。这个提议说明了两个主要的针对MMU的修改。首先，增加了一个用于L1 guest运行时简化访问TDP paging数据结构的迭代器抽象。这个抽象使用了一个相对简单的TDP来简化MMU功能的实现。其次，这个RFC修改了同步模型来支持并行的而不是使用现在这个巨大的MMU锁。这个“direct mode” MMU在google内部使用并且已经提供了热迁移416 vCPU + 12TB内存的虚拟机的性能了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">The primary motivation for this work was to handle page faults in</span><br><span class="line">parallel. When VMs have hundreds of vCPUs and terabytes of memory, KVM&#39;s</span><br><span class="line">MMU lock suffers from extreme contention, resulting in soft-lockups and</span><br><span class="line">jitter in the guest. To demonstrate this I also written, and will submit</span><br><span class="line">a demand paging test to KVM selftests. The test creates N vCPUs, which</span><br><span class="line">each touch disjoint regions of memory. Page faults are picked up by N</span><br><span class="line">user fault FD handlers, one for each vCPU. Over a 1 second profile of</span><br><span class="line">the demand paging test, with 416 vCPUs and 4G per vCPU, 98% of the</span><br><span class="line">execution time was spent waiting for the MMU lock! With this patch</span><br><span class="line">series the total execution time for the test was reduced by 89% and the</span><br><span class="line">execution was dominated by get_user_pages and the user fault FD ioctl.</span><br><span class="line">As a secondary benefit, the iterator-based implementation does not use</span><br><span class="line">the rmap or struct kvm_mmu_pages, saving ~0.2% of guest memory in KVM</span><br><span class="line">overheads.</span><br></pre></td></tr></table></figure>
+
+<p>这个工作的主要动机就是并行的处理page fault。当虚拟机油上百个vCPU和数T内存的时候，KVM的MMU锁竞争会非常的激烈，导致guest进入kernel loop或者是都懂状体啊。为了展示这个改动的结果，我实现了一个paging test用于KVM的测试。这个测试会创建一个N vCPUs每一个vCPU都来弄乱一部分内存。Page faults会被N个用户态错误FD处理，每一个对应一个vCPU。在任意1s的测试面里，416个vCPUS以及一个vCPU 4G内存，98%的时间会消耗在MMU lock上。通过这部分补丁，89%的时间都被节省了，处理逻辑被get_user_pages以及用户fault FD ioctl处理了。另外一个好处，基于迭代器的实现并不使用rmap或者是kvm_mmu_pages的数据结构，节约了大约0.2%的kvm虚拟机内存损耗。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">The goal of this  RFC is to demonstrate and gather feedback on the</span><br><span class="line">iterator pattern, the memory savings it enables for the &quot;direct case&quot;</span><br><span class="line">and the changes to the synchronization model. Though they are interwoven</span><br><span class="line">in this series, I will separate the iterator from the synchronization</span><br><span class="line">changes in a future series. I recognize that some feature work will be</span><br><span class="line">needed to make this patch set ready for merging. That work is detailed</span><br><span class="line">at the end of this cover letter.</span><br></pre></td></tr></table></figure>
+
+<p>这篇RFC是为了展示并且收集对于迭代器模式的反馈，内存的节省在使用“direct case”之后启用了 并且修改了同步模型。虽然他们之前紧密关联，我将会在之后的改动里把迭代器从同步模型里分离出来。我意识到在合并之前还有一些工作要做。这部分工作的细节附在这个letter之后。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">The overall purpose of the KVM MMU is to program paging structures</span><br><span class="line">(CR3&#x2F;EPT&#x2F;NPT) to encode the mapping of guest addresses to host physical</span><br><span class="line">addresses (HPA), and to provide utilities for other KVM features, for</span><br><span class="line">example dirty logging. The definition of the L1 guest physical address</span><br><span class="line">(GPA) to HPA mapping comes in two parts: KVM&#39;s memslots map GPA to HVA,</span><br><span class="line">and the kernel MM&#x2F;x86 host page tables map HVA -&gt; HPA. Without TDP, the</span><br><span class="line">MMU must program the x86 page tables to encode the full translation of</span><br><span class="line">guest virtual addresses (GVA) to HPA. This requires &quot;shadowing&quot; the</span><br><span class="line">guest&#39;s page tables to create a composite x86 paging structure. This</span><br><span class="line">solution is complicated, requires separate paging structures for each</span><br><span class="line">guest CR3, and requires emulating guest page table changes. The TDP case</span><br><span class="line">is much simpler. In this case, KVM lets the guest control CR3 and</span><br><span class="line">programs the EPT&#x2F;NPT paging structures with the GPA -&gt; HPA mapping. The</span><br><span class="line">guest has no way to change this mapping and only one version of the</span><br><span class="line">paging structure is needed per L1 address space (normal execution or</span><br><span class="line">system management mode, on x86).</span><br></pre></td></tr></table></figure>
+
+<p>KVM MMU的主要目的是通过程序实现分页数据结构（CR3/EPT/NPT）来把虚拟机地址encode成物理机物理地址，以及提供其他KVM特性，比如dirty logging。对L1 guest的物理地址到Host物理地址的映射可以分为两个部分。KVM的memslots映射GPA到HVA，然后kernel MM/x86的host page tables映射HVA到HPA。在没有TDP的情况下，MMU必须把整个GVA到HPA的过程通过编程的方式实现，这个就需要用到“shadowing”也就guest的page tables来创建一个复合的x86 paging结构。这个实现方法是很复杂的，需要根据每个guest的CR3把分页结构分离开，并且模拟guest的page table变化。TDP的场景就更容易一些，这个场景里，KVM让guest控制CR3并且编程了一个EPT/NPT的分页数据结构来做GPA到HPA的映射。这样guest就不需要修改这个映射，并且只需要在每个L1guest的地址空间维护一个版本的分页数据结构（一般的在x86上的形式）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">This RFC implements a &quot;direct MMU&quot; through alternative implementations</span><br><span class="line">of MMU functions for running L1 guests with TDP. The direct MMU gets its</span><br><span class="line">name from the direct role bit in struct kvm_mmu_page in the existing MMU</span><br><span class="line">implementation, which indicates that the PTEs in a page table (and their</span><br><span class="line">children) map a linear range of L1 GPAs. Though the direct MMU does not</span><br><span class="line">currently use struct kvm_mmu_page, all of its pages would implicitly</span><br><span class="line">have that bit set. The direct MMU falls back to the existing shadow</span><br><span class="line">paging implementation when TDP is not available, and interoperates with</span><br><span class="line">the existing shadow paging implementation for nesting. </span><br></pre></td></tr></table></figure>
+
+<p>这篇RFC实现了一个可选的使用MMU功能来结合TDP运行L1 guest的“direct MMU”功能。这个direct MMU的命名是因为直接从kvm_mmu_page的role bit获取了一个direct role（也是目前MMU里已有的实现）表示page table的PTEs（以及他们的子page）映射了一个组线性的L1 GPA地址。虽然direct MMU并没有使用kvm_mmu_page，不过所有的page都会做这个设置。当TDP不可用的时候direct MMU会降级到已有的shadow paging功能并且如果是嵌套虚拟化，也会联动到已有的shadow paging功能。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">In order to handle page faults in parallel, the MMU needs to allow a</span><br><span class="line">variety of changes to PTEs concurrently. The first step in this series</span><br><span class="line">is to replace the MMU lock with a read&#x2F;write lock to enable multiple</span><br><span class="line">threads to perform operations at the same time and interoperate with</span><br><span class="line">functions that still need the monolithic lock. With threads handling</span><br><span class="line">page faults in parallel, the functions operating on the page table</span><br><span class="line">need to: a) ensure PTE modifications are atomic, and  b) ensure that page</span><br><span class="line">table memory is freed and accessed safely Conveniently, the iterator</span><br><span class="line">pattern introduced in this series handles both concerns.</span><br></pre></td></tr></table></figure>
+
+<p>为了并行处理page fault，MMU需要允许并发修改PTEs（page table entry）。这部分补丁的第一步就是把MMU锁替换为读/写锁来弃用多线程来支持同时执行操作，并且把原本的需要一个大锁的函数也做了改动。通过线程并行处理page tauls，对应的page table的功能需要</p>
+<ol>
+<li>保证PTE的修改是原子的</li>
+<li>保证page table的内存是空闲的并且可以被安全的访问。</li>
+</ol>
+<p>为了更方便的解决这两个问题，我们引入了迭代器模式</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">The direct walk iterator implements a pre-order traversal of the TDP</span><br><span class="line">paging structures. Threads are able to read and write page table memory</span><br><span class="line">safely in this traversal through the use of RCU and page table memory is</span><br><span class="line">freed in RCU callbacks, as part of a three step process. (More on that</span><br><span class="line">below.) To ensure that PTEs are updated atomically, the iterator</span><br><span class="line">provides a function for updating the current pte. If the update</span><br><span class="line">succeeds, the iterator handles bookkeeping based on the current and</span><br><span class="line">previous value of the PTE. If it fails, some other thread will have</span><br><span class="line">succeeded, and the iterator repeats that PTE on the next iteration,</span><br><span class="line">transparently retrying the operation. The iterator also handles yielding</span><br><span class="line">and reacquiring the appropriate MMU lock, and flushing the TLB or</span><br><span class="line">queuing work to be done on the next flush.</span><br></pre></td></tr></table></figure>
+
+<p>这个direct walk iterator实现了一个顺序的TDP paging结构的遍历。线程通过使用RCU允许安全的在这个遍历过程里读和写page table的内存，并且page table的内存会在RCU的callbacks里释放，并作为处理逻辑的第三个步骤的一部分（不仅是底下这部分）。为了保证PTEs被原子的更新，迭代器提供了一个更新当前pte的方法。如果更新成功，迭代器会对之前和现在的PTE值做一个记录。如果失败了，其他线程会执行成功，迭代器会在下一次迭代继续重复这个PTE，并显式的重试一下。迭代器充实也会处理yielding并且重新获取合适的MMU lock，并且刷新TLB或者保存修改的内容到下一次flush位置。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">In order to minimize TLB flushes, we expand the tlbs_dirty count to</span><br><span class="line">track unflushed changes made through the iterator, so that other threads</span><br><span class="line">know that the in-memory page tables they traverse might not be what the</span><br><span class="line">guest is using to access memory. Page table pages that have been</span><br><span class="line">disconnected from the paging structure root are freed in a three step</span><br><span class="line">process. First the pages are filled with special, nonpresent PTEs so</span><br><span class="line">that guest accesses to them, through the paging structure caches result</span><br><span class="line">in TDP page faults. Second, the pages are added to a disconnected list,</span><br><span class="line">a snapshot of which is transferred to a free list, after each TLB flush.</span><br><span class="line">The TLB flush clears the paging structure caches, so the guest will no</span><br><span class="line">longer use the disconnected pages. Lastly, the free list is processed</span><br><span class="line">asynchronously to queue RCU callbacks which free the memory. The RCU</span><br><span class="line">grace period ensures no kernel threads are using the disconnected pages.</span><br><span class="line">This allows the MMU to leave the guest in an inconsistent, but safe,</span><br><span class="line">state with respect to the in-memory paging structure. When functions</span><br><span class="line">need to guarantee that the guest will use the in-memory state after a</span><br><span class="line">traversal, they can either flush the TLBs unconditionally or, if using</span><br><span class="line">the MMU lock in write mode, flush the TLBs under the lock only if the</span><br><span class="line">tlbs_dirty count is elevated.</span><br></pre></td></tr></table></figure>
+
+<p>为了最小化TLB的flush，我们拓展了tlbs_dirty count来跟踪没有flush的迭代器修改，因此其他线程就能知道内存的page tables并不是guest当前要访问的内存（因为没刷新）。Page tables pages将会从paging数据结构里堵啊开，并且对应的pages就会被释放掉。</p>
+<ol>
+<li>page将会用特殊的，并未出现的PTEs写满，因此guest访问这些地址的时候就是通过paging的cache，最后抛出一个TDP的page faults。</li>
+<li>pages将会被加入到一个disconnected的list里，一个快照记录需要被释放的信息，然后按顺序做TLB flush。TLB的flush会清理对应的paging数据结构的缓存，所以guest将没办法访问disconnected的page</li>
+<li>free list会被异步处理，并且进入队列等RCU的callbacks来释放内存。</li>
+</ol>
+<p>RCU grace period保证没有内核线程会使用这些disconnected的pages。这个允许MMU通过内存中的paging数据结构让guest保持一个不一致但是安全的状态。如果一些方法需要保证guest需要使用遍历之后的内存中的状态，可以直接flush这个TLB或者是使用写模式的MMU锁，flush TLB操作需要保证tlbs_dirty比较高的时候拿到锁执行。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">The use of the direct MMU can be controlled by a module parameter which</span><br><span class="line">is snapshotted on VM creation and follows the life of the VM. This</span><br><span class="line">snapshot is used in many functions to decide whether or not to use</span><br><span class="line">direct MMU handlers for a given operation. This is a maintenance burden</span><br><span class="line">and in future versions of this series I will address that and remove</span><br><span class="line">some of the code the direct MMU replaces. I am especially interested in</span><br><span class="line">feedback from the community as to how this series can best be merged. I</span><br><span class="line">see two broad approaches: replacement and integration or modularization.</span><br></pre></td></tr></table></figure>
+
+<p>Direct MMU的使用可以通过模块参数，一个随着虚拟机的创建并伴随VM生命周期的参数控制。这个快照在很多方法里面用来判断是否需要使用direct MMU的处理。这是一个不太好维护的东西，未来需要去掉一些direct MMU相关的代码。我很期待社区的反馈来保证这些code在最好的状态合并。目前我认为有两个方法，替换+集成 或者是模块化。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Replacement and integration would require amending the existing shadow</span><br><span class="line">paging implementation to use a similar iterator pattern. This would mean</span><br><span class="line">expanding the iterator to work with an rmap to support shadow paging and</span><br><span class="line">reconciling the synchronization changes made to the direct case with the</span><br><span class="line">complexities of shadow paging and nesting.</span><br></pre></td></tr></table></figure>
+
+<p>替换和集成需要给目前的shadow paging增加类似的迭代器模式。也就意味着拓展迭代器并能够和rmap一起工作来支持shadow paging以及使得原本的同步修改模式和direct模式来适应复杂的shadow paging以及nesting</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">The modularization approach would require factoring out the &quot;direct MMU&quot;</span><br><span class="line">or &quot;TDP MMU&quot; and &quot;shadow MMU(s).&quot; The function pointers in the MMU</span><br><span class="line">struct would need to be expanded to fully encompass the interface of the</span><br><span class="line">MMU and multiple, simpler, implementations of those functions would be</span><br><span class="line">needed. As it is, use of the module parameter snapshot gives us a rough</span><br><span class="line">outline of the previously undocumented shape of the MMU interface, which</span><br><span class="line">could facilitate modularization. Modularization could allow for the</span><br><span class="line">separation of the shadow paging implementations for running guests</span><br><span class="line">without TDP, and running nested guests with TDP, and the breakup of</span><br><span class="line">paging_tmpl.h.</span><br></pre></td></tr></table></figure>
+
+<p>模块化主要是重构几个分开的部分“direct MMU”或者“TDP MMU”以及“shadow MMU”。需要把MMU的结构拓展为一个完整的包含MMU以及多MMU，单MMU并实现这些对应的接口。试用类似模块参数快照能够给出一个粗略的MMU接口的大致的轮廓，也能够作为模块化的基础。模块化允许shadow paging在guest中的使用，也支持嵌套虚拟化的guest试用TDP，也是paging_tmpl.h的突破。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">In addition to the integration question, below are some of the work</span><br><span class="line">items I plan to address before sending the series out again:</span><br></pre></td></tr></table></figure>
+
+<p>关于集成的部分我重新列了一下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">Disentangle the iterator pattern from the synchronization changes</span><br><span class="line">	Currently the direct_walk_iterator is very closely tied to the use</span><br><span class="line">	of atomic operations, RCU, and a rwlock for MMU operations. This</span><br><span class="line">	does not need to be the case: instead I would like to see those</span><br><span class="line">	synchronization changes built on top of this iterator pattern.</span><br><span class="line"></span><br><span class="line">Support 5 level paging and PAE</span><br><span class="line">	Currently the direct walk iterator only supports 4 level, 64bit</span><br><span class="line">	architectures.</span><br><span class="line"></span><br><span class="line">Support MMU memory reclaim</span><br><span class="line">	Currently this patch series does not respect memory limits applied</span><br><span class="line">	through kvm_vm_ioctl_set_nr_mmu_pages.</span><br><span class="line"></span><br><span class="line">Support nonpaging guests</span><br><span class="line">	Guests that are not using virtual addresses can be direct mapped,</span><br><span class="line">	even without TDP.</span><br><span class="line"></span><br><span class="line">Implement fast invalidation of all PTEs</span><br><span class="line">	This series was prepared between when the fast invalidate_all</span><br><span class="line">	mechanism was removed and when it was re-added. Currently, there</span><br><span class="line">	is no fast path for invalidating all direct MMU PTEs.</span><br><span class="line"></span><br><span class="line">Move more operations to execute concurrently</span><br><span class="line">	In this patch series, only page faults are able to execute</span><br><span class="line">	concurrently, however several other functions can also execute</span><br><span class="line">	concurrently, simply by changing the write lock acquisition to a</span><br><span class="line">	read lock.</span><br></pre></td></tr></table></figure>
+
+<p>把迭代器从同步修改里分离出来</p>
+<p>目前的direct_walk_iterator是和原子操作，RCU和MMU操作的读写锁。但实际上没有必要这样，其实这些同步修改应该实现在迭代器模式之上。</p>
+<p>支持5级的paging以及PAE</p>
+<p>目前direct walk interator只支持4级，64bit的架构</p>
+<p>支持MMU的内存回收</p>
+<p>当前这个补丁并没有支持kvm_vm_ioctl_set_nr_mmu_pages内存相关的限制</p>
+<p>支持nonpaging guests</p>
+<p>guest如果没使用虚拟地址的也能直接映射，甚至不需要TDP</p>
+<p>实现快速的对所有PTEs的失效检测</p>
+<p>增加更多的并发操作</p>
+<p>refer to:<br><a target="_blank" rel="noopener" href="https://www.spinics.net/lists/kvm/msg196464.html">https://www.spinics.net/lists/kvm/msg196464.html</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" data-id="cld1mhecc0066yuwba332a3x4" data-title="kvm: mmu: Rework the x86 TDP direct mapped case" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/10/06/iommu/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Input–output memory management unit
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/09/28/libvirt-memory-snapshot/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title"></div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

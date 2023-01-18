@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Shared timeout implements under multi-thread context model | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Shared timeout implements under multi-thread context model">
+<meta property="og:url" content="http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-09-20T05:38:16.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.379Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="software-arch">
+<meta property="article:tag" content="system-design">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-shared-timeout-impelments-under-multi-thread-context-model" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/" class="article-date">
+  <time class="dt-published" datetime="2022-09-20T05:38:16.000Z" itemprop="datePublished">2022-09-20</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Shared timeout implements under multi-thread context model
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice.</p>
+<h2 id="Why-shared-timeout"><a href="#Why-shared-timeout" class="headerlink" title="Why shared timeout"></a>Why shared timeout</h2><p>For a complex micro service system, message is a basic way used for communication between all modules. So timeout is come into used, for every API or message, to avoid unfinished tasks.</p>
+<p>Let’s think if you what to do something without timeout, it may never finished with response. So timeout does the matter to help user and system get rid of those situations.</p>
+<p>But when we talk about shared timeout, what is it and what it does. </p>
+<p>For example, one API may sending several message to execute on different services and finally finished. During the process, if a timeout happen, API should return as timeouted as we expected. So the design of timeout mechanism should share a same period of timeout.</p>
+<p>Assume API timeout is T and three messages tend to be used for API’s execution, and message<sub>1</sub> use time T<sub>1</sub>, message<sub>2</sub> use time T<sub>2</sub> and message<sub>3</sub> use time T<sub>3</sub> , in shared timeout situation, message<sub>1</sub>‘s timeout is T , message<sub>2</sub>‘s timeout is T - T<sub>1</sub>,  message<sub>3</sub>‘s timeout is T - T<sub>1</sub> - T<sub>2</sub>. The remaining timeout should be used for next message to confirm all sub messages could be timeouted as expected.</p>
+<h2 id="Application-level-implements"><a href="#Application-level-implements" class="headerlink" title="Application level implements"></a>Application level implements</h2><p>For message level timeout, the easiest way to implement timeout management is on message bus. Every timeout the message received, check its timeout header and calculate its remaining timeout seems to make sense. </p>
+<p>But if we record its timeout by decrease message used time. The machanism became more complex, because every messages time usage need to be recorded but for most product the message profiling is disable to avoid any performance overhead. </p>
+<p>In order to solve this problem, we use message deadline as metadata for message lifecyle. Every new coming message should be set a deadline due to its configuration and every sub message calculate its remaining timeout by using the deadline time substract current time. So with a general service to get current time this timeout mechanism get more efficient.</p>
+<h2 id="More-challenges"><a href="#More-challenges" class="headerlink" title="More challenges"></a>More challenges</h2><p>In multi-thread application. Lifecyle maintanence of message’s timeout is really matter. </p>
+<p>Espacially, ZStack use in-process micro services architecture, messages pass through memory or http, for API message, the timeout always works well, but for internal messages more problems came out.</p>
+<p>For example, a async invoker util functios may send several messages but they shares the same thread before handling, so the thread’s context will be used as message’s initial context where the timeout stored.</p>
+<p>When thread context changed we can clear the context by thread pool’s thread lifecyle hook.</p>
+<p>But some user case the timeout do not work as expected.</p>
+<ul>
+<li>GC task (in memory task triggered by a fixed time rate or any system event)</li>
+<li>Thread level task (async and sync task queue)</li>
+</ul>
+<h3 id="GC-task"><a href="#GC-task" class="headerlink" title="GC task"></a>GC task</h3><p>GC task is used to handling some unexpected async operation or retry to delete some resource and so on. </p>
+<p>If a thread submit the task executes the task itself, the context will be used directly, and actually the context mess up the GC task’s execution. So always use a new thread to start GC job is a good choice.</p>
+<p>For multi-thread application, message dilevery and handling involves different threads, especially some task driver might be used to construct work flow and task execution. So the timeout context need be passed from one thread to another.</p>
+<p>Assume Thread1 do task1 and finished with submit a new task2, maybe sometimes after Thread2 start to handle task2 but at this time task2 is required to contain timeout. Or the timeout cannot be passed.</p>
+<h3 id="Fixed-thread-task"><a href="#Fixed-thread-task" class="headerlink" title="Fixed thread task"></a>Fixed thread task</h3><p>Same thread handling all tasks, so task should store its context when submitted to task queue.</p>
+<p>Execution need to recover task context before execution.</p>
+<h3 id="Benefits-of-the-concepts"><a href="#Benefits-of-the-concepts" class="headerlink" title="Benefits of the concepts"></a>Benefits of the concepts</h3><p>For a in-process arch, use a global level timeout during api or inner task lifecycle and the whole timeout can be managed.</p>
+<h2 id="Easy-implements"><a href="#Easy-implements" class="headerlink" title="Easy implements"></a>Easy implements</h2><p>In java program, use aop to maintain the timeout get/set seems a good choice.</p>
+<p>A typical ZStack task workflow, usually use api at the first step. A new coming api message, ZStack will set timeout to it, but in order to know parent messages timeout, we need to manage the timeout information to the message.</p>
+<p>So a design named TaskContext is created to contains the global variables during whole task lifecycle. Use aop, all async tasks will use its parent TaskContext and clear it before start. With TaskContext, the timeout can be managed.</p>
+<p>But some user scenarios still need to be discussed, list it before details:</p>
+<ul>
+<li>Inner message is used as the start of a task, it should support timeout.</li>
+<li>API use a inner message configured with timeout which should be supported.</li>
+<li>How did new coming mechanism aware of the timeout from task context</li>
+<li>How to avoid task context be messed</li>
+</ul>
+<h3 id="Inner-message"><a href="#Inner-message" class="headerlink" title="Inner message"></a>Inner message</h3><p>Inner message level timeout configuration need to be supported as some tasks is executed by GC task which we mentioned, may send inner message directly, so timeout maybe requested for those tasks</p>
+<h3 id="Duplicate-configuration"><a href="#Duplicate-configuration" class="headerlink" title="Duplicate configuration"></a>Duplicate configuration</h3><p>For api messages, it may use a workflow contains several inner messsages when those messages all have timeout configuration, we need to use the origin timeout but do not use new configured one.</p>
+<h3 id="Aware-of-timeout"><a href="#Aware-of-timeout" class="headerlink" title="Aware of timeout"></a>Aware of timeout</h3><p>It not practical, becamse task context is a in-memory variable and marked by thread-id, so everytime the thread switched the task context need to be copied to the new thread. If any mechanism do not support task context copy, it will result in timeout loss, if any inner message used, a new timeout will be set from timeout manager. And it seems no good solution to make the new mechanism aware of this. That’s the shortage of using aop.</p>
+<h3 id="Do-not-touch-task-context"><a href="#Do-not-touch-task-context" class="headerlink" title="Do not touch task context"></a>Do not touch task context</h3><p>Only timeout manager should use task context for timeout handling and other task context usage including     manually clear it or set value should be avoid.</p>
+<p>But for some reason the access of TaskContext supposed to be available to core module for timeout or other context usage (for example, task id), so only keep it cleared after thread context switch and only assign value to framework known fields to avoid any mess up operations from other developer.</p>
+<h2 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h2><p>Actually task context is more likely a global variable for every thread to use. Keep it from abuse and oom is the first task and aop in involved to resolve this problem. So how to trace task context seems the next valuable target of this version of code.</p>
+<h2 id="Check-the-code"><a href="#Check-the-code" class="headerlink" title="Check the code"></a>Check the code</h2><p><a target="_blank" rel="noopener" href="https://github.com/zstackio/zstack">https://github.com/zstackio/zstack</a> check the code if you are interested in this feature.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/" data-id="cld1mheax0017yuwbfudbeuxv" data-title="Shared timeout implements under multi-thread context model" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/09/22/build-internal-maven-repos/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Build internal maven repositories
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/09/04/guest-free-page-hinting-notes-01/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Guest Free Page Hinting notes 01</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

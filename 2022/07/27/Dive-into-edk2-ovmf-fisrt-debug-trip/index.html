@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Dive into edk2-ovmf fisrt debug trip | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Prepare environmentinstall compiler related rpm 1yum --disablerepo&#x3D;* --enablerepo&#x3D;ali* install -y make gcc binutils iasl nasm libuuid-devel gcc-c++  if cross-build firmware on x86 machine, install cro">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dive into edk2-ovmf fisrt debug trip">
+<meta property="og:url" content="http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Prepare environmentinstall compiler related rpm 1yum --disablerepo&#x3D;* --enablerepo&#x3D;ali* install -y make gcc binutils iasl nasm libuuid-devel gcc-c++  if cross-build firmware on x86 machine, install cro">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/boot_sequence.png">
+<meta property="article:published_time" content="2022-07-27T12:02:47.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.298Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="edk2-ovmf">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/boot_sequence.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Dive-into-edk2-ovmf-fisrt-debug-trip" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/" class="article-date">
+  <time class="dt-published" datetime="2022-07-27T12:02:47.000Z" itemprop="datePublished">2022-07-27</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Dive into edk2-ovmf fisrt debug trip
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Prepare-environment"><a href="#Prepare-environment" class="headerlink" title="Prepare environment"></a>Prepare environment</h2><p>install compiler related rpm</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum --disablerepo=* --enablerepo=ali* install -y make gcc binutils iasl nasm libuuid-devel gcc-c++</span><br></pre></td></tr></table></figure>
+
+<p>if cross-build firmware on x86 machine, install cross compilers:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum --disablerepo=* --enablerepo=ali* install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnu</span><br></pre></td></tr></table></figure>
+
+<p>get source code</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git clone https://github.com/tianocore/edk2.git</span><br><span class="line">cd edk2</span><br><span class="line">git submodule update --init</span><br></pre></td></tr></table></figure>
+
+<p>than setup environment variables:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">source edksetup.sh</span><br></pre></td></tr></table></figure>
+
+<p>build base tools at first:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make -C BaseTools</span><br></pre></td></tr></table></figure>
+
+<p>note: only need once</p>
+<h2 id="Build-firmware"><a href="#Build-firmware" class="headerlink" title="Build firmware"></a>Build firmware</h2><p>Then build firmware for x64 qemu:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">build -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc</span><br></pre></td></tr></table></figure>
+
+<p>The firmware volumes built can be found in <code>Build/OvmfX64/DEBUG_GCC5/FV</code>.</p>
+<p>Building the aarch64 firmware instead:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">build -t GCC5 -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc</span><br></pre></td></tr></table></figure>
+
+<p>The build results land in <code>Build/ArmVirtQemu-AARCH64/DEBUG_GCC5/FV</code>.</p>
+<p>Qemu expects the aarch64 firmware images being 64M im size. The firmware images can’t be used as-is because of that, some padding is needed to create an image which can be used for pflash:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">dd of=&quot;QEMU_EFI-pflash.raw&quot; if=&quot;/dev/zero&quot; bs=1M count=64</span><br><span class="line">dd of=&quot;QEMU_EFI-pflash.raw&quot; if=&quot;QEMU_EFI.fd&quot; conv=notrunc</span><br><span class="line">dd of=&quot;QEMU_VARS-pflash.raw&quot; if=&quot;/dev/zero&quot; bs=1M count=64</span><br><span class="line">dd of=&quot;QEMU_VARS-pflash.raw&quot; if=&quot;QEMU_VARS.fd&quot; conv=notrunc</span><br></pre></td></tr></table></figure>
+
+<p>There are a bunch of compile time options, typically enabled using <code>-D NAME</code> or <code>-D NAME=TRUE</code>. Options which are enabled by default can be turned off using <code>-D NAME=FALSE</code>. Available options are defined in the <code>*.dsc</code> files referenced by the <code>build</code> command. So a feature-complete build looks more like this:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">build -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc \</span><br><span class="line">    -D FD_SIZE_4MB \</span><br><span class="line">    -D NETWORK_IP6_ENABLE \</span><br><span class="line">    -D NETWORK_HTTP_BOOT_ENABLE \</span><br><span class="line">    -D NETWORK_TLS_ENABLE \</span><br><span class="line">    -D TPM2_ENABLE</span><br></pre></td></tr></table></figure>
+
+<p>From <code>OvmfPkgX64.dsc</code> lots of features is defined.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">  #</span><br><span class="line">  # Network definition</span><br><span class="line">  #</span><br><span class="line">  DEFINE NETWORK_TLS_ENABLE             &#x3D; FALSE</span><br><span class="line">  DEFINE NETWORK_IP6_ENABLE             &#x3D; FALSE</span><br><span class="line">  DEFINE NETWORK_HTTP_BOOT_ENABLE       &#x3D; FALSE</span><br><span class="line">  DEFINE NETWORK_ALLOW_HTTP_CONNECTIONS &#x3D; TRUE</span><br><span class="line">  DEFINE NETWORK_ISCSI_ENABLE           &#x3D; TRUE</span><br><span class="line"></span><br><span class="line">!include NetworkPkg&#x2F;NetworkDefines.dsc.inc</span><br><span class="line"></span><br><span class="line">  #</span><br><span class="line">  # Device drivers</span><br><span class="line">  #</span><br><span class="line">  DEFINE PVSCSI_ENABLE           &#x3D; TRUE</span><br><span class="line">  DEFINE MPT_SCSI_ENABLE         &#x3D; TRUE</span><br><span class="line">  DEFINE LSI_SCSI_ENABLE         &#x3D; FALSE</span><br><span class="line"></span><br><span class="line">  #</span><br><span class="line">  # Flash size selection. Setting FD_SIZE_IN_KB on the command line directly to</span><br><span class="line">  # one of the supported values, in place of any of the convenience macros, is</span><br><span class="line">  # permitted.</span><br><span class="line">  #</span><br><span class="line">!ifdef $(FD_SIZE_1MB)</span><br><span class="line">  DEFINE FD_SIZE_IN_KB           &#x3D; 1024</span><br><span class="line">!else</span><br><span class="line">!ifdef $(FD_SIZE_2MB)</span><br><span class="line">  DEFINE FD_SIZE_IN_KB           &#x3D; 2048</span><br><span class="line">!else</span><br><span class="line">!ifdef $(FD_SIZE_4MB)</span><br><span class="line">  DEFINE FD_SIZE_IN_KB           &#x3D; 4096</span><br><span class="line">!else</span><br><span class="line">  DEFINE FD_SIZE_IN_KB           &#x3D; 4096</span><br></pre></td></tr></table></figure>
+
+<p>Secure boot support (on x64) requires SMM mode. Well, it builds and works without SMM, but it’s not secure then. Without SMM nothing prevents the guest OS writing directly to flash, bypassing the firmware, so protected UEFI variables are not actually protected.</p>
+<p>Also suspend (S3) support works with enabled SMM only in case parts of the firmware (PEI specifically, see below for details) run in 32bit mode. So the secure boot variant must be compiled this way:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">build -t GCC5 -a IA32 -a X64 -p OvmfPkg/OvmfPkgIa32X64.dsc \</span><br><span class="line">    -D FD_SIZE_4MB \</span><br><span class="line">    -D SECURE_BOOT_ENABLE \</span><br><span class="line">    -D SMM_REQUIRE \</span><br><span class="line">    [ ... add network + tpm + other options as needed ... ]</span><br></pre></td></tr></table></figure>
+
+<p>The <code>FD_SIZE_4MB</code> option creates a larger firmware image, being 4MB instead of 2MB (default) in size, offering more space for both code and vars. The RHEL/CentOS builds use that. The Fedora builds are 2MB in size, for historical reasons.</p>
+<p>If you need 32-bit firmware builds for some reason, here is how to do it:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">build -t GCC5 -a ARM -p ArmVirtPkg/ArmVirtQemu.dsc</span><br><span class="line">build -t GCC5 -a IA32 -p OvmfPkg/OvmfPkgIa32.dsc</span><br></pre></td></tr></table></figure>
+
+<p>The build results will be in in <code>Build/ArmVirtQemu-ARM/DEBUG_GCC5/FV</code> and <code>Build/OvmfIa32/DEBUG_GCC5/FV</code></p>
+<h3 id="Booting-fresh-firmware-builds"><a href="#Booting-fresh-firmware-builds" class="headerlink" title="Booting fresh firmware builds"></a>Booting fresh firmware builds</h3><p>The x86 firmware builds create three different images:</p>
+<ul>
+<li><p><code>OVMF_VARS.fd</code></p>
+<p>This is the firmware volume for persistent UEFI variables, i.e. where the firmware stores all configuration (boot entries and boot order, secure boot keys, …). Typically this is used as template for an empty variable store and each VM gets its own private copy, libvirt for example stores them in <code>/var/lib/libvirt/qemu/nvram</code>.</p>
+</li>
+<li><p><code>OVMF_CODE.fd</code></p>
+<p>This is the firmware volume with the code. Separating this from VARS does (a) allow for easy firmware updates, and (b) allows to map the code read-only into the guest.</p>
+</li>
+<li><p><code>OVMF.fd</code></p>
+<p>The all-in-one image with both <code>CODE</code> and <code>VARS</code>. This can be loaded as ROM using <code>-bios</code>, with two drawbacks: (a) UEFI variables are not persistent, and (b) it does not work for <code>SMM_REQUIRE=TRUE</code> builds.</p>
+</li>
+</ul>
+<p>qemu handles pflash storage as block devices, so we have to create block devices for the firmware images:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">CODE=$&#123;WORKSPACE&#125;/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd</span><br><span class="line">VARS=$&#123;WORKSPACE&#125;/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd</span><br><span class="line">qemu-system-x86_64 \</span><br><span class="line">  -blockdev node-name=code,driver=file,filename=$&#123;CODE&#125;,read-only=on \</span><br><span class="line">  -blockdev node-name=vars,driver=file,filename=$&#123;VARS&#125;,snapshot=on \</span><br><span class="line">  -machine q35,pflash0=code,pflash1=vars \</span><br><span class="line">  [ ... ]</span><br></pre></td></tr></table></figure>
+
+<p>Here is the arm version of that (using the padded files created using <code>dd</code>, see above):</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">CODE=$&#123;WORKSPACE&#125;/Build/ArmVirtQemu-AARCH64/DEBUG_GCC5/FV/QEMU_EFI-pflash.raw</span><br><span class="line">VARS=$&#123;WORKSPACE&#125;/Build/ArmVirtQemu-AARCH64/DEBUG_GCC5/FV/QEMU_VARS-pflash.raw</span><br><span class="line">qemu-system-aarch64 \</span><br><span class="line">  -blockdev node-name=code,driver=file,filename=$&#123;CODE&#125;,read-only=on \</span><br><span class="line">  -blockdev node-name=vars,driver=file,filename=$&#123;VARS&#125;,snapshot=on \</span><br><span class="line">  -machine virt,pflash0=code,pflash1=vars \</span><br><span class="line">  [ ... ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="Source-code-structure"><a href="#Source-code-structure" class="headerlink" title="Source code structure"></a>Source code structure</h3><p>The core edk2 repo holds a number of packages, each package has its own toplevel directory. Here are the most interesting ones:</p>
+<ul>
+<li><p>OvmfPkg</p>
+<p>This holds both the x64-specific code (i.e. OVMF itself) and virtualization-specific code shared by all architectures (virtio drivers).</p>
+</li>
+<li><p>ArmVirtPkg</p>
+<p>Arm specific virtual machine support code.</p>
+</li>
+<li><p>MdePkg, MdeModulePkg</p>
+<p>Most core code is here (PCI support, USB support, generic services and drivers, …).</p>
+</li>
+<li><p>PcAtChipsetPkg</p>
+<p>Some Intel architecture drivers and libs.</p>
+</li>
+<li><p>ArmPkg, ArmPlatformPkg</p>
+<p>Common Arm architecture support code.</p>
+</li>
+<li><p>CryptoPkg, NetworkPkg, FatPkg, CpuPkg, …</p>
+<p>As the names of the packages already suggest: Crypto support (using openssl), Network support (including network boot), FAT Filesystem driver, …</p>
+</li>
+</ul>
+<h3 id="Firmware-boot-phases"><a href="#Firmware-boot-phases" class="headerlink" title="Firmware boot phases"></a>Firmware boot phases</h3><p>The firmware modules in the edk2 repo often named after the boot phase they are running in. Most drivers are named <code>SomeThing**Dxe**</code> for example.</p>
+<ul>
+<li><p>ResetVector</p>
+<p>This is where code execution starts after a machine reset. The code will do the bare minimum needed to enter SEC. On x64 the most important step is the transition from 16-bit real mode to 32-bit mode or 64bit long mode.</p>
+</li>
+<li><p>SEC (Security)</p>
+<p>This code typically loads and uncompresses the code for PEI and SEC. On physical hardware SEC often lives in ROM memory and can not be updated. The PEI and DXE firmware volumes are loaded from (updateable) flash.</p>
+<p>With OVMF both SEC firmware volume and the compressed volume holding PXE and DXE code are part of the OVMF_CODE image and will simply be mapped into guest memory.</p>
+</li>
+<li><p>PEI (Pre-EFI Initialization)</p>
+<p>Platform Initialization is done here. Initialize the chipset. Not much to do here in virtual machines, other than loading the x64 e820 memory map (via fw_cfg) from qemu, or get the memory map from the device tree (on aarch64). The virtual hardware is ready-to-go without much extra preaparation.</p>
+<p>PEIMs (PEI Modules) can implement functionality which must be executed before entering the DXE phase. This includes security-sensitive things like initializing SMM mode and locking down flash memory.</p>
+</li>
+<li><p>DXE (Driver Execution Environment)</p>
+<p>When PEI is done it hands over control to the full EFI environment contained in the DXE firmware volume. Most code is here. All kinds of drivers. the firmware setup efi app, …</p>
+<p>Strictly speaking this isn’t only one phase. The code for all phases after PEI is part of the DXE firmware volume though.</p>
+</li>
+</ul>
+<h2 id="Add-debug-to-EDK2"><a href="#Add-debug-to-EDK2" class="headerlink" title="Add debug to EDK2"></a>Add debug to EDK2</h2><p>The default OVMF build writes debug messages to IO port 0x402.  The following qemu command line options save them in the file called debug.log:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-debugcon file:debug.log -global isa-debugcon.iobase=0x402</span><br></pre></td></tr></table></figure>
+
+<p>Or with build option</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-D DEBUG_ON_SERIAL_PORT</span><br></pre></td></tr></table></figure>
+
+<p>serial output can be captured</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-serial file:serial.log</span><br></pre></td></tr></table></figure>
+
+<p>note:</p>
+<p>The RELEASE build target (‘-b RELEASE’ build option, see below) disables all debug messages.  The default build target is DEBUG.</p>
+<p>more build scripts:</p>
+<p>On systems with the bash shell you can use OvmfPkg/build.sh to simplify<br>building and running OVMF.</p>
+<p>So, for example, to build + run OVMF X64:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> OvmfPkg/build.sh -a X64</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> OvmfPkg/build.sh -a X64 qemu</span></span><br></pre></td></tr></table></figure>
+
+<p>And to run a 64-bit UEFI bootable ISO image:</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ OvmfPkg/build.sh -a X64 qemu -cdrom /path/to/disk-image.iso</span><br></pre></td></tr></table></figure>
+
+<p>To build a 32-bit OVMF without debug messages using GCC 4.8:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> OvmfPkg/build.sh -a IA32 -b RELEASE -t GCC48</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="UEFI-Windows-7-amp-Windows-2008-Server"><a href="#UEFI-Windows-7-amp-Windows-2008-Server" class="headerlink" title="UEFI Windows 7 &amp; Windows 2008 Server"></a>UEFI Windows 7 &amp; Windows 2008 Server</h2><ul>
+<li>One of the ‘-vga std’ and ‘-vga qxl’ QEMU options should be used.</li>
+<li>Only one video mode, 1024x768x32, is supported at OS runtime.</li>
+<li>The ‘-vga qxl’ QEMU option is recommended. After booting the installed guest OS, select the video card in Device Manager, and upgrade its driver to the QXL XDDM one. Download location:  <a target="_blank" rel="noopener" href="http://www.spice-space.org/download.html">http://www.spice-space.org/download.html</a>, Guest | Windows binaries. This enables further resolutions at OS runtime, and provides S3  (suspend/resume) capability.</li>
+</ul>
+<h2 id="Debug-in-practice"><a href="#Debug-in-practice" class="headerlink" title="Debug in practice"></a>Debug in practice</h2><h3 id="Test-with-qemu-commandline"><a href="#Test-with-qemu-commandline" class="headerlink" title="Test with qemu commandline"></a>Test with qemu commandline</h3><p>add with config in libvirt vm xml:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;qemu:commandline&gt;</span><br><span class="line">  &lt;qemu:arg value&#x3D;&#39;-debugcon&#39;&#x2F;&gt;</span><br><span class="line">  &lt;qemu:arg value&#x3D;&#39;file:&#x2F;var&#x2F;log&#x2F;libvirt&#x2F;qemu&#x2F;debug.log&#39;&#x2F;&gt;</span><br><span class="line">  &lt;qemu:arg value&#x3D;&#39;-global&#39;&#x2F;&gt;</span><br><span class="line">  &lt;qemu:arg value&#x3D;&#39;isa-debugcon.iobase&#x3D;0x402&#39;&#x2F;&gt;</span><br><span class="line">&lt;&#x2F;qemu:commandline&gt;</span><br></pre></td></tr></table></figure>
+
+<p>debug log will be found in <code>/var/log/libvirt/qemu/debug.log</code></p>
+<p>before we met Win2012 internal reboot issue, use debug to check what happen, the log repeat following lines but guest seems hang on vnc:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">Register PPI Notify: DCD0BE23-9586-40F4-B643-06522CED4EDE</span><br><span class="line">Install PPI: 8C8CE578-8A3D-4F1C-9935-896185C32DD3</span><br><span class="line">Install PPI: 5473C07A-3DCB-4DCA-BD6F-1E9689E7349A</span><br><span class="line">The 0th FV start address is 0x00000820000, size is 0x000E0000, handle is 0x820000</span><br><span class="line">Register PPI Notify: 49EDB1C1-BF21-4761-BB12-EB0031AABB39</span><br><span class="line">Register PPI Notify: EA7CA24B-DED5-4DAD-A389-BF827E8F9B38</span><br><span class="line">Install PPI: B9E0ABFE-5979-4914-977F-6DEE78C278A6</span><br><span class="line">Install PPI: DBE23AA9-A345-4B97-85B6-B226F1617389</span><br><span class="line">DiscoverPeimsAndOrderWithApriori(): Found 0xB PEI FFS files in the 0th FV</span><br><span class="line">Loading PEIM 9B3ADA4F-AE56-4C24-8DEA-F03B7558AE50</span><br><span class="line">Loading PEIM at 0x0000082BE40 EntryPoint&#x3D;0x0000082F201 PcdPeim.efi</span><br><span class="line">Install PPI: 06E81C58-4AD7-44BC-8390-F10265F72480</span><br><span class="line">Install PPI: 01F34D25-4DE2-23AD-3FF3-36353FF323F1</span><br><span class="line">Install PPI: 4D8B155B-C059-4C8F-8926-06FD4331DB8A</span><br><span class="line">Install PPI: A60C6B59-E459-425D-9C69-0BCC9CB27D81</span><br><span class="line">Register PPI Notify: 605EA650-C65C-42E1-BA80-91A52AB618C6</span><br><span class="line">Loading PEIM A3610442-E69F-4DF3-82CA-2360C4031A23</span><br><span class="line">Loading PEIM at 0x00000830B40 EntryPoint&#x3D;0x00000831F5F ReportStatusCodeRouterPei.efi</span><br><span class="line">Install PPI: 0065D394-9951-4144-82A3-0AFC8579C251</span><br><span class="line">Install PPI: 229832D3-7A30-4B36-B827-F40CB7D45436</span><br><span class="line">Loading PEIM 9D225237-FA01-464C-A949-BAABC02D31D0</span><br><span class="line">Loading PEIM at 0x00000832B40 EntryPoint&#x3D;0x00000833D89 StatusCodeHandlerPei.efi</span><br><span class="line">Loading PEIM 222C386D-5ABC-4FB4-B124-FBB82488ACF4</span><br><span class="line">Loading PEIM at 0x00000834A40 EntryPoint&#x3D;0x0000083A6DF PlatformPei.efi</span><br><span class="line">Select Item: 0x0</span><br><span class="line">FW CFG Signature: 0x554D4551</span><br><span class="line">Select Item: 0x1</span><br><span class="line">FW CFG Revision: 0x3</span><br><span class="line">SecCoreStartupWithStack(0xFFFCC000, 0x820000)</span><br><span class="line">SEC: Normal boot</span><br><span class="line">DecompressMemFvs: OutputBuffer@A00000+0xCE0090 ScratchBuffer@1700000+0x10000 PcdOvmfDecompressionScratchEnd&#x3D;0x1710000</span><br></pre></td></tr></table></figure>
+
+<p>track the log to edk2 code, the entry seems start at:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  Locates the PEI Core entry point address</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @param[in,out]  Fv                 The firmware volume to search</span></span><br><span class="line"><span class="comment">  @param[out]     PeiCoreEntryPoint  The entry point of the PEI Core image</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @retval EFI_SUCCESS           The file and section was found</span></span><br><span class="line"><span class="comment">  @retval EFI_NOT_FOUND         The file and section was not found</span></span><br><span class="line"><span class="comment">  @retval EFI_VOLUME_CORRUPTED  The firmware volume was corrupted</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">**/</span></span><br><span class="line">VOID</span><br><span class="line">FindPeiCoreImageBase (</span><br><span class="line">  IN OUT  EFI_FIRMWARE_VOLUME_HEADER       **BootFv,</span><br><span class="line">     OUT  EFI_PHYSICAL_ADDRESS             *PeiCoreImageBase</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  BOOLEAN S3Resume;</span><br><span class="line"></span><br><span class="line">  *PeiCoreImageBase = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  S3Resume = IsS3Resume ();</span><br><span class="line">  <span class="keyword">if</span> (S3Resume &amp;&amp; !FeaturePcdGet (PcdSmmSmramRequire)) &#123;</span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    <span class="comment">// A malicious runtime OS may have injected something into our previously</span></span><br><span class="line">    <span class="comment">// decoded PEI FV, but we don&#x27;t care about that unless SMM/SMRAM is required.</span></span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    DEBUG ((DEBUG_VERBOSE, <span class="string">&quot;SEC: S3 resume\n&quot;</span>));</span><br><span class="line">    GetS3ResumePeiFv (BootFv);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    <span class="comment">// We&#x27;re either not resuming, or resuming &quot;securely&quot; -- we&#x27;ll decompress</span></span><br><span class="line">    <span class="comment">// both PEI FV and DXE FV from pristine flash.</span></span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    DEBUG ((DEBUG_VERBOSE, <span class="string">&quot;SEC: %a\n&quot;</span>,</span><br><span class="line">      S3Resume ? <span class="string">&quot;S3 resume (with PEI decompression)&quot;</span> : <span class="string">&quot;Normal boot&quot;</span>));</span><br><span class="line">    FindMainFv (BootFv);</span><br><span class="line"></span><br><span class="line">    DecompressMemFvs (BootFv);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  FindPeiCoreImageBaseInFv (*BootFv, PeiCoreImageBase);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>and if not IsS3Resume and not SMM required, VM will use S3 resume but in our situation vm go throught Normal boot.</p>
+<p>Than locates the comparessed main firmware volume <code>/usr/share/edk2/ovmf/OVMF_CODE.cc.fd</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  Locates the compressed main firmware volume and decompresses it.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @param[in,out]  Fv            On input, the firmware volume to search</span></span><br><span class="line"><span class="comment">                                On output, the decompressed BOOT/PEI FV</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @retval EFI_SUCCESS           The file and section was found</span></span><br><span class="line"><span class="comment">  @retval EFI_NOT_FOUND         The file and section was not found</span></span><br><span class="line"><span class="comment">  @retval EFI_VOLUME_CORRUPTED  The firmware volume was corrupted</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">**/</span></span><br><span class="line">EFI_STATUS</span><br><span class="line">DecompressMemFvs (</span><br></pre></td></tr></table></figure>
+
+<p>Next step is still find PEI core entry address, EFI_SECTION_PE32 and EFI_SECTION_TE will be used to find entry address</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  Locates the PEI Core entry point address</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @param[in]  Fv                 The firmware volume to search</span></span><br><span class="line"><span class="comment">  @param[out] PeiCoreEntryPoint  The entry point of the PEI Core image</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  @retval EFI_SUCCESS           The file and section was found</span></span><br><span class="line"><span class="comment">  @retval EFI_NOT_FOUND         The file and section was not found</span></span><br><span class="line"><span class="comment">  @retval EFI_VOLUME_CORRUPTED  The firmware volume was corrupted</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">**/</span></span><br><span class="line">EFI_STATUS</span><br><span class="line">FindPeiCoreImageBaseInFv (</span><br><span class="line">  IN  EFI_FIRMWARE_VOLUME_HEADER       *Fv,</span><br><span class="line">  OUT  EFI_PHYSICAL_ADDRESS             *PeiCoreImageBase</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  EFI_STATUS                  Status;</span><br><span class="line">  EFI_COMMON_SECTION_HEADER   *Section;</span><br><span class="line"></span><br><span class="line">  Status = FindFfsFileAndSection (</span><br><span class="line">             Fv,</span><br><span class="line">             EFI_FV_FILETYPE_PEI_CORE,</span><br><span class="line">             EFI_SECTION_PE32,</span><br><span class="line">             &amp;Section</span><br><span class="line">             );</span><br><span class="line">  <span class="keyword">if</span> (EFI_ERROR (Status)) &#123;</span><br><span class="line">    Status = FindFfsFileAndSection (</span><br><span class="line">               Fv,</span><br><span class="line">               EFI_FV_FILETYPE_PEI_CORE,</span><br><span class="line">               EFI_SECTION_TE,</span><br><span class="line">               &amp;Section</span><br><span class="line">               );</span><br><span class="line">    <span class="keyword">if</span> (EFI_ERROR (Status)) &#123;</span><br><span class="line">      DEBUG ((DEBUG_ERROR, <span class="string">&quot;Unable to find PEI Core image\n&quot;</span>));</span><br><span class="line">      <span class="keyword">return</span> Status;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  *PeiCoreImageBase = (EFI_PHYSICAL_ADDRESS)(UINTN)(Section + <span class="number">1</span>);</span><br><span class="line">  <span class="keyword">return</span> EFI_SUCCESS;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>This is the last step of find PEI Core image.</p>
+<p>Back to where FindPeiCoreImageBase’s code path, we can find SecCoreStartupWithStack is the start function which is used in <code>OvmfPkg/Sec/X64/SecEntry.nasm </code></p>
+<p>SecCoreStartupWithStack -&gt; SecStartupPhase2 -&gt; FindAndReportEntryPoints -&gt; FindPeiCoreImageBase</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">;</span><br><span class="line">; Setup parameters and call SecCoreStartupWithStack</span><br><span class="line">;   rcx: BootFirmwareVolumePtr</span><br><span class="line">;   rdx: TopOfCurrentStack</span><br><span class="line">;</span><br><span class="line">mov     rcx, rbp</span><br><span class="line">mov     rdx, rsp</span><br><span class="line">sub     rsp, 0x20</span><br><span class="line">call    ASM_PFX(SecCoreStartupWithStack)</span><br></pre></td></tr></table></figure>
+
+<p>combine with log, before next SecCoreStartupWithStack invoking:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Select Item: 0x0^M</span><br><span class="line">FW CFG Signature: 0x554D4551^M</span><br><span class="line">Select Item: 0x1^M</span><br><span class="line">FW CFG Revision: 0x3^M</span><br><span class="line">SecCoreStartupWithStack(0xFFFCC000, 0x820000)^M</span><br></pre></td></tr></table></figure>
+
+<p>Select Item is printed. </p>
+<p>Because FV is successfully loaded:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">The 0th FV start address is 0x00000820000, size is 0x000E0000, handle is 0x820000</span><br></pre></td></tr></table></figure>
+
+<p>And compare to first boot:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Loading PEIM at 0x00000834A40 EntryPoint&#x3D;0x0000083A6DF PlatformPei.efi^M</span><br><span class="line">Select Item: 0x0^M</span><br><span class="line">FW CFG Signature: 0x554D4551^M</span><br><span class="line">Select Item: 0x1^M</span><br><span class="line">FW CFG Revision: 0x3^M</span><br><span class="line">QemuFwCfg interface (DMA) is supported.^M</span><br><span class="line">Platform PEIM Loaded^M</span><br></pre></td></tr></table></figure>
+
+<p>It seems Platform PEIM not loaded correctly.</p>
+<p>Check QemuFwCfg related code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">RETURN_STATUS</span><br><span class="line">EFIAPI</span><br><span class="line">QemuFwCfgInitialize (</span><br><span class="line">  VOID</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  UINT32 Signature;</span><br><span class="line">  UINT32 Revision;</span><br><span class="line"></span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">  <span class="comment">// Enable the access routines while probing to see if it is supported.</span></span><br><span class="line">  <span class="comment">// For probing we always use the IO Port (IoReadFifo8()) access method.</span></span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">  mQemuFwCfgSupported = TRUE;</span><br><span class="line">  mQemuFwCfgDmaSupported = FALSE;</span><br><span class="line"></span><br><span class="line">  QemuFwCfgSelectItem (QemuFwCfgItemSignature);</span><br><span class="line">  Signature = QemuFwCfgRead32 ();</span><br><span class="line">  DEBUG ((DEBUG_INFO, <span class="string">&quot;FW CFG Signature: 0x%x\n&quot;</span>, Signature));</span><br><span class="line">  QemuFwCfgSelectItem (QemuFwCfgItemInterfaceVersion);</span><br><span class="line">  Revision = QemuFwCfgRead32 ();</span><br><span class="line">  DEBUG ((DEBUG_INFO, <span class="string">&quot;FW CFG Revision: 0x%x\n&quot;</span>, Revision));</span><br><span class="line">  <span class="keyword">if</span> ((Signature != SIGNATURE_32 (<span class="string">&#x27;Q&#x27;</span>, <span class="string">&#x27;E&#x27;</span>, <span class="string">&#x27;M&#x27;</span>, <span class="string">&#x27;U&#x27;</span>)) ||</span><br><span class="line">      (Revision &lt; <span class="number">1</span>)</span><br><span class="line">     ) &#123;</span><br><span class="line">    DEBUG ((DEBUG_INFO, <span class="string">&quot;QemuFwCfg interface not supported.\n&quot;</span>));</span><br><span class="line">    mQemuFwCfgSupported = FALSE;</span><br><span class="line">    <span class="keyword">return</span> RETURN_SUCCESS;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> ((Revision &amp; FW_CFG_F_DMA) == <span class="number">0</span>) &#123;</span><br><span class="line">    DEBUG ((DEBUG_INFO, <span class="string">&quot;QemuFwCfg interface (IO Port) is supported.\n&quot;</span>));</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    mQemuFwCfgDmaSupported = TRUE;</span><br><span class="line">    DEBUG ((DEBUG_INFO, <span class="string">&quot;QemuFwCfg interface (DMA) is supported.\n&quot;</span>));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (mQemuFwCfgDmaSupported &amp;&amp; MemEncryptSevIsEnabled ()) &#123;</span><br><span class="line">    EFI_STATUS   Status;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    <span class="comment">// IoMmuDxe driver must have installed the IOMMU protocol. If we are not</span></span><br><span class="line">    <span class="comment">// able to locate the protocol then something must have gone wrong.</span></span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    Status = gBS-&gt;LocateProtocol (&amp;gEdkiiIoMmuProtocolGuid, <span class="literal">NULL</span>,</span><br><span class="line">                    (VOID **)&amp;mIoMmuProtocol);</span><br><span class="line">    <span class="keyword">if</span> (EFI_ERROR (Status)) &#123;</span><br><span class="line">      DEBUG ((DEBUG_ERROR,</span><br><span class="line">        <span class="string">&quot;QemuFwCfgSevDma %a:%a Failed to locate IOMMU protocol.\n&quot;</span>,</span><br><span class="line">        gEfiCallerBaseName, __FUNCTION__));</span><br><span class="line">      ASSERT (FALSE);</span><br><span class="line">      CpuDeadLoop ();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> RETURN_SUCCESS;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>because FW CFG Revision: 0x3 is supported, according to the code, Revision is &gt; 1 so QemuFwCfg interface is supported, but from next part 0x03 &amp; <code>FW_CFG_F_DMA</code> which is BIT1 0x01 is not 0 so actually <code>QemuFwCfg interface (DMA) is supported.</code> is expected.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if ((Revision &amp; FW_CFG_F_DMA) &#x3D;&#x3D; 0) &#123;</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;QemuFwCfg interface (IO Port) is supported.\n&quot;));</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  mQemuFwCfgDmaSupported &#x3D; TRUE;</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;QemuFwCfg interface (DMA) is supported.\n&quot;));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>so that means the boot is not correctly performed. But next boot still triggered so we should check how the boot can be triggered before we dig out the truth.</p>
+<p>According to code，we can know edk2-ovmf is try to load PlatformPei.efi</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Loading PEIM 222C386D-5ABC-4FB4-B124-FBB82488ACF4^M</span><br><span class="line">Loading PEIM at 0x00000834A40 EntryPoint&#x3D;0x0000083A751 PlatformPei.efi^M</span><br></pre></td></tr></table></figure>
+
+<p>use the guid <code>222C386D-5ABC-4FB4-B124-FBB82488ACF4</code> we can easily get definitions in <code>PlatformPei.inf</code></p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[Defines]</span></span><br><span class="line">  <span class="attr">INF_VERSION</span>                    = <span class="number">0</span>x00010005</span><br><span class="line">  <span class="attr">BASE_NAME</span>                      = PlatformPei</span><br><span class="line">  <span class="attr">FILE_GUID</span>                      = <span class="number">222</span>c386d-<span class="number">5</span>abc-<span class="number">4</span>fb4-b124-fbb82488acf4</span><br><span class="line">  <span class="attr">MODULE_TYPE</span>                    = PEIM</span><br><span class="line">  <span class="attr">VERSION_STRING</span>                 = <span class="number">1.0</span></span><br><span class="line">  <span class="attr">ENTRY_POINT</span>                    = InitializePlatform</span><br></pre></td></tr></table></figure>
+
+<p>which ENTRY_POINT is InitializePlatform, but before entry LibraryClasses should be initialized first:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[LibraryClasses]</span></span><br><span class="line">  BaseLib</span><br><span class="line">  CacheMaintenanceLib</span><br><span class="line">  DebugLib</span><br><span class="line">  HobLib</span><br><span class="line">  IoLib</span><br><span class="line">  PciLib</span><br><span class="line">  ResourcePublicationLib</span><br><span class="line">  PeiServicesLib</span><br><span class="line">  PeiServicesTablePointerLib</span><br><span class="line">  PeimEntryPoint</span><br><span class="line">  QemuFwCfgLib</span><br><span class="line">  QemuFwCfgS3Lib</span><br><span class="line">  QemuFwCfgSimpleParserLib</span><br><span class="line">  MtrrLib</span><br><span class="line">  MemEncryptSevLib</span><br><span class="line">  PcdLib</span><br></pre></td></tr></table></figure>
+
+<p>add logs code execution details.</p>
+<p>following log shows the trace when edk2 fall into infinite loop:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Loading PEIM 222C386D-5ABC-4FB4-B124-FBB82488ACF4^M</span><br><span class="line">Loading PEIM at 0x00000834A40 EntryPoint&#x3D;0x0000083A76B PlatformPei.efi^M</span><br><span class="line">Select Item: 0x0^M</span><br><span class="line">FW CFG Signature: 0x554D4551^M</span><br><span class="line">Select Item: 0x1^M</span><br><span class="line">FW CFG Revision: 0x3^M</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; debug entry point &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;^M</span><br><span class="line">check signature match QEMU result: 0^M</span><br><span class="line">check revision &lt; 1 result: 0^M</span><br><span class="line">check supported result: 2^M</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; enter InternalMemEncryptSevStatus &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; ^M</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; ReadSevMsr &#x3D; true &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; ^M</span><br><span class="line">SecCoreStartupWithStack(0xFFFCC000, 0x820000)^M</span><br></pre></td></tr></table></figure>
+
+<p>SecCoreStartupWithStack is first log when guest boot, and we end with ReadSevMsr = true but nothing after that.</p>
+<p>Before we could see PlatformPei.efi is loading, so refer to PlatformPei.efi first. But the QemuFwCfgLib seems not successfully initialized, because the log end up during its load procedure not show <code>Platform PEIM Loaded</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">EFI_STATUS</span><br><span class="line">EFIAPI</span><br><span class="line">InitializePlatform (</span><br><span class="line">  IN       EFI_PEI_FILE_HANDLE  FileHandle,</span><br><span class="line">  IN CONST EFI_PEI_SERVICES     **PeiServices</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;Platform PEIM Loaded\n&quot;));</span><br></pre></td></tr></table></figure>
+
+<p>And refer to OvmfPkgX64.dsc describes c lib every procedure should use:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">[LibraryClasses.common.PEIM]</span><br><span class="line">  HobLib|MdePkg&#x2F;Library&#x2F;PeiHobLib&#x2F;PeiHobLib.inf</span><br><span class="line">  PeiServicesTablePointerLib|MdePkg&#x2F;Library&#x2F;PeiServicesTablePointerLibIdt&#x2F;PeiServicesTablePointerLibIdt.inf</span><br><span class="line">  PeiServicesLib|MdePkg&#x2F;Library&#x2F;PeiServicesLib&#x2F;PeiServicesLib.inf</span><br><span class="line">  MemoryAllocationLib|MdePkg&#x2F;Library&#x2F;PeiMemoryAllocationLib&#x2F;PeiMemoryAllocationLib.inf</span><br><span class="line">  PeimEntryPoint|MdePkg&#x2F;Library&#x2F;PeimEntryPoint&#x2F;PeimEntryPoint.inf</span><br><span class="line">  ReportStatusCodeLib|MdeModulePkg&#x2F;Library&#x2F;PeiReportStatusCodeLib&#x2F;PeiReportStatusCodeLib.inf</span><br><span class="line">  OemHookStatusCodeLib|MdeModulePkg&#x2F;Library&#x2F;OemHookStatusCodeLibNull&#x2F;OemHookStatusCodeLibNull.inf</span><br><span class="line">  PeCoffGetEntryPointLib|MdePkg&#x2F;Library&#x2F;BasePeCoffGetEntryPointLib&#x2F;BasePeCoffGetEntryPointLib.inf</span><br><span class="line">!ifdef $(DEBUG_ON_SERIAL_PORT)</span><br><span class="line">  DebugLib|MdePkg&#x2F;Library&#x2F;BaseDebugLibSerialPort&#x2F;BaseDebugLibSerialPort.inf</span><br><span class="line">!else</span><br><span class="line">  DebugLib|OvmfPkg&#x2F;Library&#x2F;PlatformDebugLibIoPort&#x2F;PlatformDebugLibIoPort.inf</span><br><span class="line">!endif</span><br><span class="line">  PeCoffLib|MdePkg&#x2F;Library&#x2F;BasePeCoffLib&#x2F;BasePeCoffLib.inf</span><br><span class="line">  ResourcePublicationLib|MdePkg&#x2F;Library&#x2F;PeiResourcePublicationLib&#x2F;PeiResourcePublicationLib.inf</span><br><span class="line">  ExtractGuidedSectionLib|MdePkg&#x2F;Library&#x2F;PeiExtractGuidedSectionLib&#x2F;PeiExtractGuidedSectionLib.inf</span><br><span class="line">!if $(SOURCE_DEBUG_ENABLE) &#x3D;&#x3D; TRUE</span><br><span class="line">  DebugAgentLib|SourceLevelDebugPkg&#x2F;Library&#x2F;DebugAgent&#x2F;SecPeiDebugAgentLib.inf</span><br><span class="line">!endif</span><br><span class="line">  CpuExceptionHandlerLib|UefiCpuPkg&#x2F;Library&#x2F;CpuExceptionHandlerLib&#x2F;PeiCpuExceptionHandlerLib.inf</span><br><span class="line">  MpInitLib|UefiCpuPkg&#x2F;Library&#x2F;MpInitLib&#x2F;PeiMpInitLib.inf</span><br><span class="line">  QemuFwCfgS3Lib|OvmfPkg&#x2F;Library&#x2F;QemuFwCfgS3Lib&#x2F;PeiQemuFwCfgS3LibFwCfg.inf</span><br><span class="line">  PcdLib|MdePkg&#x2F;Library&#x2F;PeiPcdLib&#x2F;PeiPcdLib.inf</span><br><span class="line">  QemuFwCfgLib|OvmfPkg&#x2F;Library&#x2F;QemuFwCfgLib&#x2F;QemuFwCfgPeiLib.inf</span><br></pre></td></tr></table></figure>
+
+<p>take eyes on <code>QemuFwCfgLib|OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgPeiLib.inf</code></p>
+<p>so check more from <code>QemuFwCfgPei.c</code> , following shows debug log added version</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">BOOLEAN</span><br><span class="line">EFIAPI</span><br><span class="line">QemuFwCfgIsAvailable (</span><br><span class="line">  VOID</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  return InternalQemuFwCfgIsAvailable ();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">RETURN_STATUS</span><br><span class="line">EFIAPI</span><br><span class="line">QemuFwCfgInitialize (</span><br><span class="line">  VOID</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  UINT32 Signature;</span><br><span class="line">  UINT32 Revision;</span><br><span class="line"></span><br><span class="line">  &#x2F;&#x2F;</span><br><span class="line">  &#x2F;&#x2F; Enable the access routines while probing to see if it is supported.</span><br><span class="line">  &#x2F;&#x2F; For probing we always use the IO Port (IoReadFifo8()) access method.</span><br><span class="line">  &#x2F;&#x2F;</span><br><span class="line">  mQemuFwCfgSupported &#x3D; TRUE;</span><br><span class="line">  mQemuFwCfgDmaSupported &#x3D; FALSE;</span><br><span class="line"></span><br><span class="line">  QemuFwCfgSelectItem (QemuFwCfgItemSignature);</span><br><span class="line">  Signature &#x3D; QemuFwCfgRead32 ();</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;FW CFG Signature: 0x%x\n&quot;, Signature));</span><br><span class="line">  QemuFwCfgSelectItem (QemuFwCfgItemInterfaceVersion);</span><br><span class="line">  Revision &#x3D; QemuFwCfgRead32 ();</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;FW CFG Revision: 0x%x\n&quot;, Revision));</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; debug entry point &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;\n&quot;));</span><br><span class="line"></span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;check signature match QEMU result: %d\n&quot;, Signature !&#x3D; SIGNATURE_32 (&#39;Q&#39;, &#39;E&#39;, &#39;M&#39;, &#39;U&#39;)));</span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;check revision &lt; 1 result: %d\n&quot;, Revision &lt; 1));</span><br><span class="line">  if ((Signature !&#x3D; SIGNATURE_32 (&#39;Q&#39;, &#39;E&#39;, &#39;M&#39;, &#39;U&#39;)) ||</span><br><span class="line">      (Revision &lt; 1)</span><br><span class="line">     ) &#123;</span><br><span class="line">    DEBUG ((DEBUG_INFO, &quot;QemuFwCfg interface not supported.\n&quot;));</span><br><span class="line">    mQemuFwCfgSupported &#x3D; FALSE;</span><br><span class="line">    return RETURN_SUCCESS;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;check supported result: %d\n&quot;, (Revision &amp; FW_CFG_F_DMA)));</span><br><span class="line">  if ((Revision &amp; FW_CFG_F_DMA) &#x3D;&#x3D; 0) &#123;</span><br><span class="line">    DEBUG ((DEBUG_INFO, &quot;QemuFwCfg interface (IO Port) is supported.\n&quot;));</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; If SEV is enabled then we do not support DMA operations in PEI phase.</span><br><span class="line">    &#x2F;&#x2F; This is mainly because DMA in SEV guest requires using bounce buffer</span><br><span class="line">    &#x2F;&#x2F; (which need to allocate dynamic memory and allocating a PAGE size&#39;d</span><br><span class="line">    &#x2F;&#x2F; buffer can be challenge in PEI phase)</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    if (MemEncryptSevIsEnabled ()) &#123;</span><br><span class="line">      DEBUG ((DEBUG_INFO, &quot;SEV: QemuFwCfg fallback to IO Port interface.\n&quot;));</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      mQemuFwCfgDmaSupported &#x3D; TRUE;</span><br><span class="line">      DEBUG ((DEBUG_INFO, &quot;QemuFwCfg interface (DMA) is supported.\n&quot;));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>the code enter the <code>MemEncryptSevIsEnabled ()</code> and hang on next function:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line">STATIC</span><br><span class="line">VOID</span><br><span class="line">EFIAPI</span><br><span class="line">InternalMemEncryptSevStatus (</span><br><span class="line">  VOID</span><br><span class="line">  )</span><br><span class="line">&#123;</span><br><span class="line">  UINT32                            RegEax;</span><br><span class="line">  MSR_SEV_STATUS_REGISTER           Msr;</span><br><span class="line">  CPUID_MEMORY_ENCRYPTION_INFO_EAX  Eax;</span><br><span class="line">  BOOLEAN                           ReadSevMsr;</span><br><span class="line">  SEC_SEV_ES_WORK_AREA              *SevEsWorkArea;</span><br><span class="line"></span><br><span class="line">  ReadSevMsr &#x3D; FALSE;</span><br><span class="line"></span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; enter InternalMemEncryptSevStatus &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; \n&quot;));</span><br><span class="line">  SevEsWorkArea &#x3D; (SEC_SEV_ES_WORK_AREA *) FixedPcdGet32 (PcdSevEsWorkAreaBase);</span><br><span class="line">  if (SevEsWorkArea !&#x3D; NULL &amp;&amp; SevEsWorkArea-&gt;EncryptionMask !&#x3D; 0) &#123;</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; The MSR has been read before, so it is safe to read it again and avoid</span><br><span class="line">    &#x2F;&#x2F; having to validate the CPUID information.</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; ReadSevMsr &#x3D; true &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; \n&quot;));</span><br><span class="line">    ReadSevMsr &#x3D; TRUE;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; Check if memory encryption leaf exist</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; AsmCpuid &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; \n&quot;));</span><br><span class="line">    AsmCpuid (CPUID_EXTENDED_FUNCTION, &amp;RegEax, NULL, NULL, NULL);</span><br><span class="line">    if (RegEax &gt;&#x3D; CPUID_MEMORY_ENCRYPTION_INFO) &#123;</span><br><span class="line">      &#x2F;&#x2F;</span><br><span class="line">      &#x2F;&#x2F; CPUID Fn8000_001F[EAX] Bit 1 (Sev supported)</span><br><span class="line">      &#x2F;&#x2F;</span><br><span class="line">      AsmCpuid (CPUID_MEMORY_ENCRYPTION_INFO, &amp;Eax.Uint32, NULL, NULL, NULL);</span><br><span class="line"></span><br><span class="line">      if (Eax.Bits.SevBit) &#123;</span><br><span class="line">        ReadSevMsr &#x3D; TRUE;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (ReadSevMsr) &#123;</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; Check MSR_0xC0010131 Bit 0 (Sev Enabled)</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    Msr.Uint32 &#x3D; AsmReadMsr32 (MSR_SEV_STATUS);</span><br><span class="line">    DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; AsmReadMsr32 &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; \n&quot;));</span><br><span class="line">    if (Msr.Bits.SevBit) &#123;</span><br><span class="line">      mSevStatus &#x3D; TRUE;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; Check MSR_0xC0010131 Bit 1 (Sev-Es Enabled)</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    if (Msr.Bits.SevEsBit) &#123;</span><br><span class="line">      mSevEsStatus &#x3D; TRUE;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  DEBUG ((DEBUG_INFO, &quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; out InternalMemEncryptSevStatus &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; \n&quot;));</span><br><span class="line">  mSevStatusChecked &#x3D; TRUE;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Finally <code>AsmReadMsr32</code> is the victim to blame. </p>
+<p>note: SEC_SEV_ES_WORK_AREA is a new AREA added by amd used for their SEV feature. Normally guest without SEV feature should not modify those memory area, but it seems windows write randomly bits which caused this problem.</p>
+<h3 id="From-edk2-groups"><a href="#From-edk2-groups" class="headerlink" title="From edk2 groups"></a>From edk2 groups</h3><p>Same issue is found <code>https://edk2.groups.io/g/devel/topic/87301748#84086</code></p>
+<p>According to the mail:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Tested on Intel Platform, It is like &#39;SEV-ES work area&#39; can be modified by</span><br><span class="line">os(Windows etc), and will not restored on reboot, the</span><br><span class="line">SevEsWorkArea-&gt;EncryptionMask may have a random value after reboot. then it</span><br><span class="line">may casue fail on reboot. The msr bits already cached by mSevStatusChecked,</span><br><span class="line">there is no need to try cache again in PEI phase.</span><br></pre></td></tr></table></figure>
+
+<p>it seems Windows will change SEV-ES work area which will lead QemuFwCfgLib to readMsr when guest reboot, but actually for guests, normally SEV-ES is not used, so initializing failure cause the reboot infinite loop.</p>
+<h3 id="Patches-fix-the-reboot-issue"><a href="#Patches-fix-the-reboot-issue" class="headerlink" title="Patches fix the reboot issue"></a>Patches fix the reboot issue</h3><p>check file change log </p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git log OvmfPkg/Library/BaseMemEncryptSevLib/PeiMemEncryptSevLibInternal.c</span><br></pre></td></tr></table></figure>
+
+<p>we can find related patches:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">commit d9822304ce0075b1075edf93cc6e2514685b5212</span><br><span class="line">Author: Brijesh Singh &lt;brijesh.singh@amd.com&gt;</span><br><span class="line">Date:   Thu Dec 9 11:27:37 2021 +0800</span><br><span class="line"></span><br><span class="line">    OvmfPkg&#x2F;MemEncryptSevLib: add MemEncryptSevSnpEnabled()</span><br><span class="line"></span><br><span class="line">    BZ: https:&#x2F;&#x2F;bugzilla.tianocore.org&#x2F;show_bug.cgi?id&#x3D;3275</span><br><span class="line"></span><br><span class="line">    Create a function that can be used to determine if VM is running as an</span><br><span class="line">    SEV-SNP guest.</span><br><span class="line"></span><br><span class="line">    Cc: Michael Roth &lt;michael.roth@amd.com&gt;</span><br><span class="line">    Cc: James Bottomley &lt;jejb@linux.ibm.com&gt;</span><br><span class="line">    Cc: Min Xu &lt;min.m.xu@intel.com&gt;</span><br><span class="line">    Cc: Jiewen Yao &lt;jiewen.yao@intel.com&gt;</span><br><span class="line">    Cc: Tom Lendacky &lt;thomas.lendacky@amd.com&gt;</span><br><span class="line">    Cc: Jordan Justen &lt;jordan.l.justen@intel.com&gt;</span><br><span class="line">    Cc: Ard Biesheuvel &lt;ardb+tianocore@kernel.org&gt;</span><br><span class="line">    Cc: Erdem Aktas &lt;erdemaktas@google.com&gt;</span><br><span class="line">    Cc: Gerd Hoffmann &lt;kraxel@redhat.com&gt;</span><br><span class="line">    Acked-by: Jiewen Yao &lt;Jiewen.yao@intel.com&gt;</span><br><span class="line">    Acked-by: Gerd Hoffmann &lt;kraxel@redhat.com&gt;</span><br><span class="line">    Signed-off-by: Brijesh Singh &lt;brijesh.singh@amd.com&gt;</span><br><span class="line"></span><br><span class="line">commit ac0a286f4d747a4c6c603a7b225917293cbe1e9f</span><br><span class="line">Author: Michael Kubacki &lt;michael.kubacki@microsoft.com&gt;</span><br><span class="line">Date:   Sun Dec 5 14:54:09 2021 -0800</span><br><span class="line"></span><br><span class="line">    OvmfPkg: Apply uncrustify changes</span><br><span class="line"></span><br><span class="line">    REF: https:&#x2F;&#x2F;bugzilla.tianocore.org&#x2F;show_bug.cgi?id&#x3D;3737</span><br><span class="line"></span><br><span class="line">    Apply uncrustify changes to .c&#x2F;.h files in the OvmfPkg package</span><br><span class="line"></span><br><span class="line">    Cc: Andrew Fish &lt;afish@apple.com&gt;</span><br><span class="line">    Cc: Leif Lindholm &lt;leif@nuviainc.com&gt;</span><br><span class="line">    Cc: Michael D Kinney &lt;michael.d.kinney@intel.com&gt;</span><br><span class="line">    Signed-off-by: Michael Kubacki &lt;michael.kubacki@microsoft.com&gt;</span><br><span class="line">    Reviewed-by: Andrew Fish &lt;afish@apple.com&gt;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="More-information-about-my-debug-related-procedure"><a href="#More-information-about-my-debug-related-procedure" class="headerlink" title="More information about my debug related procedure"></a>More information about my debug related procedure</h2><h3 id="UEFI-boot-procedure"><a href="#UEFI-boot-procedure" class="headerlink" title="UEFI boot procedure"></a>UEFI boot procedure</h3><p>Before debugging on edk2 code, check UEFI boot procedure to know more about UEFI boot.</p>
+<p>According to <a target="_blank" rel="noopener" href="https://edk2-docs.gitbook.io/edk-ii-build-specification/2_design_discussion/23_boot_sequence">https://edk2-docs.gitbook.io/edk-ii-build-specification/2_design_discussion/23_boot_sequence</a></p>
+<p>PI compliant system firmware must support the six phases: security (SEC), pre-efi initialization (PEI), driver execution environment (DXE), boot device selection (BDS), run time (RT) services and After Life (transition from the OS back to the firmware) of system. Refer to Figure below</p>
+<img src="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/boot_sequence.png" class="">
+
+<p>Our issue occours at PEI so check the first two steps:</p>
+<h4 id="Security-SEC"><a href="#Security-SEC" class="headerlink" title="Security(SEC)"></a>Security(SEC)</h4><p>The Security (SEC) phase is the first phase in the PI Architecture and is responsible for the following:</p>
+<ul>
+<li>Handling all platform restart events</li>
+<li>Creating a temporary memory store</li>
+<li>Serving as the root of trust in the system</li>
+<li>Passing handoff information to the PEI Foundation</li>
+</ul>
+<p>The security section may contain modules with code written in assembly. Therefore, some EDK II module development environment (MDE) modules may contain assembly code. Where this occurs, both Windows and GCC versions of assembly code are provided in different files.</p>
+<h4 id="Pre-EFI-Initialization-PEI"><a href="#Pre-EFI-Initialization-PEI" class="headerlink" title="Pre-EFI Initialization (PEI)"></a>Pre-EFI Initialization (PEI)</h4><p>The Pre-EFI Initialization (PEI) phase described in the PI Architecture specifications is invoked quite early in the boot flow. Specifically, after some preliminary processing in the Security (SEC) phase, any machine restart event will invoke the PEI phase.</p>
+<p>The PEI phase initially operates with the platform in a nascent state, leveraging only on-processor resources, such as the processor cache as a call stack, to dispatch Pre-EFI Initialization Modules (PEIMs). These PEIMs are responsible for the following:</p>
+<ul>
+<li>Initializing some permanent memory complement</li>
+<li>Describing the memory in Hand-Off Blocks (HOBs)</li>
+<li>Describing the firmware volume locations in HOBs</li>
+<li>Passing control into the Driver Execution Environment (DXE) phase</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/" data-id="cld1mhec9005xyuwbgriparkk" data-title="Dive into edk2-ovmf fisrt debug trip" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Java Class getName() vs getSimpleName()
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Go through KVM code due to a tdp_page_fault</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

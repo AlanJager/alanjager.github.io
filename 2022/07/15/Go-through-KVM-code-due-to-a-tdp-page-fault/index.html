@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Go through KVM code due to a tdp_page_fault | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="What happened?Our CI&#x2F;CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not fin">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go through KVM code due to a tdp_page_fault">
+<meta property="og:url" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="What happened?Our CI&#x2F;CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not fin">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
+<meta property="article:published_time" content="2022-07-15T02:23:14.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.306Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="virt">
+<meta property="article:tag" content="kvm">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Go-through-KVM-code-due-to-a-tdp-page-fault" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" class="article-date">
+  <time class="dt-published" datetime="2022-07-15T02:23:14.000Z" itemprop="datePublished">2022-07-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/kvm/">kvm</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Go through KVM code due to a tdp_page_fault
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="What-happened"><a href="#What-happened" class="headerlink" title="What happened?"></a>What happened?</h2><p>Our CI/CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not finished after 1h 20min. </p>
+<p>After check the codebase and test on lastest release stable branch, its more likely that the system met performance issue.</p>
+<p>Before starting trip of “dig out the root cause”, check big picture of this CI/CD system architecture.</p>
+<h2 id="Prepare-from-perf"><a href="#Prepare-from-perf" class="headerlink" title="Prepare from perf"></a>Prepare from perf</h2><p>Because integration test runs on virtual machine memory, check hypervisor’s performance might gave more details. So use perf to collect run time data for analysis.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">git clone https:&#x2F;&#x2F;github.com&#x2F;brendangregg&#x2F;FlameGraph  # or download it from github</span><br><span class="line">cd FlameGraph</span><br><span class="line">perf record -F 99 -a -g -- sleep 60</span><br><span class="line">perf script | .&#x2F;stackcollapse-perf.pl &gt; out.perf-folded</span><br><span class="line">.&#x2F;flamegraph.pl out.perf-folded &gt; perf.svg</span><br></pre></td></tr></table></figure>
+
+<p>Check the flame graph</p>
+<img src="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png" class=""> 
+
+
+<h2 id="Start-from-tdp-page-fault"><a href="#Start-from-tdp-page-fault" class="headerlink" title="Start from tdp_page_fault"></a>Start from tdp_page_fault</h2><p>Abviously cpu spend lots of time to handle tdp_page_fault</p>
+<p>find definition from <code>linux/arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	struct kvm_mmu *context &#x3D; &amp;vcpu-&gt;arch.mmu;</span><br><span class="line"></span><br><span class="line">	context-&gt;base_role.word &#x3D; 0;</span><br><span class="line">	context-&gt;base_role.guest_mode &#x3D; is_guest_mode(vcpu);</span><br><span class="line">	context-&gt;base_role.smm &#x3D; is_smm(vcpu);</span><br><span class="line">	context-&gt;base_role.ad_disabled &#x3D; (shadow_accessed_mask &#x3D;&#x3D; 0);</span><br><span class="line">	context-&gt;page_fault &#x3D; tdp_page_fault;</span><br><span class="line">	context-&gt;sync_page &#x3D; nonpaging_sync_page;</span><br><span class="line">	context-&gt;invlpg &#x3D; nonpaging_invlpg;</span><br><span class="line">	context-&gt;update_pte &#x3D; nonpaging_update_pte;</span><br><span class="line">	context-&gt;shadow_root_level &#x3D; kvm_x86_ops-&gt;get_tdp_level(vcpu);</span><br><span class="line">	context-&gt;root_hpa &#x3D; INVALID_PAGE;</span><br><span class="line">	context-&gt;direct_map &#x3D; true;</span><br><span class="line">	context-&gt;set_cr3 &#x3D; kvm_x86_ops-&gt;set_tdp_cr3;</span><br><span class="line">	context-&gt;get_cr3 &#x3D; get_cr3;</span><br><span class="line">	context-&gt;get_pdptr &#x3D; kvm_pdptr_read;</span><br><span class="line">	context-&gt;inject_page_fault &#x3D; kvm_inject_page_fault;</span><br></pre></td></tr></table></figure>
+
+<p><code>kvm_vcpu</code> <code>page_fault</code> point to <code>tdp_page_fault</code> when mmu field of <code>kvm_vcpu</code> is initializing.</p>
+<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	if (mmu_is_nested(vcpu))</span><br><span class="line">		init_kvm_nested_mmu(vcpu);</span><br><span class="line">	else if (tdp_enabled)</span><br><span class="line">		init_kvm_tdp_mmu(vcpu);</span><br><span class="line">	else</span><br><span class="line">		init_kvm_softmmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">void kvm_mmu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	MMU_WARN_ON(VALID_PAGE(vcpu-&gt;arch.mmu.root_hpa));</span><br><span class="line"></span><br><span class="line">	init_kvm_mmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>from kvm vcpu setup <code>arch/x86/kvm/x86.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	kvm_vcpu_mtrr_init(vcpu);</span><br><span class="line">	vcpu_load(vcpu);</span><br><span class="line">	kvm_vcpu_reset(vcpu, false);</span><br><span class="line">	kvm_mmu_setup(vcpu);</span><br><span class="line">	vcpu_put(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>vcpu is created by </p>
+<p><code>kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)</code></p>
+<p>check mmu in vcpu structure:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Paging state of the vcpu</span><br><span class="line"> *</span><br><span class="line"> * If the vcpu runs in guest mode with two level paging this still saves</span><br><span class="line"> * the paging mode of the l1 guest. This context is always used to</span><br><span class="line"> * handle faults.</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct kvm_mmu mmu;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Find-more-by-pf-interception"><a href="#Find-more-by-pf-interception" class="headerlink" title="Find more by pf_interception"></a>Find more by pf_interception</h2><p>combine to flage graph, pf_interception is before tdp_page_fault,</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">static int pf_interception(struct vcpu_svm *svm)</span><br><span class="line">&#123;</span><br><span class="line">	u64 fault_address &#x3D; __sme_clr(svm-&gt;vmcb-&gt;control.exit_info_2);</span><br><span class="line">	u64 error_code &#x3D; svm-&gt;vmcb-&gt;control.exit_info_1;</span><br><span class="line"></span><br><span class="line">	return kvm_handle_page_fault(&amp;svm-&gt;vcpu, error_code, fault_address,</span><br><span class="line">			static_cpu_has(X86_FEATURE_DECODEASSISTS) ?</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_bytes : NULL,</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>refer to its usage:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[SVM_EXIT_EXCP_BASE + PF_VECTOR] &#x3D; pf_interception</span><br></pre></td></tr></table></figure>
+
+<p>SVM_EXIT_EXCP_BASE is related to AMD CPU virtualization, PF_VECTOR means page_frame vector, used by page fault.</p>
+<p>more details about the PF_VECTOR in <code>arch/x86/kvm/svm.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">if (npt_enabled) &#123;</span><br><span class="line">	&#x2F;* Setup VMCB for Nested Paging *&#x2F;</span><br><span class="line">	control-&gt;nested_ctl |&#x3D; SVM_NESTED_CTL_NP_ENABLE;</span><br><span class="line">	clr_intercept(svm, INTERCEPT_INVLPG);</span><br><span class="line">	clr_exception_intercept(svm, PF_VECTOR);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_READ);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);</span><br><span class="line">	save-&gt;g_pat &#x3D; svm-&gt;vcpu.arch.pat;</span><br><span class="line">	save-&gt;cr3 &#x3D; 0;</span><br><span class="line">	save-&gt;cr4 &#x3D; 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>if AMD CPU’s npt not enabled, PF_VECTOR will be used to intercept page fault.</p>
+<p>So just quickly go through guest virtual address translation.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Fetch a guest pte for a guest virtual address</span><br><span class="line"> *&#x2F;</span><br><span class="line">static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span><br><span class="line">				    struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,</span><br><span class="line">				    gva_t addr, u32 access)</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">error:</span><br><span class="line">	errcode |&#x3D; write_fault | user_fault;</span><br><span class="line">	if (fetch_fault &amp;&amp; (mmu-&gt;nx ||</span><br><span class="line">			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))</span><br><span class="line">		errcode |&#x3D; PFERR_FETCH_MASK;</span><br><span class="line"></span><br><span class="line">	walker-&gt;fault.vector &#x3D; PF_VECTOR;</span><br><span class="line">	walker-&gt;fault.error_code_valid &#x3D; true;</span><br><span class="line">	walker-&gt;fault.error_code &#x3D; errcode;</span><br></pre></td></tr></table></figure>
+
+<p>error is defined to raise PF_VECTOR when failed to find any PTE(Page table entry) </p>
+<p>Than let’s find the next method <code>handle_exit()</code> from svm.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">static int handle_exit(struct kvm_vcpu *vcpu)</span><br></pre></td></tr></table></figure>
+
+<p>following shows more details</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">struct vcpu_svm *svm &#x3D; to_svm(vcpu);</span><br><span class="line">struct kvm_run *kvm_run &#x3D; vcpu-&gt;run;</span><br><span class="line">u32 exit_code &#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br></pre></td></tr></table></figure>
+
+<p>the vcpu structure will be changed to vcpu_svm and than get the exit_code from it.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))</span><br><span class="line">	vcpu-&gt;arch.cr0 &#x3D; svm-&gt;vmcb-&gt;save.cr0;</span><br><span class="line">if (npt_enabled)</span><br><span class="line">	vcpu-&gt;arch.cr3 &#x3D; svm-&gt;vmcb-&gt;save.cr3;</span><br><span class="line"></span><br><span class="line">if (unlikely(svm-&gt;nested.exit_required)) &#123;</span><br><span class="line">	nested_svm_vmexit(svm);</span><br><span class="line">	svm-&gt;nested.exit_required &#x3D; false;</span><br><span class="line"></span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>than the exit_code will be traced.</p>
+<p>CR0 has various control flags that modify the basic operation of the processor. See more: <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Control_register#CR0">https://en.wikipedia.org/wiki/Control_register#CR0</a></p>
+<p>if npt_enabled(CPU enable npt) vcpu will use vmcb saved cr3</p>
+<p>vmcb: Intel VT-x name it as vmcs(virtual machine control structure), AMD name it as vmcb(virtual machine control block)</p>
+<p>vmcb_control_area and vmcb_save_area combined as virtual machine control block. </p>
+<p>note: need more research</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">if (is_guest_mode(vcpu)) &#123;</span><br><span class="line">	int vmexit;</span><br><span class="line"></span><br><span class="line">	trace_kvm_nested_vmexit(svm-&gt;vmcb-&gt;save.rip, exit_code,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_1,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_2,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info_err,</span><br><span class="line">				KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">	vmexit &#x3D; nested_svm_exit_special(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_CONTINUE)</span><br><span class="line">		vmexit &#x3D; nested_svm_exit_handled(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_DONE)</span><br><span class="line">		return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>if vm is nested exit, handle nested exit next step, interrupts will be queued and if vm exit due to SVM_EXIT_ERR exit this thread.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">svm_complete_interrupts(svm);</span><br><span class="line"></span><br><span class="line">if (svm-&gt;vmcb-&gt;control.exit_code &#x3D;&#x3D; SVM_EXIT_ERR) &#123;</span><br><span class="line">	kvm_run-&gt;exit_reason &#x3D; KVM_EXIT_FAIL_ENTRY;</span><br><span class="line">	kvm_run-&gt;fail_entry.hardware_entry_failure_reason</span><br><span class="line">		&#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br><span class="line">	pr_err(&quot;KVM: FAILED VMRUN WITH VMCB:\n&quot;);</span><br><span class="line">	dump_vmcb(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>last, check if the error code is external interrupt and not kernel handable error</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">if (is_external_interrupt(svm-&gt;vmcb-&gt;control.exit_int_info) &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_EXCP_BASE + PF_VECTOR &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_NPF &amp;&amp; exit_code !&#x3D; SVM_EXIT_TASK_SWITCH &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_INTR &amp;&amp; exit_code !&#x3D; SVM_EXIT_NMI)</span><br><span class="line">	printk(KERN_ERR &quot;%s: unexpected exit_int_info 0x%x &quot;</span><br><span class="line">	       &quot;exit_code 0x%x\n&quot;,</span><br><span class="line">	       __func__, svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">	       exit_code);</span><br><span class="line"></span><br><span class="line">if (exit_code &gt;&#x3D; ARRAY_SIZE(svm_exit_handlers)</span><br><span class="line">    || !svm_exit_handlers[exit_code]) &#123;</span><br><span class="line">	WARN_ONCE(1, &quot;svm: unexpected exit reason 0x%x\n&quot;, exit_code);</span><br><span class="line">	kvm_queue_exception(vcpu, UD_VECTOR);</span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
+
+<p>finally invoke svm exit handler</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" data-id="cld1mhe9x0003yuwb8g646w4b" data-title="Go through KVM code due to a tdp_page_fault" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Dive into edk2-ovmf fisrt debug trip
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/07/01/python-elementtree-notes/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Python ElementTree notes</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

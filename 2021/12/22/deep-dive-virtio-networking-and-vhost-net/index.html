@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>deep dive virtio networking and vhost net | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在这篇文章里我们将会解释在 Post not found: introduction-virtio-networking-and-vhost-net [introduction] 里描述的vhost-net架构，并通过技术视角来弄清楚所有东西是怎么协同工作的。这系列博客里的这部分内容是为了让你们更好的理解virtio-networking领域是如何将虚拟化和网络连接在一起的 本文主要主要是面向对有">
+<meta property="og:type" content="article">
+<meta property="og:title" content="deep dive virtio networking and vhost net">
+<meta property="og:url" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="在这篇文章里我们将会解释在 Post not found: introduction-virtio-networking-and-vhost-net [introduction] 里描述的vhost-net架构，并通过技术视角来弄清楚所有东西是怎么协同工作的。这系列博客里的这部分内容是为了让你们更好的理解virtio-networking领域是如何将虚拟化和网络连接在一起的 本文主要主要是面向对有">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig1.png">
+<meta property="og:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig2.png.jpg">
+<meta property="og:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig3.png">
+<meta property="og:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig4.png">
+<meta property="og:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig5.png">
+<meta property="article:published_time" content="2021-12-22T11:17:19.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.341Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="virtio-networking">
+<meta property="article:tag" content="vhost-net">
+<meta property="article:tag" content="virtio-net">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="architecture">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig1.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-deep-dive-virtio-networking-and-vhost-net" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/" class="article-date">
+  <time class="dt-published" datetime="2021-12-22T11:17:19.000Z" itemprop="datePublished">2021-12-22</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      deep dive virtio networking and vhost net
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>在这篇文章里我们将会解释在 <a href="#">Post not found: introduction-virtio-networking-and-vhost-net [introduction]</a> 里描述的vhost-net架构，并通过技术视角来弄清楚所有东西是怎么协同工作的。这系列博客里的这部分内容是为了让你们更好的理解virtio-networking领域是如何将虚拟化和网络连接在一起的</p>
+<p>本文主要主要是面向对有兴趣理解上一篇blog提到的vhost-net/virtio-net底层原理的架构师和研发人员</p>
+<p>我们将从描述不同的virtio规范的标准组件和共享内存在hypervisor里如何组织的，QEMU如何模拟一个virtio网络设备以及一个guest使用根据virtio规范来实现一个虚拟化驱动来管理并和设备通讯的</p>
+<p>在展示过QEMU virtio架构，我们将会分析I/O瓶颈和限制，同时我们将会用host的kernel来解决这个问题，同时最后给出一个宏观的vhost-net的架构</p>
+<p>最后，我们将会展示如何通过在它所运行的host上使用OVS（一个开源的虚拟化，SDN，分布式交换机）连接虚拟机到外部网络</p>
+<p>希望在读完这篇文章后，你能够理解vhost-net/virtio-net架构是如何工作的，同时能够理解这架构中每一个组件的目标和作用以及数据包是如何被发送和接收的</p>
+<h2 id="Previous-Concepts"><a href="#Previous-Concepts" class="headerlink" title="Previous Concepts"></a>Previous Concepts</h2><p>在这个部分我们将会简短的介绍一些帮助你完全理解这篇文章需要知道的概念。对于精通这个问题的人是比较基础的内容，但主要是为了提供一个共同的基础</p>
+<h3 id="Networking"><a href="#Networking" class="headerlink" title="Networking"></a>Networking</h3><p>让我们从最基础的开始。一个物理网卡（Nic，Network Interface Card）是一个真实的硬件组件，允许物理机连接到外部网络。网卡可以承担一些offload，比如代替CPU执行checksum计算，Segmentation Offload（把一个很大片的数据转换成很多切片，切片大小就是以太网MTU的大小）或者是Large Receive Offload（从CPU角度看，就是把很多数据包合成一个数据包）</p>
+<p>另外我们还有tun/tap设备，虚拟化的用户态用来交换数据包的点对点网络设备。交换二层（ethernet frames）数据的叫做tap设备，如果交换 (IP packets)三层数据的就是tun设备。</p>
+<p>当tun的kernel模块被加载之后会创建一个特殊的/dev/net/tun设备。进程可以创建tap设备，并发打开这个设备发送一些特殊的ioctl命令给这个设备。新创建的tap设备在。dev文件系统里存在一个名字，并且其他的进程可以打开，并发送接收Ethernet frames</p>
+<h3 id="IPC，System-programming"><a href="#IPC，System-programming" class="headerlink" title="IPC，System programming"></a>IPC，System programming</h3><p>Unix sockets是一个在同一台物理机器上做进程间通信的有效方法。在这篇文章涉及的范围内，通讯的服务端监听了文件系统上一个路径下的Unix socket，因此一个客户端（client）可以连接到这个路径使用它。这样，进程间就可以交换消息了。注意，unix sockets也可以用来在进程间交换文件描述符。</p>
+<p>eventfd是一个轻量级IPC的实现。虽然Unix sockets允许发送和接收各种消息，eventfd只是一个生产者可以修改，消费者可以读取的整型值。这个使得eventfd更适合用于等待通知机制，而不是传输信息的场景。</p>
+<p>这两个IPC系统都为通信中的每个进程公开一个文件描述符。 fcntl调用对该文件描述符执行不同的操作，使它们成为非阻塞的（因此，如果没有可读取的内容，则读取操作会立即返回）。 ioctl调用遵循相同的模式，但实现特定于设备的操作，例如发送命令。</p>
+<p>共享内存是我们要介绍的最后一个IPC方法。不同于提供一个进程间通讯的channel，共享内存使用进程的内存区域指向相同的内存页面，因此一个进程覆盖了这部分内存的修改也会影响其他进程之后的读操作。</p>
+<h3 id="QEMU-and-device-emulation"><a href="#QEMU-and-device-emulation" class="headerlink" title="QEMU and device emulation"></a>QEMU and device emulation</h3><p>QEMU是一个host层的虚拟机模拟器，给guest提供了一系列不同的硬件和设备模型。对host来说，qemu是一个标准Linux可调度的标准进程，有自己的进程内存。在进程里QEMU分配了内存区域来给guest当作物理内存么，同时QEMU还要执行虚拟机的CPU指令</p>
+<p>为了在裸机设备上执行I/O操作么，比如存储和网络，CPU必须给物理设备下发特殊的指令并访问特殊的内存区域，比如这个设备被映射到的内存区域</p>
+<p>当guest访问这些内存区域的时候，控制面就返回到了执行设备透明模拟的guest的QEMU里</p>
+<h3 id="KVM"><a href="#KVM" class="headerlink" title="KVM"></a>KVM</h3><p>Kernel-based Virtual Machine(KVM)是一个Linux内置的开源虚拟化技术。它为虚拟化软件提供硬件辅助，利用内置CPU虚拟化技术减少虚拟化开销（缓存、I/O、内存），提高安全性。</p>
+<p>使用KVM，QEMU可以创建一个虚拟机，该虚拟机具有处理器识别的虚拟 CPU (vCPU)，运行native-speed指令。当特殊的比如需要和设备或者特殊内存交互的命令到达KVM的时候，vCPU会停下来，然后通知QEMU暂停的原因，然后hypervisor就会对这个事件作出反应了。</p>
+<p>在常规的KVM操作里，hyervisor会打开/dev/kvm这个设备，然后通过ioctl和他通讯调用它创建虚拟机，增加CPU，增加内存（qemu分配，但是虚拟机看来是物理内存），发送CPU中断（外部设备引发的），等等。举个例子，某一个ioctl的命令运行了KVM vCPU，阻塞了QEMU而且vCPU需要等到它找到了需要硬件辅助的命令。那时ioctl就会返回（这个叫做vmexit）同时QEMU也能知道这个exit的原因（比如offending instruction)。</p>
+<p>对一些特别的内存区域，KVM有类似的访问方式，把内存区域标记为只读或者完全不映射，通过KVM_EXIT_MMIO造成一个vmexit。</p>
+<h3 id="The-virtio-specification"><a href="#The-virtio-specification" class="headerlink" title="The virtio specification"></a>The virtio specification</h3><h4 id="Virtio-specification-devices-and-drivers"><a href="#Virtio-specification-devices-and-drivers" class="headerlink" title="Virtio specification: devices and drivers"></a>Virtio specification: devices and drivers</h4><p>Virtio是一个虚拟机数据I/O的一个开放规范，提供了简单、有效、标准并且可拓展的虚拟设备机制，而不是固定在在每个环境或每个操作系统的机制。它主要基于guest可以和host共享内存以进行I/O来实现。</p>
+<p>virtio规范基于两个元素：设备和驱动。在最经典的实现里，hypervisor通过一系列传输方法试将virtio设备暴露给guest。设计上他们在虚拟机内看起来是物理设备。</p>
+<p>嘴常见的传输方法就是PCI或者PCIe总线。然而，这些设备在一些预定义好的guest内存地址是可用的（MMIO transport）。这些设备可以完全在没有物理设备或者是物理的兼容性接口的情况下被虚拟出来。</p>
+<p>最典型最简单的暴露virtio设备的方法是通过PCI端口因为我们可以借用PCI已经是一个成熟并且在QEMU和Linux驱动自持的很好的协议。实际的PCI硬件通过特殊的物理内存地址范围和/或特殊的处理器指令暴露配置空间（比如，驱动可以通过这些内存范围读或者写设备的寄存器）。在虚拟机世界里，hypervisor能捕获访问这些内存范围并且执行设备模拟，暴露和真实设备相同的内存布局，并提供相同的返回。virtio标准也定义了PCI配置空间的布局，因此实现它是很简单的。</p>
+<p>当guest驱动并使用PCI/PCI自动发现机制的时候，virtio设备通过PCI vendor ID和他们的PCI device ID标识自己。guest kernel通过使用这些标记来知道使用哪些驱动来处理这些设备。特别是，linux内核已经包含了virtio驱动程序。</p>
+<p>virtio驱动必须能够分配给hypervisor和设备都能读写的内存区域，比如通过共享内存。我们把数据平面作为使用内存区域进行数据通讯的一个部分，同时控制平面主要是来配置他们。我们会在后续的文章里提供一个更深层次的virtio协议的实现细节以及内存布局。</p>
+<p>virtio内核驱动共享了一个通用的传输专用接口（virtio-pci），并被用于实际的传输以及设备实现（比如virtio-net，virtio-scsi）</p>
+<h4 id="Virtio-specification-virtqueues"><a href="#Virtio-specification-virtqueues" class="headerlink" title="Virtio specification: virtqueues"></a>Virtio specification: virtqueues</h4><p>Virtqueues是virtio设备的批量数据传输机制。每个设备可以有0个或者多个virtqueue <a href="xxxx">link</a>。它由guest分配的host可以访问并且可以读或者写的缓存队列组成。补充一下，virtio标准也定义了双向的通知：</p>
+<ul>
+<li>Available Buffer Notification：使用驱动来通知buffer就绪并可以被设备处理</li>
+<li>Used Buffer Notification：被设备使用来通知已经处理完了一些buffers</li>
+</ul>
+<p>在PCI的场景，guest通过写一个特殊的内存地址发送available buffer notification，然后设备（这个场景里是QEMU）使用vCPU中断来发送used buffer notification。</p>
+<p>virtio规范也允许notifications动态的启用或者停用。这种情况下设备和驱动可以批量的缓存通知或者主动的向virtqueues请求新的缓存。这个方法更适合高流量的场景。</p>
+<p>总结一下，virtio驱动接口暴露了一下内容：</p>
+<ul>
+<li>Device’s feature bits（设备和guest需要协商的部分）</li>
+<li>Status bits（状态位）</li>
+<li>Configuration space（包含设备特殊信息，比如MAC地址）</li>
+<li>Notification system（配置变更，缓存可用，缓存使用）</li>
+<li>Zero or more virtqueues</li>
+<li>Transport specific interface to the device</li>
+</ul>
+<h3 id="Networking-with-virtio-qemu-implementation"><a href="#Networking-with-virtio-qemu-implementation" class="headerlink" title="Networking with virtio: qemu implementation"></a>Networking with virtio: qemu implementation</h3><img src="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig1.png" class="">
+
+<p><em>Figure 1: virtio-net on qemu</em></p>
+<p>virtio网络设备是一个虚拟以太网卡，支持TX/RX（发送，接收）多队列。空的缓存被放在N virtqueues里用来接收数据包，往外送的数据包责备放到另外一个N virtqueues里面等待发送。另一个virtqueue被用于数据面之外的驱动和设备的通讯，比如控制高级过滤特性，设置mac地址，或者是一堆活跃的队列。像物理网卡一样，virtio设备支持很多特性比如offloading，能够让真实的host设备来处理。</p>
+<p>为了发送数据包，驱动会发送给设备一个缓存包括metadata信息比如在要发送的packet frame上带有的数据包期望的offloading。驱动能够将这个缓存拆分成不同的条目，比如可以把这个metadata的header从packet frame上分离出来。</p>
+<p>这些缓存被驱动管理，被映射给设备。因此这个情况下我们可以说这个设备实际上在hypervisor里（结合前面提到hypervisor）因为qemu能够访问所有的guest内存，所以有能力知道缓存的位置并能够对他们进行读写。</p>
+<p>下面的流程图表示了virtio-net设备配置和使用virtio-net驱动发送数据包通过PCI和virtio-net设备通讯。在组装好要发送的数据包之后，出发了一个available buffer notification，把控制返回给QEMU然后它就能够把包通过TAP设备送出去</p>
+<p>QEMU然后通知guest这些缓存操作执行完成了（读或者写）并且它通过把这些数据放到virtqueue然后发送一个used notification event来触发guest的vCPU中断。</p>
+<p>接收数据包的过程和发送类似。唯一不同的是在接收数据包的场合，空缓存会提前被guest分配出来然后提供给设备一个可用缓存保证它能够把即将收到的数据写进去。</p>
+<img src="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig2.png.jpg" class="">
+
+<p><em>Figure 2: Qemu virtio sending buffer flow diagram</em></p>
+<h2 id="Vhost-net"><a href="#Vhost-net" class="headerlink" title="Vhost-net"></a>Vhost-net</h2><p>vhost-net是一个内核驱动，实现了vhost协议的处理侧，用来实现一个高效的数据面。比如数据包转发，在这个实现里，qemu和vhost-net内核驱动（handler）使用ioctls来交换vhost消息和一大批叫做irqfd的类似eventfd的文件描述符然后ioeventfs被用来和guest交换通知</p>
+<p>当vhost-net驱动被加载的时候，它会在/dev/vhost-net暴露一个字符设备。当qemu启用了vhost-net并启动后，它会打开这个设备并且一些ioctl调用初始化vhost-net实例。这是把vhost-net和hypervisor联系起来必不可少的步骤，准备virtio特性检查，然后给guest提供映射到vhost-net驱动的内存。</p>
+<p>在初始化的过程里vhost-net驱动创建了一个内核线程叫做vhost-$pid这个$pid就是hypervisor（也就是qemu进程）的pid。这个线程也被叫做“vhost worker thread”</p>
+<p>tag设备仍然被用于VM和host的通讯但是现在这个worker thread处理了这些I/O事件，比如它会不断poll驱动的通知或者是tap的事件并且做数据的转发。</p>
+<p>Qemu分配了一个eventfd然后注册了到了vhost和KVM来实现通知的传递。vhost-pid内核线程poll这个eventfd，当guest写某一个特殊地址的时候KVM则会写这个eventfd。这个机制被叫做ioeventfd。用这个方法，对一个特别的guest内存地址简单的读写操作不需要再穿过钢轨的QEMU进程唤醒同时能够被直接路由到vhost worker thread。这也提供了异步的优势，也不再需要vCPU停下来（因此没必要立刻做上下文切换）</p>
+<p>另一方面，qemu分配了另外的eventfd并再次注册他们到KVM和vhost来处理vCPU的直接中断注入。这个机制又叫irqfd，他们允许host通过写irqfd来注入vCPU中断到guest。同时也具有异步特性，不需要立刻做上下文切换</p>
+<p>注意这些改动对virtio包处理后端对guest来说是完全透明的，guest仍然使用的是标准的virtio接口</p>
+<p>下面的图展示了qemu数据路径的offloading到vhost-net内核驱动：</p>
+<img src="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig3.png" class="">
+
+<p><em>Figure 3: vhost-net block diagram</em></p>
+<img src="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig4.png" class="">
+
+<p><em>Figure 4: vhost-net sending buffer diagram flow</em></p>
+<h3 id="Communication-with-the-outside-world"><a href="#Communication-with-the-outside-world" class="headerlink" title="Communication with the outside world"></a>Communication with the outside world</h3><p>guest能够和host通过tap设备通讯，然而还有一个遗留的问题就是guest如何和同一个host伤的其他vm或者是其他host上的vm通讯（使用internet通讯）</p>
+<p>我们可以内核网络协议栈提供的转发和路由的机制，比如标准的Linux bridges。然而一个更加高级的解决方式就是一个全虚拟化的分发，管理交换机比如Open Virtual Switch</p>
+<p>就像在总览篇说的一样，OVS的数据路径在这个场景里是作为内核模块运行的，ovs-switchd是一个用户态的控制管理守护进程然后ovsdb-server是一个转发数据库。</p>
+<p>就像图上画的一样，OVS的数据路径在kernel运行然后在物理网卡和虚拟TAP设备间做包的forward：</p>
+<img src="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/2019-09-12-virtio-networking-fig5.png" class="">
+
+<p><em>Figure 5: Introduce OVS</em></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在这篇文章里，我们展示了virtio-net的架构是如何工作的，我们对每一个步骤做了详细的解剖并解释了每个组件的功能。</p>
+<p>我们开始解释了默认的qemu IO设备如何通过提供给guest一个开放virtio标准的实现来运作的。我们接下来分析了guest如何和这些设备通过virtio驱动能够发送和接收数据包，发送和接收通知的</p>
+<p>然后我们评价了在数据路径中有qemu的情况下需要切换上下文，然后展示了如何在host上使用vhost协议通过vhost-net内核驱动offload这些任务。我们也能够覆盖virtio通知在这个新设计下是如何工作的</p>
+<p>最后我们展示了如何将VM连接到外部的非自己所在的host的世界。</p>
+<p>在接下来的文章里我们将会提供一个使用之前学习到的解决方案里的不同组件完成关于vhost-net/virtio-net的架构实现。</p>
+<p>如果你因为什么原因跳过了那篇文章，我们将在下一篇文章介绍一个新的用户态的使用DPDK的vhost处理协议。我们会列举他的优点，使用DPDK和用户态的观点，我们将建立第二个符合这些概念的架构。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2021/12/22/deep-dive-virtio-networking-and-vhost-net/" data-id="cld1mhea7000byuwb5tqr1j5u" data-title="deep dive virtio networking and vhost net" class="article-share-link">Share</a>
+      
+      
+        <a href="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Hands on vhost-net: Do. Or do not. There is no try
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Introduction to virtio-networking and vhost-net</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

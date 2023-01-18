@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Java Class getName() vs getSimpleName() | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Work with Java reflection and invoke getSimpleName() met java.lang.NoClassDefFoundError Use getName() instead, the logic seems work well. Before compare these two methods’ difference go through the co">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java Class getName() vs getSimpleName()">
+<meta property="og:url" content="http://hanayo.cn/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Work with Java reflection and invoke getSimpleName() met java.lang.NoClassDefFoundError Use getName() instead, the logic seems work well. Before compare these two methods’ difference go through the co">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-09-04T13:37:27.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.357Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="java">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-java-class-getname-and-getsimplename-get-me-confuse" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" class="article-date">
+  <time class="dt-published" datetime="2022-09-04T13:37:27.000Z" itemprop="datePublished">2022-09-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/languages/">languages</a>►<a class="article-category-link" href="/categories/languages/java/">java</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Java Class getName() vs getSimpleName()
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Work with Java reflection and invoke getSimpleName() met <code>java.lang.NoClassDefFoundError</code></p>
+<p>Use getName() instead, the logic seems work well.</p>
+<p>Before compare these two methods’ difference go through the code quickly.</p>
+<h2 id="Class-getName"><a href="#Class-getName" class="headerlink" title="Class::getName()"></a>Class::getName()</h2><p>for getName()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public String getName() &#123;</span><br><span class="line">    String name &#x3D; this.name;</span><br><span class="line">    if (name &#x3D;&#x3D; null)</span><br><span class="line">        this.name &#x3D; name &#x3D; getName0();</span><br><span class="line">    return name;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>and the getName0() is native method</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private native String getName0();</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Class-getSimpleName"><a href="#Class-getSimpleName" class="headerlink" title="Class::getSimpleName()"></a>Class::getSimpleName()</h2><p>for getSimpleName()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">public String getSimpleName() &#123;</span><br><span class="line">    if (isArray())</span><br><span class="line">        return getComponentType().getSimpleName()+&quot;[]&quot;;</span><br><span class="line"></span><br><span class="line">    String simpleName &#x3D; getSimpleBinaryName();</span><br><span class="line">    if (simpleName &#x3D;&#x3D; null) &#123; &#x2F;&#x2F; top level class</span><br><span class="line">        simpleName &#x3D; getName();</span><br><span class="line">        return simpleName.substring(simpleName.lastIndexOf(&quot;.&quot;)+1); &#x2F;&#x2F; strip the package name</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F; According to JLS3 &quot;Binary Compatibility&quot; (13.1) the binary</span><br><span class="line">    &#x2F;&#x2F; name of non-package classes (not top level) is the binary</span><br><span class="line">    &#x2F;&#x2F; name of the immediately enclosing class followed by a &#39;$&#39; followed by:</span><br><span class="line">    &#x2F;&#x2F; (for nested and inner classes): the simple name.</span><br><span class="line">    &#x2F;&#x2F; (for local classes): 1 or more digits followed by the simple name.</span><br><span class="line">    &#x2F;&#x2F; (for anonymous classes): 1 or more digits.</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; Since getSimpleBinaryName() will strip the binary name of</span><br><span class="line">    &#x2F;&#x2F; the immediatly enclosing class, we are now looking at a</span><br><span class="line">    &#x2F;&#x2F; string that matches the regular expression &quot;\$[0-9]*&quot;</span><br><span class="line">    &#x2F;&#x2F; followed by a simple name (considering the simple of an</span><br><span class="line">    &#x2F;&#x2F; anonymous class to be the empty string).</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; Remove leading &quot;\$[0-9]*&quot; from the name</span><br><span class="line">    int length &#x3D; simpleName.length();</span><br><span class="line">    if (length &lt; 1 || simpleName.charAt(0) !&#x3D; &#39;$&#39;)</span><br><span class="line">        throw new InternalError(&quot;Malformed class name&quot;);</span><br><span class="line">    int index &#x3D; 1;</span><br><span class="line">    while (index &lt; length &amp;&amp; isAsciiDigit(simpleName.charAt(index)))</span><br><span class="line">        index++;</span><br><span class="line">    &#x2F;&#x2F; Eventually, this is the empty string iff this is an anonymous class</span><br><span class="line">    return simpleName.substring(index);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The main part is </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">String simpleName &#x3D; getSimpleBinaryName();</span><br></pre></td></tr></table></figure>
+
+<p>And then get enclosingClass:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private String getSimpleBinaryName() &#123;</span><br><span class="line">    Class&lt;?&gt; enclosingClass &#x3D; getEnclosingClass();</span><br><span class="line">    if (enclosingClass &#x3D;&#x3D; null) &#x2F;&#x2F; top level class</span><br><span class="line">        return null;</span><br><span class="line">    &#x2F;&#x2F; Otherwise, strip the enclosing class&#39; name</span><br><span class="line">    try &#123;</span><br><span class="line">        return getName().substring(enclosingClass.getName().length());</span><br><span class="line">    &#125; catch (IndexOutOfBoundsException ex) &#123;</span><br><span class="line">        throw new InternalError(&quot;Malformed class name&quot;, ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>what is enclosingClass:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; There are five kinds of classes (or interfaces):</span><br><span class="line">&#x2F;&#x2F; a) Top level classes</span><br><span class="line">&#x2F;&#x2F; b) Nested classes (static member classes)</span><br><span class="line">&#x2F;&#x2F; c) Inner classes (non-static member classes)</span><br><span class="line">&#x2F;&#x2F; d) Local classes (named classes declared within a method)</span><br><span class="line">&#x2F;&#x2F; e) Anonymous classes</span><br></pre></td></tr></table></figure>
+
+<p>in my case it tend to be a) Top level classes, so next part of code goes to getDeclaringClass()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; JVM Spec 4.8.6: A class must have an EnclosingMethod</span><br><span class="line">&#x2F;&#x2F; attribute if and only if it is a local class or an</span><br><span class="line">&#x2F;&#x2F; anonymous class.</span><br><span class="line">EnclosingMethodInfo enclosingInfo &#x3D; getEnclosingMethodInfo();</span><br><span class="line">Class&lt;?&gt; enclosingCandidate;</span><br><span class="line"></span><br><span class="line">if (enclosingInfo &#x3D;&#x3D; null) &#123;</span><br><span class="line">    &#x2F;&#x2F; This is a top level or a nested class or an inner class (a, b, or c)</span><br><span class="line">    enclosingCandidate &#x3D; getDeclaringClass();</span><br><span class="line">&#125; else &#123;</span><br><span class="line">    Class&lt;?&gt; enclosingClass &#x3D; enclosingInfo.getEnclosingClass();</span><br><span class="line">    &#x2F;&#x2F; This is a local class or an anonymous class (d or e)</span><br><span class="line">    if (enclosingClass &#x3D;&#x3D; this || enclosingClass &#x3D;&#x3D; null)</span><br><span class="line">        throw new InternalError(&quot;Malformed enclosing method information&quot;);</span><br><span class="line">    else</span><br><span class="line">        enclosingCandidate &#x3D; enclosingClass;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>and then getDeclaringClass0() will be used.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">@CallerSensitive</span><br><span class="line">public Class&lt;?&gt; getDeclaringClass() throws SecurityException &#123;</span><br><span class="line">    final Class&lt;?&gt; candidate &#x3D; getDeclaringClass0();</span><br><span class="line"></span><br><span class="line">    if (candidate !&#x3D; null)</span><br><span class="line">        candidate.checkPackageAccess(</span><br><span class="line">                ClassLoader.getClassLoader(Reflection.getCallerClass()), true);</span><br><span class="line">    return candidate;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>which is a native method:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private native Class&lt;?&gt; getDeclaringClass0();</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Comparision"><a href="#Comparision" class="headerlink" title="Comparision"></a>Comparision</h2><p>From the code before this section, aboveously the getSimpleName() always call native method but getName() may use Class’s local variable directly. </p>
+<p>So see the local variable before we come to conclusion.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; cache the name to reduce the number of calls into the VM</span><br><span class="line">private transient String name;</span><br></pre></td></tr></table></figure>
+
+<p>the name used by getName() use a transient String as cache to reduce the number of calls into VM.</p>
+<p>And combine to getName()’s implement, the first time getName0() invoked, this name is set.</p>
+<p>And go for Java doc:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public String getSimpleName()</span><br></pre></td></tr></table></figure>
+
+<p>Returns the simple name of the underlying class as given in the source code. Returns an empty string if the underlying class is anonymous.</p>
+<p>The simple name of an array is the simple name of the component type with “[]” appended. In particular the simple name of an array whose component type is anonymous is “[]”.</p>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<p>the simple name of the underlying class</p>
+</li>
+<li><p><strong>Since:</strong></p>
+<p>1.5</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public String getName()</span><br></pre></td></tr></table></figure>
+
+<p>Returns the name of the entity (class, interface, array class, primitive type, or void) represented by this <code>Class</code> object, as a <code>String</code>.</p>
+<p>If this class object represents a reference type that is not an array type then the binary name of the class is returned, as specified by The Java™ Language Specification.</p>
+<p>If this class object represents a primitive type or void, then the name returned is a <code>String</code> equal to the Java language keyword corresponding to the primitive type or void.</p>
+<p>If this class object represents a class of arrays, then the internal form of the name consists of the name of the element type preceded by one or more ‘<code>[</code>‘ characters representing the depth of the array nesting. The encoding of element type names is as follows:</p>
+<blockquote>
+<table>
+<thead>
+<tr>
+<th>Element Type</th>
+<th></th>
+<th>Encoding</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>boolean</td>
+<td></td>
+<td>Z</td>
+</tr>
+<tr>
+<td>byte</td>
+<td></td>
+<td>B</td>
+</tr>
+<tr>
+<td>char</td>
+<td></td>
+<td>C</td>
+</tr>
+<tr>
+<td>class or interface</td>
+<td></td>
+<td>L<em>classname</em>;</td>
+</tr>
+<tr>
+<td>double</td>
+<td></td>
+<td>D</td>
+</tr>
+<tr>
+<td>float</td>
+<td></td>
+<td>F</td>
+</tr>
+<tr>
+<td>int</td>
+<td></td>
+<td>I</td>
+</tr>
+<tr>
+<td>long</td>
+<td></td>
+<td>J</td>
+</tr>
+<tr>
+<td>short</td>
+<td></td>
+<td>S</td>
+</tr>
+</tbody></table>
+</blockquote>
+<p>The class or interface name <em>classname</em> is the binary name of the class specified above.</p>
+<p>Examples:</p>
+<blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">String.class.getName()</span><br><span class="line">  returns &quot;java.lang.String&quot;</span><br><span class="line">byte.class.getName()</span><br><span class="line">  returns &quot;byte&quot;</span><br><span class="line">(new Object[3]).getClass().getName()</span><br><span class="line">  returns &quot;[Ljava.lang.Object;&quot;</span><br><span class="line">(new int[3][4][5][6][7][8][9]).getClass().getName()</span><br><span class="line">  returns &quot;[[[[[[[I&quot;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+</blockquote>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<p>the name of the class or interface represented by this object.</p>
+</li>
+</ul>
+<p>and more details for the error:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">public class NoClassDefFoundError</span><br><span class="line">extends LinkageError</span><br></pre></td></tr></table></figure>
+
+<p>Thrown if the Java Virtual Machine or a <code>ClassLoader</code> instance tries to load in the definition of a class (as part of a normal method call or as part of creating a new instance using the <code>new</code> expression) and no definition of the class could be found.</p>
+<p>The searched-for class definition existed when the currently executing class was compiled, but the definition can no longer be found.</p>
+<p>So that means class found at compile time but not available at runtime <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/17973970/how-to-solve-java-lang-noclassdeffounderror">Refer this link</a></p>
+<p>Check for our configuration: </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;xxx&lt;&#x2F;groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;xxx&lt;&#x2F;artifactId&gt;</span><br><span class="line">    &lt;version&gt;1.1.1&lt;&#x2F;version&gt;</span><br><span class="line">    &lt;scope&gt;system&lt;&#x2F;scope&gt;</span><br><span class="line">    &lt;systemPath&gt;$&#123;project.basedir&#125;&#x2F;ext-libs&#x2F;xxx&lt;&#x2F;systemPath&gt;</span><br><span class="line">&lt;&#x2F;dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<p>use a system scope.</p>
+<p>According to maven doc:</p>
+<p>There are 6 scopes:</p>
+<ul>
+<li><strong>compile</strong><br>This is the default scope, used if none is specified. Compile dependencies are available in all classpaths of a project. Furthermore, those dependencies are propagated to dependent projects.</li>
+<li><strong>provided</strong><br>This is much like <code>compile</code>, but indicates you expect the JDK or a container to provide the dependency at runtime. For example, when building a web application for the Java Enterprise Edition, you would set the dependency on the Servlet API and related Java EE APIs to scope <code>provided</code> because the web container provides those classes. A dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath. It is not transitive.</li>
+<li><strong>runtime</strong><br>This scope indicates that the dependency is not required for compilation, but is for execution. Maven includes a dependency with this scope in the runtime and test classpaths, but not the compile classpath.</li>
+<li><strong>test</strong><br>This scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases. This scope is not transitive. Typically this scope is used for test libraries such as JUnit and Mockito. It is also used for non-test libraries such as Apache Commons IO if those libraries are used in unit tests (src/test/java) but not in the model code (src/main/java).</li>
+<li><strong>system</strong><br>This scope is similar to <code>provided</code> except that you have to provide the JAR which contains it explicitly. The artifact is always available and is not looked up in a repository.</li>
+<li><strong>import</strong><br>This scope is only supported on a dependency of type <code>pom</code> in the <code>&lt;dependencyManagement&gt;</code> section. It indicates the dependency is to be replaced with the effective list of dependencies in the specified POM’s <code>&lt;dependencyManagement&gt;</code> section. Since they are replaced, dependencies with a scope of <code>import</code> do not actually participate in limiting the transitivity of a dependency.</li>
+</ul>
+<p>system most like provided but <code>a dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath</code></p>
+<p>so runtime getSimpleName() will met exception.</p>
+<h2 id="Class-loader"><a href="#Class-loader" class="headerlink" title="Class loader"></a>Class loader</h2><p>get back to the error call trace again:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.NoClassDefFoundError: xxxxx</span><br><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br></pre></td></tr></table></figure>
+
+<p>and another class not found exception:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.ClassNotFoundException: xxxxx</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:381) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br></pre></td></tr></table></figure>
+
+<p>when try to get simple name of class A extends B</p>
+<p>find A and try to define A but need to define B first, but B is not available at runtime so a exception raised.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" data-id="cld1mheac000jyuwb7lxm4rbw" data-title="Java Class getName() vs getSimpleName()" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/" rel="tag">java</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/09/04/guest-free-page-hinting-notes-01/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Guest Free Page Hinting notes 01
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Dive into edk2-ovmf fisrt debug trip</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

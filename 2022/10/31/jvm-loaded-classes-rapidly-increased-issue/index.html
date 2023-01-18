@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>JVM loaded classes rapidly increased issue | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Rapidly increased JVM loaded classesWhen debug a oom issue on new version of application. I noticed that  Old version:   New version:   The classes increased almost twice compare to the old version. S">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM loaded classes rapidly increased issue">
+<meta property="og:url" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Rapidly increased JVM loaded classesWhen debug a oom issue on new version of application. I noticed that  Old version:   New version:   The classes increased almost twice compare to the old version. S">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.46.48.png">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.46.40.png">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.55.30.png">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.55.36.png">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-18.05.04.png">
+<meta property="og:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-14-14.25.25.png">
+<meta property="article:published_time" content="2022-10-31T06:59:31.000Z">
+<meta property="article:modified_time" content="2023-01-10T10:23:26.098Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.46.48.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-jvm-loaded-classes-rapidly-increased-issue" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/" class="article-date">
+  <time class="dt-published" datetime="2022-10-31T06:59:31.000Z" itemprop="datePublished">2022-10-31</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/languages/">languages</a>►<a class="article-category-link" href="/categories/languages/java/">java</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      JVM loaded classes rapidly increased issue
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Rapidly-increased-JVM-loaded-classes"><a href="#Rapidly-increased-JVM-loaded-classes" class="headerlink" title="Rapidly increased JVM loaded classes"></a>Rapidly increased JVM loaded classes</h2><p>When debug a oom issue on new version of application. I noticed that </p>
+<p>Old version:</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.46.48.png" class="">
+
+<p>New version:</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.46.40.png" class="">
+
+<p>The classes increased almost twice compare to the old version.</p>
+<p>So I just export loaded classes to figure out what classes increased at first.</p>
+<p>After a compare, we got a obvious increased class:</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.55.30.png" class="">
+
+<p>for the new version</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-17.55.36.png" class="">
+
+<p>about 25000 Doc classes is loaded and 45439 + 25000 = 70439 seems very near to 74.3k.</p>
+<p>So check the heap dump by Dominator tree, by comparing heap usage, one class come into view is that:</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-12-18.05.04.png" class="">
+
+<h2 id="Code-reading"><a href="#Code-reading" class="headerlink" title="Code reading"></a>Code reading</h2><p>ZStack use reflections to get information and offer framework level capabilities.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Reflections reflections = <span class="keyword">new</span> Reflections(ClasspathHelper.forPackage(<span class="string">&quot;org.zstack&quot;</span>),</span><br><span class="line">        <span class="keyword">new</span> SubTypesScanner(), <span class="keyword">new</span> MethodAnnotationsScanner(), <span class="keyword">new</span> FieldAnnotationsScanner(),</span><br><span class="line">        <span class="keyword">new</span> TypeAnnotationsScanner(), <span class="keyword">new</span> MethodParameterScanner());</span><br></pre></td></tr></table></figure>
+
+<p>for reflections-0.9.10</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(URL url)</span> </span>&#123;</span><br><span class="line">    Vfs.Dir dir = Vfs.fromURL(url);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">final</span> Vfs.File file : dir.getFiles()) &#123;</span><br><span class="line">            <span class="comment">// scan if inputs filter accepts file relative path or fqn</span></span><br><span class="line">            Predicate&lt;String&gt; inputsFilter = configuration.getInputsFilter();</span><br><span class="line">            String path = file.getRelativePath();</span><br><span class="line">            String fqn = path.replace(<span class="string">&#x27;/&#x27;</span>, <span class="string">&#x27;.&#x27;</span>);</span><br><span class="line">            <span class="keyword">if</span> (inputsFilter == <span class="keyword">null</span> || inputsFilter.apply(path) || inputsFilter.apply(fqn)) &#123;</span><br><span class="line">                Object classObject = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">for</span> (Scanner scanner : configuration.getScanners()) &#123;</span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        <span class="keyword">if</span> (scanner.acceptsInput(path) || scanner.acceptResult(fqn)) &#123;</span><br><span class="line">                            classObject = scanner.scan(file, classObject);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                        <span class="keyword">if</span> (log != <span class="keyword">null</span> &amp;&amp; log.isDebugEnabled())</span><br><span class="line">                            log.debug(<span class="string">&quot;could not scan file &quot;</span> + file.getRelativePath() + <span class="string">&quot; in url &quot;</span> + url.toExternalForm() + <span class="string">&quot; with scanner &quot;</span> + scanner.getClass().getSimpleName(), e.getMessage());</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        dir.close();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>with a groovy closure <code>org.zstack.sso.header.APICreateCasClientEventDoc_zh_cn$_run_closure1</code></p>
+<p>this part of code executed will skip filter and goes throught all scanners with their acceptsInput and acceptResult directly</p>
+<p>refer to ZStack used Scanner, following code will be used:</p>
+<p>FieldAnnotationsScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FieldAnnotationsScanner</span> <span class="keyword">extends</span> <span class="title">AbstractScanner</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(<span class="keyword">final</span> Object cls)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> String className = getMetadataAdapter().getClassName(cls);</span><br><span class="line">        List&lt;Object&gt; fields = getMetadataAdapter().getFields(cls);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">final</span> Object field : fields) &#123;</span><br><span class="line">            List&lt;String&gt; fieldAnnotations = getMetadataAdapter().getFieldAnnotationNames(field);</span><br><span class="line">            <span class="keyword">for</span> (String fieldAnnotation : fieldAnnotations) &#123;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (acceptResult(fieldAnnotation)) &#123;</span><br><span class="line">                    String fieldName = getMetadataAdapter().getFieldName(field);</span><br><span class="line">                    getStore().put(fieldAnnotation, String.format(<span class="string">&quot;%s.%s&quot;</span>, className, fieldName));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>SubTypeScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SubTypesScanner</span> <span class="keyword">extends</span> <span class="title">AbstractScanner</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** created new SubTypesScanner. will exclude direct Object subtypes */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SubTypesScanner</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>(<span class="keyword">true</span>); <span class="comment">//exclude direct Object subtypes by default</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** created new SubTypesScanner.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> excludeObjectClass if false, include direct &#123;<span class="doctag">@link</span> Object&#125; subtypes in results.  */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SubTypesScanner</span><span class="params">(<span class="keyword">boolean</span> excludeObjectClass)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (excludeObjectClass) &#123;</span><br><span class="line">            filterResultsBy(<span class="keyword">new</span> FilterBuilder().exclude(Object.class.getName())); <span class="comment">//exclude direct Object subtypes</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@SuppressWarnings(&#123;&quot;unchecked&quot;&#125;)</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(<span class="keyword">final</span> Object cls)</span> </span>&#123;</span><br><span class="line">		String className = getMetadataAdapter().getClassName(cls);</span><br><span class="line">		String superclass = getMetadataAdapter().getSuperclassName(cls);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (acceptResult(superclass)) &#123;</span><br><span class="line">            getStore().put(superclass, className);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> (String anInterface : (List&lt;String&gt;) getMetadataAdapter().getInterfacesNames(cls)) &#123;</span><br><span class="line">			<span class="keyword">if</span> (acceptResult(anInterface)) &#123;</span><br><span class="line">                getStore().put(anInterface, className);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>MethodAnnotationsScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MethodAnnotationsScanner</span> <span class="keyword">extends</span> <span class="title">AbstractScanner</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(<span class="keyword">final</span> Object cls)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Object method : getMetadataAdapter().getMethods(cls)) &#123;</span><br><span class="line">            <span class="keyword">for</span> (String methodAnnotation : (List&lt;String&gt;) getMetadataAdapter().getMethodAnnotationNames(method)) &#123;</span><br><span class="line">                <span class="keyword">if</span> (acceptResult(methodAnnotation)) &#123;</span><br><span class="line">                    getStore().put(methodAnnotation, getMetadataAdapter().getMethodFullKey(cls, method));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>TypeAnnotationsScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TypeAnnotationsScanner</span> <span class="keyword">extends</span> <span class="title">AbstractScanner</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(<span class="keyword">final</span> Object cls)</span> </span>&#123;</span><br><span class="line">      <span class="keyword">final</span> String className = getMetadataAdapter().getClassName(cls);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String annotationType : (List&lt;String&gt;) getMetadataAdapter().getClassAnnotationNames(cls)) &#123;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (acceptResult(annotationType) ||</span><br><span class="line">                annotationType.equals(Inherited.class.getName())) &#123; <span class="comment">//as an exception, accept Inherited as well</span></span><br><span class="line">                getStore().put(annotationType, className);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>MethodParameterScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MethodParameterScanner</span> <span class="keyword">extends</span> <span class="title">AbstractScanner</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(Object cls)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> MetadataAdapter md = getMetadataAdapter();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (Object method : md.getMethods(cls)) &#123;</span><br><span class="line"></span><br><span class="line">            String signature = md.getParameterNames(method).toString();</span><br><span class="line">            <span class="keyword">if</span> (acceptResult(signature)) &#123;</span><br><span class="line">                getStore().put(signature, md.getMethodFullKey(cls, method));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            String returnTypeName = md.getReturnTypeName(method);</span><br><span class="line">            <span class="keyword">if</span> (acceptResult(returnTypeName)) &#123;</span><br><span class="line">                getStore().put(returnTypeName, md.getMethodFullKey(cls, method));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            List&lt;String&gt; parameterNames = md.getParameterNames(method);</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; parameterNames.size(); i++) &#123;</span><br><span class="line">                <span class="keyword">for</span> (Object paramAnnotation : md.getParameterAnnotationNames(method, i)) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (acceptResult((String) paramAnnotation)) &#123;</span><br><span class="line">                        getStore().put((String) paramAnnotation, md.getMethodFullKey(cls, method));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>All of them only offer scan and not extra processes were defined.</p>
+<p>Check abount their <code>acceptsInput()</code> and <code>acceptResult()</code> methods from AbstractScanner:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">acceptsInput</span><span class="params">(String file)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">return</span> getMetadataAdapter().acceptsInput(file);</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">acceptResult</span><span class="params">(<span class="keyword">final</span> String fqn)</span> </span>&#123;</span><br><span class="line">   <span class="keyword">return</span> fqn != <span class="keyword">null</span> &amp;&amp; resultFilter.apply(fqn);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>acceptResult will be used by SubTypesScanner</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">SubTypesScanner</span><span class="params">(<span class="keyword">boolean</span> excludeObjectClass)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (excludeObjectClass) &#123;</span><br><span class="line">        filterResultsBy(<span class="keyword">new</span> FilterBuilder().exclude(Object.class.getName())); <span class="comment">//exclude direct Object subtypes</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>to reject direct Object subtypes</p>
+<p>and acceptsInput use metadataAdapter(JavassistAdapter.java)，check if file end with .class</p>
+<p>so for reflections-0.9.10 if groovy closure file exists will <code>.class</code> suffix and not extend object directly, will be loaded by reflection.</p>
+<p>After upgrade to reflections-0.10.2</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">(configuration.isParallel() ? urls.stream().parallel() : urls.stream()).forEach(url -&gt; &#123;</span><br><span class="line">    Vfs.Dir dir = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        dir = Vfs.fromURL(url);</span><br><span class="line">        <span class="keyword">for</span> (Vfs.File file : dir.getFiles()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (doFilter(file, configuration.getInputsFilter())) &#123;</span><br><span class="line">                ClassFile classFile = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">for</span> (Scanner scanner : configuration.getScanners()) &#123;</span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        <span class="keyword">if</span> (doFilter(file, scanner::acceptsInput)) &#123;</span><br><span class="line">                            List&lt;Map.Entry&lt;String, String&gt;&gt; entries = scanner.scan(file);</span><br><span class="line">                            <span class="keyword">if</span> (entries == <span class="keyword">null</span>) &#123;</span><br><span class="line">                                <span class="keyword">if</span> (classFile == <span class="keyword">null</span>) classFile = getClassFile(file);</span><br><span class="line">                                entries = scanner.scan(classFile);</span><br><span class="line">                            &#125;</span><br><span class="line">                            <span class="keyword">if</span> (entries != <span class="keyword">null</span>) collect.get(scanner.index()).addAll(entries);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                        <span class="keyword">if</span> (log != <span class="keyword">null</span>) log.trace(<span class="string">&quot;could not scan file &#123;&#125; with scanner &#123;&#125;&quot;</span>, file.getRelativePath(), scanner.getClass().getSimpleName(), e);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log != <span class="keyword">null</span>) log.warn(<span class="string">&quot;could not create Vfs.Dir from url. ignoring the exception and continuing&quot;</span>, e);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (dir != <span class="keyword">null</span>) dir.close();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>code of scan changed to new version and scanners moved to enum</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">enum</span> <span class="title">Scanners</span> <span class="keyword">implements</span> <span class="title">Scanner</span>, <span class="title">QueryBuilder</span>, <span class="title">NameHelper</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** scan type superclasses and interfaces</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;&lt;/p&gt;</span></span><br><span class="line"><span class="comment">     * &lt;i&gt;Note that &#123;<span class="doctag">@code</span> Object&#125; class is excluded by default, in order to reduce store size.</span></span><br><span class="line"><span class="comment">     * &lt;br&gt;Use &#123;<span class="doctag">@link</span> #filterResultsBy(Predicate)&#125; to change, for example &#123;<span class="doctag">@code</span> SubTypes.filterResultsBy(c -&gt; true)&#125;&lt;/i&gt;</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    SubTypes &#123;</span><br><span class="line">        <span class="comment">/* Object class is excluded by default from subtypes indexing */</span></span><br><span class="line">        &#123; filterResultsBy(<span class="keyword">new</span> FilterBuilder().excludePattern(<span class="string">&quot;java\\.lang\\.Object&quot;</span>)); &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(ClassFile classFile, List&lt;Map.Entry&lt;String, String&gt;&gt; entries)</span> </span>&#123;</span><br><span class="line">            entries.add(entry(classFile.getSuperclass(), classFile.getName()));</span><br><span class="line">            entries.addAll(entries(Arrays.asList(classFile.getInterfaces()), classFile.getName()));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** scan method annotations */</span></span><br><span class="line">    MethodsAnnotated &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(ClassFile classFile, List&lt;Map.Entry&lt;String, String&gt;&gt; entries)</span> </span>&#123;</span><br><span class="line">            getMethods(classFile).forEach(method -&gt;</span><br><span class="line">                entries.addAll(entries(getAnnotations(method::getAttribute), methodName(classFile, method))));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/** scan field annotations */</span></span><br><span class="line">    FieldsAnnotated &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(ClassFile classFile, List&lt;Map.Entry&lt;String, String&gt;&gt; entries)</span> </span>&#123;</span><br><span class="line">            classFile.getFields().forEach(field -&gt;</span><br><span class="line">                entries.addAll(entries(getAnnotations(field::getAttribute), fieldName(classFile, field))));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** scan type annotations */</span></span><br><span class="line">    TypesAnnotated &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">acceptResult</span><span class="params">(String annotation)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">super</span>.acceptResult(annotation) || annotation.equals(Inherited.class.getName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(ClassFile classFile, List&lt;Map.Entry&lt;String, String&gt;&gt; entries)</span> </span>&#123;</span><br><span class="line">            entries.addAll(entries(getAnnotations(classFile::getAttribute), classFile.getName()));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** scan method parameters types and annotations */</span></span><br><span class="line">    MethodsParameter &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">scan</span><span class="params">(ClassFile classFile, List&lt;Map.Entry&lt;String, String&gt;&gt; entries)</span> </span>&#123;</span><br><span class="line">            getMethods(classFile).forEach(method -&gt; &#123;</span><br><span class="line">                String value = methodName(classFile, method);</span><br><span class="line">                entries.addAll(entries(getParameters(method), value));</span><br><span class="line">                getParametersAnnotations(method).forEach(annotations -&gt; entries.addAll(entries(annotations, value)));</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br></pre></td></tr></table></figure>
+
+<p>almost same logic is supported but check details about the scan() method</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Scanner scanner : configuration.getScanners()) &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (doFilter(file, scanner::acceptsInput)) &#123;</span><br><span class="line">            List&lt;Map.Entry&lt;String, String&gt;&gt; entries = scanner.scan(file);</span><br><span class="line">            <span class="keyword">if</span> (entries == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (classFile == <span class="keyword">null</span>) classFile = getClassFile(file);</span><br><span class="line">                entries = scanner.scan(classFile);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (entries != <span class="keyword">null</span>) collect.get(scanner.index()).addAll(entries);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log != <span class="keyword">null</span>) log.trace(<span class="string">&quot;could not scan file &#123;&#125; with scanner &#123;&#125;&quot;</span>, file.getRelativePath(), scanner.getClass().getSimpleName(), e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>acceptsInput will be used to do filter which check file end with <code>.class</code> suffix but filterResultsBy is not executed only if <code>entries = scanner.scan(classFile)</code> is used.</p>
+<p>So when <code>List&lt;Map.Entry&lt;String, String&gt;&gt; entries = scanner.scan(file);</code> return entries the result won’t be exclude.</p>
+<h2 id="Hands-on-test"><a href="#Hands-on-test" class="headerlink" title="Hands-on test"></a>Hands-on test</h2><p>I set up a maven project to test reflections issue with a project:</p>
+<img src="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/%E6%88%AA%E5%B1%8F2022-10-14-14.25.25.png" class="">
+
+<p>and main code:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.zstack;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.reflections.Reflections;</span><br><span class="line"><span class="keyword">import</span> org.reflections.scanners.*;</span><br><span class="line"><span class="keyword">import</span> org.reflections.util.ClasspathHelper;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.ManagementFactory;</span><br><span class="line"><span class="keyword">import</span> java.util.Set;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TestReflections</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;==========================&quot;</span>);</span><br><span class="line">        printLoadedClasses(<span class="keyword">null</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;==========================&quot;</span>);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        <span class="comment">// reflections 0.9.10</span></span><br><span class="line">        Reflections reflections = <span class="keyword">new</span> Reflections(ClasspathHelper.forPackage(<span class="string">&quot;org.zstack&quot;</span>),</span><br><span class="line">            <span class="keyword">new</span> SubTypesScanner(<span class="keyword">false</span>), <span class="keyword">new</span> MethodAnnotationsScanner(), <span class="keyword">new</span> FieldAnnotationsScanner(),</span><br><span class="line">            <span class="keyword">new</span> TypeAnnotationsScanner(), <span class="keyword">new</span> MethodParameterScanner());</span><br><span class="line"></span><br><span class="line">        <span class="comment">// reflections 0.10.2</span></span><br><span class="line"><span class="comment">//        Reflections reflections = new Reflections(ClasspathHelper.forPackage(&quot;org.zstack&quot;),</span></span><br><span class="line"><span class="comment">//            new SubTypesScanner(false), new MethodAnnotationsScanner(), new FieldAnnotationsScanner(),</span></span><br><span class="line"><span class="comment">//            new TypeAnnotationsScanner(), new MethodParameterScanner());</span></span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">&quot;==========================&quot;</span>);</span><br><span class="line">        printLoadedClasses(reflections);</span><br><span class="line">        System.out.println(<span class="string">&quot;==========================&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">printLoadedClasses</span><span class="params">(Reflections reflections)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (reflections != <span class="keyword">null</span>) &#123;</span><br><span class="line">            Set&lt;String&gt; types = reflections.getAllTypes();</span><br><span class="line"></span><br><span class="line">            types.forEach(System.out::println);</span><br><span class="line"></span><br><span class="line">            System.out.println(<span class="string">&quot;loaded class number from reflection: &quot;</span> + types.size());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">&quot;loaded class number from jmx: &quot;</span> + ManagementFactory.getClassLoadingMXBean().getLoadedClassCount());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>finally the output of reflections 0.10.2:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">groovy.lang.GroovyObject</span><br><span class="line">java.lang.Cloneable</span><br><span class="line">org.codehaus.groovy.runtime.GeneratedClosure</span><br><span class="line">groovy.lang.GroovyObjectSupport</span><br><span class="line">groovy.lang.Closure</span><br><span class="line">java.util.concurrent.Callable</span><br><span class="line">java.lang.Object</span><br><span class="line">groovy.lang.GroovyCallable</span><br><span class="line">groovy.lang.Script</span><br><span class="line">java.lang.Runnable</span><br><span class="line">java.io.Serializable</span><br><span class="line">org.test.TestGroovy2$_run_closure1</span><br><span class="line">org.zstack.TestGroovy2$_run_closure1</span><br><span class="line">org.test.TestGroovy$_run_closure1</span><br><span class="line">org.zstack.TestGroovy$_run_closure1$_closure2</span><br><span class="line">org.zstack.TestGroovy$_run_closure1</span><br><span class="line">org.zstack.TestGroovy3$_run_closure1$_closure2</span><br><span class="line">org.test.TestGroovy$_run_closure1$_closure2</span><br><span class="line">org.test.TestGroovy3$_run_closure1$_closure2</span><br><span class="line">org.test.TestGroovy3$_run_closure1</span><br><span class="line">org.test.TestGroovy2$_run_closure1$_closure2</span><br><span class="line">org.zstack.TestGroovy2$_run_closure1$_closure2</span><br><span class="line">org.zstack.TestGroovy3$_run_closure1</span><br><span class="line">org.zstack.TestReflections</span><br><span class="line">org.test.TestGroovy2</span><br><span class="line">org.test.TestGroovy3</span><br><span class="line">org.zstack.TestGroovy</span><br><span class="line">org.test.TestGroovy</span><br><span class="line">org.zstack.TestGroovy2</span><br><span class="line">org.zstack.TestGroovy3</span><br><span class="line">loaded class number from reflection: 30</span><br></pre></td></tr></table></figure>
+
+<p>and the reflection 0.10.9:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">org.zstack.TestReflections</span><br><span class="line">loaded class number from reflection: 1</span><br></pre></td></tr></table></figure>
+
+<p>we can found out that even a specified reflection from class path <code>org.zstack</code> unrelated class still appears.</p>
+<p>So I just goolge the reflection issue, it come out directly:</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/ronmamo/reflections/issues/373">https://github.com/ronmamo/reflections/issues/373</a></p>
+<p>we can solve this issue by adding some workaround</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// reflections 0.10.2</span></span><br><span class="line">ConfigurationBuilder builder = ConfigurationBuilder.build()</span><br><span class="line">        .setUrls(ClasspathHelper.forPackage(<span class="string">&quot;org.zstack&quot;</span>))</span><br><span class="line">        .setScanners(<span class="keyword">new</span> SubTypesScanner(<span class="keyword">false</span>),</span><br><span class="line">                <span class="keyword">new</span> MethodAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> FieldAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> TypeAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> MethodParameterScanner())</span><br><span class="line">        .setExpandSuperTypes(<span class="keyword">false</span>)</span><br><span class="line">        .filterInputsBy(<span class="keyword">new</span> FilterBuilder().includePackage(<span class="string">&quot;org.zstack&quot;</span>));</span><br><span class="line">Reflections reflections = <span class="keyword">new</span> Reflections(builder);</span><br></pre></td></tr></table></figure>
+
+<h2 id="Where-is-root-cause"><a href="#Where-is-root-cause" class="headerlink" title="Where is root cause"></a>Where is root cause</h2><p>But after a solve the problem by add some hack for reflections, I still want to known what is the root cause.</p>
+<p>So I check the code again try to find out what happened.</p>
+<p>Compare scanners between 0.10.2 and 0.9.10</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// SubTypes</span></span><br><span class="line"><span class="comment">// reflections 0.10.2</span></span><br><span class="line">entries.add(<span class="keyword">this</span>.entry(classFile.getSuperclass(), classFile.getName()));</span><br><span class="line">entries.addAll(<span class="keyword">this</span>.entries(Arrays.asList(classFile.getInterfaces()), classFile.getName()));</span><br><span class="line"></span><br><span class="line"><span class="comment">// reflections 0.9.10</span></span><br><span class="line">filterResultsBy(<span class="keyword">new</span> FilterBuilder().exclude(Object.class.getName())); <span class="comment">//exclude direct Object subtypes</span></span><br><span class="line"></span><br><span class="line">String className = getMetadataAdapter().getClassName(cls);</span><br><span class="line">String superclass = getMetadataAdapter().getSuperclassName(cls);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (acceptResult(superclass)) &#123;</span><br><span class="line">    getStore().put(superclass, className);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (String anInterface : (List&lt;String&gt;) getMetadataAdapter().getInterfacesNames(cls)) &#123;</span><br><span class="line">		<span class="keyword">if</span> (acceptResult(anInterface)) &#123;</span><br><span class="line">        getStore().put(anInterface, className);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>0.9.10 will filter the superclass before put it into reflections store but 0.10.2 use it directly.</p>
+<p>in 0.9.10 scan works like following:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (inputsFilter == <span class="keyword">null</span> || inputsFilter.apply(path) || inputsFilter.apply(fqn)) &#123;</span><br><span class="line">    Object classObject = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">for</span> (Scanner scanner : configuration.getScanners()) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (scanner.acceptsInput(path) || scanner.acceptResult(fqn)) &#123;</span><br><span class="line">                classObject = scanner.scan(file, classObject);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="keyword">if</span> (log != <span class="keyword">null</span> &amp;&amp; log.isDebugEnabled())</span><br><span class="line">                log.debug(<span class="string">&quot;could not scan file &quot;</span> + file.getRelativePath() + <span class="string">&quot; in url &quot;</span> + url.toExternalForm() + <span class="string">&quot; with scanner &quot;</span> + scanner.getClass().getSimpleName(), e.getMessage());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>scanner will check fqn of class first and then check the interface but in 0.10.2 version:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Scanner scanner : configuration.getScanners()) &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (doFilter(file, scanner::acceptsInput)) &#123;</span><br><span class="line">            List&lt;Map.Entry&lt;String, String&gt;&gt; entries = scanner.scan(file);</span><br><span class="line">            <span class="keyword">if</span> (entries == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (classFile == <span class="keyword">null</span>) classFile = getClassFile(file);</span><br><span class="line">                entries = scanner.scan(classFile);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (entries != <span class="keyword">null</span>) collect.get(scanner.index()).addAll(entries);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">if</span> (log != <span class="keyword">null</span>) log.trace(<span class="string">&quot;could not scan file &#123;&#125; with scanner &#123;&#125;&quot;</span>, file.getRelativePath(), scanner.getClass().getSimpleName(), e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>File will be checked before scan by Filter but superclass’s belonging is not checked which seems to blame.</p>
+<p>But actually, groovy closure does not extend Object but GroovyObject, so reflections will still load groovy closures. So check reflections <code>getAllTypes()</code></p>
+<p>for 0.9.10</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Set&lt;String&gt; <span class="title">getAllTypes</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Set&lt;String&gt; allTypes = Sets.newHashSet(store.getAll(index(SubTypesScanner.class), Object.class.getName()));</span><br><span class="line">    <span class="keyword">if</span> (allTypes.isEmpty()) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ReflectionsException(<span class="string">&quot;Couldn&#x27;t find subtypes of Object. &quot;</span> +</span><br><span class="line">                <span class="string">&quot;Make sure SubTypesScanner initialized to include Object class - new SubTypesScanner(false)&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> allTypes;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>for 0.10.2</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Set&lt;String&gt; <span class="title">getAll</span><span class="params">(Scanner scanner)</span> </span>&#123;</span><br><span class="line">    Map&lt;String, Set&lt;String&gt;&gt; map = store.getOrDefault(scanner.index(), Collections.emptyMap());</span><br><span class="line">    <span class="keyword">return</span> Stream.concat(map.keySet().stream(), map.values().stream().flatMap(Collection::stream)).collect(Collectors.toCollection(LinkedHashSet::<span class="keyword">new</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>All most same but in 0.9.10 Object related types will be returned. So as a result, only java objects is returned.</p>
+<p>Work around on 0.10.2 can use following codes:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">ConfigurationBuilder builder = ConfigurationBuilder.build()</span><br><span class="line">        .setUrls(ClasspathHelper.forPackage(<span class="string">&quot;org.zstack&quot;</span>))</span><br><span class="line">        .setScanners(<span class="keyword">new</span> SubTypesScanner(<span class="keyword">false</span>),</span><br><span class="line">                <span class="keyword">new</span> MethodAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> FieldAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> TypeAnnotationsScanner(),</span><br><span class="line">                <span class="keyword">new</span> MethodParameterScanner())</span><br><span class="line">        .setExpandSuperTypes(<span class="keyword">false</span>)</span><br><span class="line">        .filterInputsBy(<span class="keyword">new</span> FilterBuilder().includePackage(<span class="string">&quot;org.zstack&quot;</span>));</span><br><span class="line">Reflections reflections = <span class="keyword">new</span> Reflections(builder);</span><br></pre></td></tr></table></figure>
+
+<p>filterInputsBy will filter class not in package <code>org.zstack</code> and setExpandSuperTypes will ignore super types of scanned result.</p>
+<p>Note: but the result still contains groovy closure even its count cut down to acceptable numbers.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/" data-id="cld1mhecb0062yuwb8beu03im" data-title="JVM loaded classes rapidly increased issue" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/" rel="tag">java</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/11/09/plugable-system-in-practice-00/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Plugable system in practice 00
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Windows 2003 vmware v2v hands-on</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

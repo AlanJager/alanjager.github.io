@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>UEFI Windows guest hang after live migration | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Notes about debug windows hang issue. Test caseIf qemu guest need to use nvidia GPU,  according to https:&#x2F;&#x2F;wiki.archlinux.org&#x2F;title&#x2F;PCI_passthrough_via_OVMF#Video_card_driver_virtualisation_detection">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UEFI Windows guest hang after live migration">
+<meta property="og:url" content="http://hanayo.cn/2022/11/16/uefi-windows-guest-hang-after-live-migration/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Notes about debug windows hang issue. Test caseIf qemu guest need to use nvidia GPU,  according to https:&#x2F;&#x2F;wiki.archlinux.org&#x2F;title&#x2F;PCI_passthrough_via_OVMF#Video_card_driver_virtualisation_detection">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-11-16T12:12:22.000Z">
+<meta property="article:modified_time" content="2023-01-10T10:23:26.107Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="kvm">
+<meta property="article:tag" content="kernel">
+<meta property="article:tag" content="perf">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-uefi-windows-guest-hang-after-live-migration" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/" class="article-date">
+  <time class="dt-published" datetime="2022-11-16T12:12:22.000Z" itemprop="datePublished">2022-11-16</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      UEFI Windows guest hang after live migration
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Notes about debug windows hang issue.</p>
+<h2 id="Test-case"><a href="#Test-case" class="headerlink" title="Test case"></a>Test case</h2><p>If qemu guest need to use nvidia GPU,  according to <a target="_blank" rel="noopener" href="https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Video_card_driver_virtualisation_detection">https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Video_card_driver_virtualisation_detection</a> a workaround need to be setup in domain xml:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">features</span>&gt;</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="tag">&lt;<span class="name">kvm</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">hidden</span> <span class="attr">state</span>=<span class="string">&#x27;on&#x27;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">kvm</span>&gt;</span></span><br><span class="line">  ...</span><br><span class="line"><span class="tag">&lt;/<span class="name">features</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>after hidden kvm from guest, the GPU driver could work as expected. But we met an issue with Windows UEFI guest which hidden kvm and hung after live migration.</p>
+<p>After searching for google, I got some directions for debug this issue:</p>
+<ul>
+<li>OVMF live migration issue: OVMF file size changed due to lib upgraded, configuration file length mismatch may cause guest hang</li>
+<li>Host CPU feature issue: Host CPU features not match, may cause guest paused</li>
+<li>QEMU/Libvirt issue</li>
+<li>Windows issue: hidden kvm from guest is not compatible for all windows guest</li>
+</ul>
+<p>So I did some test try to figure out which component to suspect:</p>
+<ul>
+<li>Check OVMF version: not changed</li>
+<li>Check host CPU feature: not changed</li>
+<li>Check QEMU/Libvirt log, no virtualization error or error message exists</li>
+<li>Remove the hidden tag to try live migration: Guest not hang</li>
+</ul>
+<p>We can see that kvm hidden seems to blame, but in order to use GPU on UEFI guest this issue should be resolved. So trace what happened during migration is the next step, open following logs for debug usage:</p>
+<ol>
+<li><p>OVMF log by following:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">qemu:commandline</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">qemu:arg</span> <span class="attr">value</span>=<span class="string">&#x27;-debugcon&#x27;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">qemu:arg</span> <span class="attr">value</span>=<span class="string">&#x27;file:/var/log/libvirt/qemu/debug.log&#x27;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">qemu:arg</span> <span class="attr">value</span>=<span class="string">&#x27;-global&#x27;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">qemu:arg</span> <span class="attr">value</span>=<span class="string">&#x27;isa-debugcon.iobase=0x402&#x27;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">qemu:commandline</span>&gt;</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>QEMU/libvirt debug, but we already have qemu log under <code>/var/log/libvirt/qemu/</code></p>
+</li>
+<li><p>Check windows events after reboot</p>
+</li>
+</ol>
+<p>But before we start debug, the environment related issue should be checked. Because we use nested virtualizatin as default, following environment check tests are required:</p>
+<ol>
+<li>Use baremetal host to test</li>
+<li>Use latest qemu and libvirt to test</li>
+<li>Use latest edk2 to test</li>
+</ol>
+<p>While combine test 1 and test 2, we get the result that UEFI wouldn’t hang after live migration. So we decide to test the same scenario on nested environment. And we did not met guest hang issue after upgrade libvirt. Go through the diffs from bug version and upstream:</p>
+<p>I found following patch:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">-    <span class="keyword">if</span> (!loader || !loader-&gt;nvram || <span class="built_in">virFileExists</span>(loader-&gt;nvram))</span><br><span class="line">+    <span class="keyword">if</span> (!loader || !loader-&gt;nvram ||</span><br><span class="line">+        (<span class="built_in">virFileExists</span>(loader-&gt;nvram) &amp;&amp;</span><br><span class="line">+            <span class="built_in">virFileLength</span>(loader-&gt;templt, <span class="number">-1</span>) == <span class="built_in">virFileLength</span>(loader-&gt;nvram, <span class="number">-1</span>))</span><br><span class="line">+        )</span><br><span class="line">         <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">+    <span class="built_in">unlink</span>(loader-&gt;nvram);</span><br></pre></td></tr></table></figure>
+
+<p>which is submitted to solve ovmf upgrade issue:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nvram: regenerate nvram mapping file from template when firmware being upgraded</span><br></pre></td></tr></table></figure>
+
+<p>After regenerating nvram mapping, the guest could be successfully migrated. Indeed this discovery solve our problem in short term and I want to get the root cause for why the guest hang and this patch is a important hint.</p>
+<h2 id="How-ovmf-guest-perform-live-migration"><a href="#How-ovmf-guest-perform-live-migration" class="headerlink" title="How ovmf guest perform live migration"></a>How ovmf guest perform live migration</h2><p>How to perform live migration on ovmf guest. I search on edk2.groups.io try to find the answer.</p>
+<p><a target="_blank" rel="noopener" href="https://edk2.groups.io/g/devel/topic/71141681#55046">https://edk2.groups.io/g/devel/topic/71141681#55046</a> and this topic discussed about live migration issue for ovmf guest which is quite helpful.</p>
+<p>First of all, topic owner can not perform live migration because OVMF.fd changed its size from 2MB to 4MB which will be checked by qemu and raise length mismatch error like following(I got similar error from my test env):</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-kvm: Length mismatch: system.flash1: 0x84000 in != 0x20000:Invalid argument</span><br></pre></td></tr></table></figure>
+
+<p>And the reason of extending the flash size is due to <a target="_blank" rel="noopener" href="https://github.com/tianocore/edk2/commit/b24fca05751f">https://github.com/tianocore/edk2/commit/b24fca05751f</a> windows HCK require which declared that this is a incompatible change. So the solution may be:</p>
+<ol>
+<li>Stick with the same version of the ROM between VMs you want to migrate</li>
+<li>Pad your ROM images to some larger size (e.g. 8MB) so that even if they grow a little bigger then you don’t hit the problem.</li>
+</ol>
+<p>When think about live migration, all guest’s memory will be migrated to target host, so the memory content of the firmware will be copied to the target host so no matter what loaded at target host memory will be overwritten. So if we want to get rid of this issue, keep the firmware with edk2 version is a good solution.</p>
+<p>For legacy guest, BIOS use fixed magic address ranges but UEFI uses dynamically allocated memory, so there is not fixed addresses. When firmware flash image size change, also the content parts will changed too and which can not keep compatible.</p>
+<p>But for live migration, due to the memory not changed, the nvram should also not be changed after that. I just quota the answer how ovmf works with live migration:</p>
+<blockquote>
+<p>With live migration, the running guest doesn’t notice anything. This is<br>a general requirement for live migration (regardless of UEFI or flash).</p>
+<p>You are very correct to ask about “skipping” the NVRAM region. With the<br>approach that OvmfPkg originally supported, live migration would simply<br>be unfeasible. The “build” utility would produce a single (unified)<br>OVMF.fd file, which would contain both NVRAM and executable regions, and<br>the guest’s variable updates would modify the one file that would exist.<br>This is inappropriate even without considering live migration, because<br>OVMF binary upgrades (package updates) on the virtualization host would<br>force guests to lose their private variable stores (NVRAMs).</p>
+<p>Therefore, the “build” utility produces “split” files too, in addition<br>to the unified OVMF.fd file. Namely, OVMF_CODE.fd and OVMF_VARS.fd.<br>OVMF.fd is simply the concatenation of the latter two.</p>
+<p>$ cat OVMF_VARS.fd OVMF_CODE.fd | cmp - OVMF.fd<br>[prints nothing]</p>
+<p>When you define a new domain (VM) on a virtualization host, the domain<br>definition saves a reference (pathname) to the OVMF_CODE.fd file.<br>However, the OVMF_VARS.fd file (the variable store <em>template</em>) is not<br>directly referenced; instead, it is <em>copied</em> into a separate (private)<br>file for the domain.</p>
+<p>Furthermore, once booted, guest has two flash chips, one that maps the<br>firmware executable OVMF_CODE.fd read-only, and another pflash chip that<br>maps its private varstore file read-write.</p>
+<p>This makes it possible to upgrade OVMF_CODE.fd and OVMF_VARS.fd (via<br>package upgrades on the virt host) without messing with varstores that<br>were earlier instantiated from OVMF_VARS.fd. What’s important here is<br>that the various constants in the new (upgraded) OVMF_CODE.fd file<br>remain compatible with the <em>old</em> OVMF_VARS.fd structure, across package<br>upgrades.</p>
+<p>If that’s not possible for introducing e.g. a new feature, then the<br>package upgrade must not overwrite the OVMF_CODE.fd file in place, but<br>must provide an additional firmware binary. This firmware binary can<br>then only be used by freshly defined domains (old domains cannot be<br>switched over). Old domains can be switched over manually – and only if<br>the sysadmin decides it is OK to lose the current variable store<br>contents. Then the old varstore file for the domain is deleted<br>(manually), the domain definition is updated, and then a new (logically<br>empty, pristine) varstore can be created from the <em>new</em> OVMF_2_VARS.fd<br>that matches the <em>new</em> OVMF_2_CODE.fd.</p>
+<p>During live migration, the “RAM-like” contents of both pflash chips are<br>migrated (the guest-side view of both chips remains the same, including<br>the case when the writeable chip happens to be in “programming mode”,<br>i.e., during a UEFI variable write through the Fault Tolerant Write and<br>Firmware Volume Block(2) protocols).</p>
+<p>Once live migration completes, QEMU dumps the full contents of the<br>writeable chip to the backing file (on the destination host). Going<br>forward, flash writes from within the guest are reflected to said<br>host-side file on-line, just like it happened on the source host before<br>live migration. If the file backing the r/w pflash chip is on NFS<br>(shared by both src and dst hosts), then this one-time dumping when the<br>migration completes is superfluous, but it’s also harmless.</p>
+<p>The interesting question is, what happens when you power down the VM on<br>the destination host (= post migration), and launch it again there, from<br>zero. In that case, the firmware executable file comes from the<br><em>destination host</em> (it was never persistently migrated from the source<br>host, i.e. never written out on the dst). It simply comes from the OVMF<br>package that had been installed on the destination host, by the<br>sysadmin. However, the varstore pflash does reflect the permanent result<br>of the previous migration. So this is where things can fall apart, if<br>both firmware binaries (on the src host and on the dst host) don’t agree<br>about the internal structure of the varstore pflash.</p>
+</blockquote>
+<p>from this long reply, we can get thoes points:</p>
+<ul>
+<li>Live migration should not be awared by guest</li>
+<li>Edk2 seperate read-only executable codes and varstore to support firmware upgrade<ul>
+<li>OVMF_CODE.fd keep compitable with orignal version</li>
+<li>Qemu keep varstores in its nvram which will not be changed</li>
+</ul>
+</li>
+<li>For new features if OVMF_CODE.fd can not keep compitable, use another OVMF_CODE_2.fd instead</li>
+<li>Once live migraiton complete, qemu dump all contents to dest host</li>
+</ul>
+<p>So for qemu guest,  live migration just migrate memory to dest host and if we keep the same varstore and code with source host, it should be supported. Also because the pflash after live migration is actually in memory, so keep the varstore not changed will keep the compitable (no side-effects during runtime).</p>
+<p>And another fact is when we turn off kvm hidden, the migration performs well and no any errors during guest runtime occurs in edk2’s log.</p>
+<h2 id="Enable-KVM-trace"><a href="#Enable-KVM-trace" class="headerlink" title="Enable KVM trace"></a>Enable KVM trace</h2><p>According to: <a target="_blank" rel="noopener" href="https://www.reddit.com/r/VFIO/comments/80p1q7/high_kvmqemu_cpu_utilization_when_windows_10/">https://www.reddit.com/r/VFIO/comments/80p1q7/high_kvmqemu_cpu_utilization_when_windows_10/</a> a windows performance topic.</p>
+<p>Because there is no abvious log shows any error from qemu or libvirt and it seems that the guest hangs but qemu and libvirt works well, I decide to enable kvm tracing and hope to get more clues.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 1 &gt; /sys/kernel/debug/tracing/events/kvm/enable</span><br></pre></td></tr></table></figure>
+
+<p>can we can get tracing by:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat /sys/kernel/debug/tracing/trace_pipe</span><br></pre></td></tr></table></figure>
+
+<p>and the following log printed:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;...&gt;-41061 [003] .... 167992.130071: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41061 [003] .... 167992.130072: kvm_msr: msr_read 40000020 = 0xdfa1388fd</span><br><span class="line">&lt;...&gt;-41061 [003] d... 167992.130072: kvm_entry: vcpu 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130073: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130074: kvm_msr: msr_read 40000020 = 0xdfa138912</span><br><span class="line">&lt;...&gt;-41064 [002] d... 167992.130074: kvm_entry: vcpu 3</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130085: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130086: kvm_msr: msr_read 40000020 = 0xdfa138988</span><br><span class="line">&lt;...&gt;-41064 [002] d... 167992.130086: kvm_entry: vcpu 3</span><br><span class="line">&lt;...&gt;-41061 [003] .... 167992.130086: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41061 [003] .... 167992.130087: kvm_msr: msr_read 40000020 = 0xdfa138998</span><br><span class="line">&lt;...&gt;-41061 [003] d... 167992.130088: kvm_entry: vcpu 0</span><br><span class="line">&lt;...&gt;-41061 [003] .... 167992.130102: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41061 [003] .... 167992.130103: kvm_msr: msr_read 40000020 = 0xdfa138a32</span><br><span class="line">&lt;...&gt;-41061 [003] d... 167992.130103: kvm_entry: vcpu 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130103: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130104: kvm_msr: msr_read 40000020 = 0xdfa138a3f</span><br><span class="line">&lt;...&gt;-41064 [002] d... 167992.130104: kvm_entry: vcpu 3</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130114: kvm_exit: reason MSR_READ rip 0xfffff8008f9d0c0d info 0 0</span><br><span class="line">&lt;...&gt;-41064 [002] .... 167992.130114: kvm_msr: msr_read 40000020 = 0xdfa138aaa</span><br><span class="line">&lt;...&gt;-41064 [002] d... 167992.130115: kvm_entry: vcpu 3</span><br></pre></td></tr></table></figure>
+
+<p>the vcpus seems run kvm_entry and kvm_exit forever to do msr_read and combine with top:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">top - 12:54:08 up 1 day, 22:42,  1 user,  load average: 5.69, 5.82, 6.10</span><br><span class="line">Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie</span><br><span class="line">%Cpu0  : 87.5 us, 12.5 sy,  0.0 ni,  0.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st</span><br><span class="line">%Cpu1  :100.0 us,  0.0 sy,  0.0 ni,  0.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st</span><br><span class="line">%Cpu2  :100.0 us,  0.0 sy,  0.0 ni,  0.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st</span><br><span class="line">%Cpu3  : 87.5 us, 12.5 sy,  0.0 ni,  0.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st</span><br><span class="line">KiB Mem : 10054364 total,  7086476 free,  2163892 used,   803996 buff&#x2F;cache</span><br><span class="line">KiB Swap:        0 total,        0 free,        0 used.  7563464 avail Mem</span><br><span class="line"></span><br><span class="line">   PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span><br><span class="line"> 41029 root      20   0 5193164   1.6g  17104 S 387.5 17.0 394:17.63 qemu-kvm</span><br></pre></td></tr></table></figure>
+
+<p>guest’s sys usage is quite high use perf to get more details about this process:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">perf kvm --host top -p `pidof qemu-kvm`</span><br></pre></td></tr></table></figure>
+
+<p>I see that:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Samples: 99K of event &#x27;cycles&#x27;, Event count (approx.): 10268746210</span><br><span class="line">Overhead  Shared Object            Symbol                                                                                                                                                                                          ◆</span><br><span class="line">  18.41%  [kernel]                 [k] vmx_vcpu_run                                                                                                                                                                                ▒</span><br><span class="line">   6.43%  [kernel]                 [k] vcpu_enter_guest                                                                                                                                                                            ▒</span><br><span class="line">   5.58%  [kernel]                 [k] pvclock_clocksource_read                                                                                                                                                                    ▒</span><br><span class="line">   3.84%  [kernel]                 [k] mutex_lock                                                                                                                                                                                  ▒</span><br><span class="line">   2.79%  [kernel]                 [k] vmx_handle_exit</span><br></pre></td></tr></table></figure>
+
+<p>vmx_vcpu_run is high (on intel cpu) this means cpu switch to guest mode and show that guest mode and kernel mode switch spent a lot of time.</p>
+<p>And by kvm tracing we can see many vm entry/exit so check the reason why vm exit happend (because the vcpu mode switch now spend too much time)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p> Just use a small piece of the output:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[root@172-24-195-187 ~]# perf stat -e &#39;kvm:*&#39; -a -- sleep 1</span><br><span class="line"></span><br><span class="line"> Performance counter stats for &#39;system wide&#39;:</span><br><span class="line"></span><br><span class="line">           206,380      kvm:kvm_entry</span><br><span class="line">                 0      kvm:kvm_hypercall</span><br><span class="line">                 0      kvm:kvm_hv_hypercall</span><br><span class="line">               263      kvm:kvm_pio</span><br><span class="line">                 0      kvm:kvm_fast_mmio</span><br><span class="line">                 0      kvm:kvm_cpuid</span><br><span class="line">               162      kvm:kvm_apic</span><br><span class="line">           206,395      kvm:kvm_exit</span><br><span class="line">                 0      kvm:kvm_inj_virq</span><br><span class="line">                 0      kvm:kvm_inj_exception</span><br><span class="line">                 0      kvm:kvm_page_fault</span><br><span class="line">           202,600      kvm:kvm_msr</span><br><span class="line">                 0      kvm:kvm_cr</span><br><span class="line">               195      kvm:kvm_pic_set_irq</span><br><span class="line">                81      kvm:kvm_apic_ipi</span><br><span class="line">               370      kvm:kvm_apic_accept_irq</span><br><span class="line">                65      kvm:kvm_eoi</span><br></pre></td></tr></table></figure>
+
+<p>kvm_msr is the main reason for vm exit and which matches kvm tracing.</p>
+<p>By collect kvm events:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">perf kvm --host stat live</span><br></pre></td></tr></table></figure>
+
+<p>we could see MSR_READ and EXTERNAL_INTERRUPT used almost all of the time.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">13:02:10.174121</span><br><span class="line"></span><br><span class="line">Analyze events for all VMs, all VCPUs:</span><br><span class="line"></span><br><span class="line">             VM-EXIT    Samples  Samples%     Time%    Min Time    Max Time         Avg time</span><br><span class="line"></span><br><span class="line">            MSR_READ       6022    78.14%    74.10%      0.71us  21778.22us     42.52us ( +-  17.16% )</span><br><span class="line">  EXTERNAL_INTERRUPT       1494    19.38%    21.65%      0.53us  12810.58us     50.08us ( +-  29.22% )</span><br><span class="line">      IO_INSTRUCTION        126     1.63%     1.16%     23.80us     51.45us     31.73us ( +-   1.56% )</span><br><span class="line">          APIC_WRITE         26     0.34%     0.06%      3.23us     10.96us      8.39us ( +-   4.81% )</span><br><span class="line">         EOI_INDUCED         20     0.26%     0.02%      1.93us      3.27us      2.63us ( +-   3.21% )</span><br><span class="line">       EPT_MISCONFIG         19     0.25%     3.01%     29.30us   9795.61us    548.07us ( +-  93.74% )</span><br><span class="line"></span><br><span class="line">Total Samples:7707, Total events handled time:345545.97us.</span><br></pre></td></tr></table></figure>
+
+<p>from kvm tracing:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;...&gt;-41064 [000] .... 168733.114930: kvm_msr: msr_read 40000020 &#x3D; 0xfb3c08a54</span><br></pre></td></tr></table></figure>
+
+<p>we can find 0x40000020 from linux kernel code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* MSR used to read the per-partition time reference counter */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> HV_X64_MSR_TIME_REF_COUNT		0x40000020</span></span><br></pre></td></tr></table></figure>
+
+<p>it seems a hyperv clocksource related issue so I just remote the hyperclock field from libvirt xml and the migration issue disappeared after that.</p>
+<h2 id="Try-to-find-root-cause"><a href="#Try-to-find-root-cause" class="headerlink" title="Try to find root cause"></a>Try to find root cause</h2><p>Actually we can workaround our issue by remove the clocksource from vm configuration but we do not known the root cause but only a vm_exit and failed to read hyperv clocksource.</p>
+<p>So simply trace kernel code for more details.</p>
+<p>vmx.h defines lots of EXIT reasons:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> EXIT_REASON_MSR_READ            31</span></span><br></pre></td></tr></table></figure>
+
+<p>and vmx.c register handlers</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * The exit handlers return 1 if the exit was handled fully and guest execution</span></span><br><span class="line"><span class="comment"> * may resume.  Otherwise they set the kvm_run parameter to indicate what needs</span></span><br><span class="line"><span class="comment"> * to be done to userspace and return 0.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="title">int</span> <span class="params">(*<span class="keyword">const</span> kvm_vmx_exit_handlers[])</span><span class="params">(struct kvm_vcpu *vcpu)</span> </span>= &#123;</span><br><span class="line">  ...</span><br><span class="line">	[EXIT_REASON_MSR_READ]                = handle_rdmsr,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>than move to handle_rdmsr</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">handle_rdmsr</span><span class="params">(struct kvm_vcpu *vcpu)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	u32 ecx = vcpu-&gt;arch.regs[VCPU_REGS_RCX];</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">msr_data</span> <span class="title">msr_info</span>;</span></span><br><span class="line"></span><br><span class="line">	msr_info.index = ecx;</span><br><span class="line">	msr_info.host_initiated = <span class="literal">false</span>;</span><br><span class="line">	<span class="keyword">if</span> (vmx_get_msr(vcpu, &amp;msr_info)) &#123;</span><br><span class="line">		trace_kvm_msr_read_ex(ecx);</span><br><span class="line">		kvm_inject_gp(vcpu, <span class="number">0</span>);</span><br><span class="line">		<span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	trace_kvm_msr_read(ecx, msr_info.data);</span><br><span class="line"></span><br><span class="line">	<span class="comment">/* <span class="doctag">FIXME:</span> handling of bits 32:63 of rax, rdx */</span></span><br><span class="line">	vcpu-&gt;arch.regs[VCPU_REGS_RAX] = msr_info.data &amp; <span class="number">-1u</span>;</span><br><span class="line">	vcpu-&gt;arch.regs[VCPU_REGS_RDX] = (msr_info.data &gt;&gt; <span class="number">32</span>) &amp; <span class="number">-1u</span>;</span><br><span class="line">	skip_emulated_instruction(vcpu);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>because we see the trace from kvm that means <code>trace_kvm_msr_read_ex</code> is executed and will return 1 which means vm could resume.</p>
+<p>If you look back to the kvm process trace</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">perf kvm --host top -p &#96;pidof qemu-kvm&#96;</span><br></pre></td></tr></table></figure>
+
+<p>we can find the inside vmx_vcpu_run, the vm vmresume is used and according to the code, the function will finished after <code>kvm_inject_gp(vcpu, 0);</code> and vm will entry guest.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">vmx_vcpu_run  &#x2F;proc&#x2F;kcore</span><br><span class="line">Percent│       mov    0x238(%rcx),%rbx</span><br><span class="line">       │       mov    0x230(%rcx),%rdx</span><br><span class="line">       │       mov    0x250(%rcx),%rsi</span><br><span class="line">  0.11 │       mov    0x258(%rcx),%rdi</span><br><span class="line">       │       mov    0x248(%rcx),%rbp</span><br><span class="line">       │       mov    0x260(%rcx),%r8</span><br><span class="line">       │       mov    0x268(%rcx),%r9</span><br><span class="line">  0.03 │       mov    0x270(%rcx),%r10</span><br><span class="line">       │       mov    0x278(%rcx),%r11</span><br><span class="line">       │       mov    0x280(%rcx),%r12</span><br><span class="line">       │       mov    0x288(%rcx),%r13</span><br><span class="line">  0.11 │       mov    0x290(%rcx),%r14</span><br><span class="line">  0.02 │       mov    0x298(%rcx),%r15</span><br><span class="line">       │       mov    0x228(%rcx),%rcx</span><br><span class="line">       │     ↓ jne    2a1</span><br><span class="line">       │       vmlaunch</span><br><span class="line">       │     ↓ jmp    2a4</span><br><span class="line">  0.02 │2a1:   vmresume</span><br><span class="line"> 45.46 │2a4:   mov    %rcx,0x8(%rsp)</span><br><span class="line">  4.07 │       pop    %rcx</span><br><span class="line">  1.50 │       mov    %rax,0x220(%rcx)</span><br><span class="line">  2.07 │       mov    %rbx,0x238(%rcx)</span><br></pre></td></tr></table></figure>
+
+<p>So that means guest will exit due to its own READ_MSR requirement.</p>
+<p>Check kernel related code, the function chains are following:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmx_get_msr -&gt; kvm_get_msr_common -&gt; kvm_hv_get_msr_common</span><br></pre></td></tr></table></figure>
+
+<p>look into <code>kvm_hv_get_msr_common</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">kvm_hv_get_msr_common</span><span class="params">(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, <span class="keyword">bool</span> host)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">if</span> (kvm_hv_msr_partition_wide(msr)) &#123;</span><br><span class="line">		<span class="keyword">int</span> r;</span><br><span class="line"></span><br><span class="line">		mutex_lock(&amp;vcpu-&gt;kvm-&gt;arch.hyperv.hv_lock);</span><br><span class="line">		r = kvm_hv_get_msr_pw(vcpu, msr, pdata);</span><br><span class="line">		mutex_unlock(&amp;vcpu-&gt;kvm-&gt;arch.hyperv.hv_lock);</span><br><span class="line">		<span class="keyword">return</span> r;</span><br><span class="line">	&#125; <span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> kvm_hv_get_msr(vcpu, msr, pdata, host);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>because msr count matches:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">static bool kvm_hv_msr_partition_wide(u32 msr)</span><br><span class="line">&#123;</span><br><span class="line">	bool r &#x3D; false;</span><br><span class="line"></span><br><span class="line">	switch (msr) &#123;</span><br><span class="line">	case HV_X64_MSR_GUEST_OS_ID:</span><br><span class="line">	case HV_X64_MSR_HYPERCALL:</span><br><span class="line">	case HV_X64_MSR_REFERENCE_TSC:</span><br><span class="line">	case HV_X64_MSR_TIME_REF_COUNT:</span><br><span class="line">	case HV_X64_MSR_CRASH_CTL:</span><br><span class="line">	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:</span><br><span class="line">	case HV_X64_MSR_RESET:</span><br><span class="line">		r &#x3D; true;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	return r;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>so the read fall into <code>kvm_hv_get_msr_pw</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">case</span> HV_X64_MSR_TIME_REF_COUNT:</span><br><span class="line">	<span class="comment">/* read-only, but still ignore it if host-initiated */</span></span><br><span class="line">	<span class="keyword">if</span> (!host)</span><br><span class="line">		<span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">	<span class="keyword">break</span>;</span><br></pre></td></tr></table></figure>
+
+<p>and finally return 1 or report </p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">vcpu_unimpl(vcpu, <span class="string">&quot;Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n&quot;</span>,</span><br><span class="line">	    msr, data);</span><br><span class="line"><span class="keyword">return</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<p>come to here it seems a guest bug and according to: <a target="_blank" rel="noopener" href="https://msrc-blog.microsoft.com/2018/12/10/first-steps-in-hyper-v-research/">https://msrc-blog.microsoft.com/2018/12/10/first-steps-in-hyper-v-research/</a> we can get some information about <code>EXIT_REASON_MSR_READ</code></p>
+<p>that</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Hyper-V handles MSR access (both read and write) in its VMEXIT loop handler. It’s easy to see it in IDA: it’s a large switch case over all the MSRs supported values, with the default case of falling back to rdmsr&#x2F;wrmsr, if that MSR doesn’t have special treatment by the hypervisor. Note that there are authentication checks in the MSR read&#x2F;write handlers, checking the current partition permissions. From there we can find the different MSRs Hyper-V supports, and the functions to handle read and write.</span><br></pre></td></tr></table></figure>
+
+<p>So it seems a Hyper-V feature to access the MSR timeout ref count.</p>
+<p>Check qemu doc about ‘Hyper-V Enlightenments’, it explains the usage:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hv-time</span><br><span class="line">Enables two Hyper-V-specific clocksources available to the guest: MSR-based Hyper-V clocksource (HV_X64_MSR_TIME_REF_COUNT, 0x40000020) and Reference TSC page (enabled via MSR HV_X64_MSR_REFERENCE_TSC, 0x40000021). Both clocksources are per-guest, Reference TSC page clocksource allows for exit-less time stamp readings. Using this enlightenment leads to significant speedup of all timestamp related operations.</span><br></pre></td></tr></table></figure>
+
+<p>and used for speedup of all timestamp related operations but in this case the guest do not response as a result.</p>
+<p>And come to here, I noticed that when guest migrated, some lines come into qemu.log</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">2022-11-16T09:53:19.529516Z qemu-kvm: warning: TSC frequency mismatch between VM (2095020 kHz) and host (2095087 kHz), and TSC scaling unavailable</span><br><span class="line">2022-11-16T09:53:19.533393Z qemu-kvm: warning: TSC frequency mismatch between VM (2095020 kHz) and host (2095087 kHz), and TSC scaling unavailable</span><br><span class="line">2022-11-16T09:53:19.533626Z qemu-kvm: warning: TSC frequency mismatch between VM (2095020 kHz) and host (2095087 kHz), and TSC scaling unavailable</span><br><span class="line">2022-11-16T09:53:19.533816Z qemu-kvm: warning: TSC frequency mismatch between VM (2095020 kHz) and host (2095087 kHz), and TSC scaling unavailable</span><br></pre></td></tr></table></figure>
+
+<p>qemu-kvm warning TSC frequency mismatched which normally not occurs for guest.</p>
+<p>When check kernel code, we can see that:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">kvm_arch_set_tsc_khz</span><span class="params">(CPUState *cs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    X86CPU *cpu = X86_CPU(cs);</span><br><span class="line">    CPUX86State *env = &amp;cpu-&gt;env;</span><br><span class="line">    <span class="keyword">int</span> r;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!env-&gt;tsc_khz) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    r = kvm_check_extension(cs-&gt;kvm_state, KVM_CAP_TSC_CONTROL) ?</span><br><span class="line">        kvm_vcpu_ioctl(cs, KVM_SET_TSC_KHZ, env-&gt;tsc_khz) :</span><br><span class="line">        -ENOTSUP;</span><br><span class="line">    <span class="keyword">if</span> (r &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">/* When KVM_SET_TSC_KHZ fails, it&#x27;s an error only if the current</span></span><br><span class="line"><span class="comment">         * TSC frequency doesn&#x27;t match the one we want.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">int</span> cur_freq = kvm_check_extension(cs-&gt;kvm_state, KVM_CAP_GET_TSC_KHZ) ?</span><br><span class="line">                       kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :</span><br><span class="line">                       -ENOTSUP;</span><br><span class="line">        <span class="keyword">if</span> (cur_freq &lt;= <span class="number">0</span> || cur_freq != env-&gt;tsc_khz) &#123;</span><br><span class="line">            warn_report(<span class="string">&quot;TSC frequency mismatch between &quot;</span></span><br><span class="line">                        <span class="string">&quot;VM (%&quot;</span> PRId64 <span class="string">&quot; kHz) and host (%d kHz), &quot;</span></span><br><span class="line">                        <span class="string">&quot;and TSC scaling unavailable&quot;</span>,</span><br><span class="line">                        env-&gt;tsc_khz, cur_freq);</span><br><span class="line">            <span class="keyword">return</span> r;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>qemu tries to KVM_SET_TSC_KHZ but failed will show thoes lines. </p>
+<p>From hypervisor functional specification:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">The TscScale value is used to adjust the Virtual TSC value across migration events to mitigate TSC frequency changes from one platform to another.</span><br></pre></td></tr></table></figure>
+
+<p>used to cut down the mitigate TSC frequency change for guest.</p>
+<p>So look for qemu code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (level == KVM_PUT_FULL_STATE) &#123;</span><br><span class="line">    <span class="comment">/* We don&#x27;t check for kvm_arch_set_tsc_khz() errors here,</span></span><br><span class="line"><span class="comment">     * because TSC frequency mismatch shouldn&#x27;t abort migration,</span></span><br><span class="line"><span class="comment">     * unless the user explicitly asked for a more strict TSC</span></span><br><span class="line"><span class="comment">     * setting (e.g. using an explicit &quot;tsc-freq&quot; option).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    kvm_arch_set_tsc_khz(cpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>during live migration, this trace will be printed but do not abort migration.</p>
+<p>Indeed, newer nvidia driver do not require kvm hidden: <a target="_blank" rel="noopener" href="https://www.heiko-sieger.info/passing-through-a-nvidia-rtx-2070-super-gpu/">https://www.heiko-sieger.info/passing-through-a-nvidia-rtx-2070-super-gpu/</a> so the concerns about the use case maybe not necessary.</p>
+<p>I write a mail to community to discuss if there is any better way to solve the problem.</p>
+<p><a target="_blank" rel="noopener" href="https://lists.nongnu.org/archive/html/qemu-discuss/2022-11/msg00028.html">https://lists.nongnu.org/archive/html/qemu-discuss/2022-11/msg00028.html</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/11/16/uefi-windows-guest-hang-after-live-migration/" data-id="cld1mhecc0069yuwbhe993dgf" data-title="UEFI Windows guest hang after live migration" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/11/16/uefi-windows-guest-hang-after-live-migration/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/12/15/nessus-on-centos-7/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Nessus on centos 7
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/11/09/plugable-system-in-practice-00/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Plugable system in practice 00</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>A Simplified TDP with Large Tables | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Abstract. Among the performance bottlenecks for the virtual machine, memory comes next to the I&#x2F;O as the second major source of overhead to be addressed. While the SPT and TDP have proved to be quite">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A Simplified TDP with Large Tables">
+<meta property="og:url" content="http://hanayo.cn/2022/09/27/a-simplified-TDP-with-large-tables/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Abstract. Among the performance bottlenecks for the virtual machine, memory comes next to the I&#x2F;O as the second major source of overhead to be addressed. While the SPT and TDP have proved to be quite">
+<meta property="og:locale">
+<meta property="article:published_time" content="2022-09-27T13:34:44.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.316Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="virt">
+<meta property="article:tag" content="kvm">
+<meta property="article:tag" content="TDP">
+<meta property="article:tag" content="paper-reading">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-a-simplified-TDP-with-large-tables" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/09/27/a-simplified-TDP-with-large-tables/" class="article-date">
+  <time class="dt-published" datetime="2022-09-27T13:34:44.000Z" itemprop="datePublished">2022-09-27</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/kvm/">kvm</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      A Simplified TDP with Large Tables
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>Abstract. Among the performance bottlenecks for the virtual machine, memory comes next to the I/O as the second major source of overhead to be addressed. While the SPT and TDP have proved to be quite effective and mature solutions in memory virtualization, it is not yet guaranteed that they perform equally well for arbitrary kind of workloads, especially considering that the performance of HPC workloads is more sensitive to the virtual than to the native execution environment. We propose that based on the current TDP design, modification could be made to reduce the 2D page table walk with the help of large page table. By doing this, not only the guest and host context switching due to guest page fault could be avoided, but also the second dimension of paging could be potentially simplified, which will lead to better performance.</p>
+</blockquote>
+<p>目前内存的损耗已经成为所有虚拟机性能瓶颈中，仅次于I/O的损耗。虽然已经证明了SPT和TDP是非常有效和成熟的内存虚拟化解决方法，但是相比于非虚拟机环境来说，内存虚拟化的性能对任何类型的负载，特别是高性能计算这种对性能特别敏感的情况是没有提供保证的。所以我们基于现在的TDP的设计提出了一些可行的修改，通过large page table检查少2D页表的查找。通过这个改动，不仅仅是guest和host的上下文切换导致的guest page fault可以被避免（这里说的应该是context change之后，会碰到page fault，large page table似乎是不是增加了page的大小，这样页表的条数就减少了，即使context change也不会发生table entry的变化，减少了page fault？可以继续看看）。同时second dimension of paging（也就是TDP）也可以被简化并获得更好的性能</p>
+<blockquote>
+<p>In the context of system virtualization, SPT (shadow page table) and TDP (twodimensional paging)1 are the two mature solutions for memory virtualization in the current hypervisors. Both of them perform address translation transparently from the guest to the host. In dealing with the translation chain from GVA (guest virtual address) to HPA (host physical address), the SPT combines the three intermediate steps for each GVA→HPA into a single entry, which contains the wanted address and saves further efforts to walk through both of the guest and host page tables as long as the cached entry is not invalidated in any form. However, as SPT is a part of the hypervisor and must be kept as consistent as possible with the guest page table, the processor had to exit from the guest to host mode to update the SPT and make it accessible, during which a considerable number of CPU cycles could have been wasted. TDP comes as a remedy by keeping GVA→GPA translation in the guest, while shifting GPA→HPA translation from the hypervisor to the processor. The expensive vmexit and vmentry due to guest page fault are avoided by TDP. Unfortunately in case of TLB-miss (translation look-aside block) the multi-level page table must still be walked through to fetch the missing data from the memory. Because of this nature, the TLB is not quite helpful in preventing page table from being walked when running workloads with poor temporal locality or cache access behavior. As a result, 1 TDP it is known as the AMD NPT and Intel EPT. For technical neutrality reason TDP is used to refer to the paging mechanism with hardware assistance the performance gain could be more or less offset by the overhead. We attempt to combine the merits of the two methods and meanwhile avoid the downsides of them by adapting the mmu code in the hypervisor.</p>
+</blockquote>
+<p>在系统虚拟化中，SPT（shadow page table 影子页表）和TDP（twodimensional paging我也不知道咋翻译）是当前hypervisor（VMM，虚拟机监视器）成熟的内存虚拟化解决方案。这两个方案显而易见的就是做guest到host的地址翻译。主要是处理GVA（虚拟机 虚拟地址）到HPA（宿主机 物理地址）的翻译链。SPT把三个中间步骤结合在一起（这里简单解释一下就是 虚拟机虚拟地址-&gt;虚拟机内存地址-&gt;宿主机虚拟地址-&gt;虚拟机物理地址）实际上每一步都有一个对应的entry，SPT总是会把这些内容放在cache里面来节省需要访问所有关联关系的时间，所以为了保证SPT的内容都是一致的，处理器需要从guest模式exit到host模式来更新STP的内容（这是因为kernel提供了这个功能，所以如果发生了Host上的进程切换，映射关系可能需要更新，所以其实很多CPU时间就损耗在这个切换上了。TDP应运而生（remedy，其实是治疗药物的意思，意译了一下）通过在guest上保持guest虚拟地址到guest物理地址的翻译不变，把guest物理地址到host物理地址的翻译从hypervisor层（kvm kernel）转移到了处理器上，而结果就是上面提到的exit就可以避免了（主要是guest page fault之后，需要一层一层往上找，如果是STP，就需要exit退出guest模式，如果处理器能处理host的地址翻译，那么就不需要exit，处理器能完成这个工作）。当然如果TLB-miss的话（意思是说page table的缓存，也就是 TLB，会记录活跃的内存页page，如果TLB中包含，那么可以直接从cache里返回地址。否则就要走正常的寻址逻辑-&gt;多级页表）还是需要查询多级页表在内存里找到对应的数据。因为这个特性，TLB其实在很多时候并不能解决没有时间局限性的或者是缓存访问的行为（这里解释一下，比如存在一个pageA，有时间局限性意思是说未来短时间内可能会被多次访问，没有的意思就是说，随机访问很多不同page的情况）。所以结果是，TDP实际上就是AMD的NPT和Intel的EPT。基于技术中立的态度（指不偏向AMD或者Intel），TPD被用来作为硬件辅助分页机制来提升部分性能的机制。我们尝试调整hypervisor（kvm）的mmu代码，尝试结合这两个方法，同时避免一些已有的缺点。</p>
+<p>评论：</p>
+<p>讲的非常的准确，优点/缺点，以及要做什么</p>
+<blockquote>
+<p>For TLB contains a number of the most recently accessed GPA→HPA mappings, the more likely these entries will be needed in future, the more time could be saved from the page table walk in subsequent operations. To the nature of the paging methods themselves, the efficiency of both SPT and TDP rely on to what extent the cached results of the previous page table walks could be reused. Since the SPT cannot be maintained without interrupting the guest execution and exit to the host kernel mode, there will be little chance other than reducing the occurrence of the page fault in the guest to improve the performance of SPT. This, however, largely depends on the memory access behavior of the individual workload and remains beyond the control of the hypervisor. TDP, on the hand, bears the hope for performance improvement. Currently the TDP is adopting the same paging mode as the host does, known as “multi-level page table walk-through”. It is an N-ary tree structure [1], where N could be 1024 in 32-bit mode, or 512 in 64-bit or 32-bit PAE modes. In the 32-bit mode only 2 level page table are involved for walking through, which poses minor overhead. However, the overhead grows quickly non-negligible as the paging level increases. In spite of the various paging modes adopted in the guest, only two modes - the 64-bit and the 32-bit PAE modes are available for the TDP. In the worst case if all TLB large missed, up to 24 memory accesses are possible for a single address translation.</p>
+</blockquote>
+<p>TLB包含了最近访问的GPA-&gt;HPA的映射，这些将来要被继续访问的条目如果保存的越多（因为TLB是cache，所以有这么样的假设，所以cache不适用的场景都是类似的，比如超出cache上限等），那么就能够节约更多的查询page table这个操作消耗的时间。结合这两个分页方法本身，SPT和TDP的性能，取决于用什么cache来拓展之前的page table查询结果，并且可以被复用。因为SPT需要通过中断的方式维护（主要是vm exit然后更新）所以实际上CPU上导致的损耗使得优化SPT的可能性很低。当然SPT很大程度上和单个负载的内存访问方式有关系，（比如一直没有上下文切换，也只访问热点数据，那又是没啥问题的）。TPD，实际上更有可能提升性能。目前TDP采用的是和host一样的分页模式，也就是（multi-level page table walk-through 多级页表访问）。是一个N长度数组的树结构，N可以是32位模式的1024，或者是64位和32位PAE模式的512。在32位模式，只有两级页表能够在访问中使用，这种情况下损耗更下一些。当然随着分页级别的增加，这个损耗变得不容忽视。不管guest里面可能采用各种不同的分页级别设置，TDP只支持64位和32位PAE模式。最差的情况下TLB没有命中的话，最差的情况一次地址翻译需要24次内存访问（TODO）</p>
+<p>评论：</p>
+<p>介绍了一下当前访问过程中存在的一些问题</p>
+<blockquote>
+<p>Though undesirable, this has presumably been done for two reasons: 1. compatibility between the host and guest paging modes, and more importantly, 2. efficiency in memory utilization. However, as the TDP table is in the hypervisor and invisible to the guest, it is actually up to the hypervisor to adopt the paging mode without having to maintain this kind of compatibility [2]. For the tree structure forms a hierarchy of the 1-to-many mappings, mappings could be built in a “lazy” way only on demand, significant amount of memory space for entries could be saved compared with the 1-to-1 mapping based structure, say, an array. On the other hand, this structure also means more memory access and time cost while looking up an element within it. As performance rather than memory saving comes as the top concern, paging methods more efficient than the current one may exist. One candidate is naturally a 1-to-1 mapping based structure, such as an array, or a hash list. With more memory being invested to save all the possible GPPFN (guest physical page frame number) to HPPFN (host physical page frame number) mappings, fewer memory accesses suffice2 in the second dimension of the TDP. By doing this, the whole translation from GVA to HPA is expected to be effectively simplified and accelerated due to a reduced paging structure in TDP table. In addition, a simplified TDP method combines the merits of both TDP and SPT - to avoid the vmexit as well as to maintain the relatively short mapping chains from GVA to HPA. Until significant change is made available to the paging mode of the current processor, it could be a better practice merely by modifying the current hypervisor software.</p>
+</blockquote>
+<p>尽管这很讨厌（要说什么特殊条件了），这个可能通过以下两个原因能够解决：1. host和guest使用完全相同的paging mode（很重要）2. 提升内存使用率。然而，TPD table是保存在hypervisor并且对guest不可见，所以实际上只需要hypervisor采用对应的paging模式，而没有必要维护兼容性。用树状的层级结构表示1对多的映射，映射可以按需是否使用lazy的方式，相比于1对1映射能保存大量的内存空间的条目。另一方面，这个数据结构也意味着更多的内存访问，以及访问的时间消耗。因为主要考虑性能而不是节省内存，比当前这个方式效率更高的方法肯定是存在的。比如默认的1对1映射的数据结构，比如数组或者hash列表。随着更多的内存被用于保存可能被使用的GPPFN（guest physical page frame number）和 HPPFN（host physical page fram number）的映射，使用TDP映射需要访问内存的时间就更少了。通过减少TDP table里paging数据结构的层级，整个GVA到HPA的翻译，会变得更加简化，并且加速。同时，简化TDP方法，并结合TDP和SPT的特点（避免vmexit，同时维护一个很短的GVA到HPA的映射关系）。除非处理器的分页模式发生重大变革，目前来说修改当前的hypervisor是最好的方法。</p>
+<p>评论：</p>
+<p>所以还是改原本的code，没有办法在结构上改进，提升也是有限的</p>
+<blockquote>
+<p>Major work focusing on improving the memory virtualization could be summarized as the following. To work around the unfavorable sides and combine the best qualities of SPT and TDP, one attempt is to enable the hypervisor to reconfigure its paging method at run-time as a response to the ever changing behavior of the workloads in memory accessing, which were implemented in the past in a few hypervisors such as Xen and Palacios according to [3,4]. Although not all workloads could be benefited from this, overall performance gain have been observed for the selected benchmarks. The downside, however, is that it adds further complexity to the hypervisor with the methods of performance metric sampling, paging method decision making, as well as the dynamic switching logic. Furthermore, such activities in the kernel could also do harm to the performance.</p>
+</blockquote>
+<p>主要的改进内存虚拟化的工作总结如下。去掉SPT和TDP里面不好的部分，结合他们的特点，一个尝试就是让hypervisor在运行时重新设置paging方法，并作为内存访问的负载的一个变化行为，这已经在过去的一些hypervisor上实现了，比如Xen和Palscios。虽然不是所有的负载都适用于这个方法， 所有的性能提升都是对应不同的基准来观测的。当然这个缺点就是要增加hypervisor的复杂度，主要是影响性能检测，决定分页方法，同时还有动态切换。当然，kernel里这样的行为也是会影响性能的。</p>
+<p>评论：</p>
+<p>突然开始保守了，前面可能吹太猛了，因为模型上没有变化，只能控制面改了</p>
+<blockquote>
+<p>To reduce the overhead for walking through the multi-level page tables in TDP, a hashed list is applied to provide direct address mapping for GPA [2]. In contrast with the O(n<sup>2</sup>) complexity of the conventional multi-level forward page tables for both GVA→GPA and GPA→HPA translations, the hashed page table has only one paging level and achieves a complexity of O(n) in theory. The performance is at least not worse due to the reduced page table walk and cache pressure, showed by the benchmark. Since the hash table is a data structure more capable in searching, inserting and deleting etc., and relatively easier to be implemented within the existing framework of the hardware and software, current TDP design could be simplified by applying it for better performance. As more reflections were cast on the current multi-level paging modes, a variety of changes have been prompted for a simplified paging work. Theoretically, a “flat nested page table” could be formed by combining the intermediate page levels from 4 to 1, which results in an 8 memory access for the translation from GVA to HPA, and a reduced overhead for 2D TDP walk [5]. By extending the processor and hypervisor with the “direct segment” function, the memory access for the GVA to HPA translation could even be further reduced to 4 or 0 [6].</p>
+</blockquote>
+<p>为了TDP访问减少多级页表造成的损耗，增加一个hash列表来提供GPA的直接映射（GPA到HPA）。对比原本的GVA-&gt;GPA和GPA-&gt;HPA翻译的O(n<sup>2</sup>)的多级页表访问复杂度，使用哈希页表，只有一层分页级别，所以理论上复杂度只有O(n)。结合测试基准，性能在减少了页表的访问以及缓存的压力之后并没有变差。因为哈希表是一个便于搜索插入和删除的数据结构并且在很多框架软件硬件上都很容易时间，目前的TDP设计可以被简化成使用哈希表来获取更好的性能。当然对更多的针对目前的多级页表模式的改进可以被提出来用来简化寻址工作。理论上“flat nested page table” 一个很大的内嵌页表修改页级别从4改成1，最多也就是需要8次内存访问，同时减少2D TDP的查询。通过拓展处理器以及hypervisor的direct segment方法，内存的翻译可以被减少到4-0次</p>
+<p>评论：</p>
+<p>把原本的多级页表，改成了单层的hash表</p>
+<p>比如原本的页表是1024，通过多级，可以保存1024<sup>n</sup>的页信息，虽然查询的时间长了，但是保存的地址多了，寻址上，在没有cache的情况下，找的时间就会指数级增加</p>
+<p>换成hash表，查询速度变快了，但是相对的保存的条目数量就受到了page table的限制，因此提出的改进其实希望是一个很大的hash表</p>
+<blockquote>
+<p>For the TLB plays a critical role in reducing the address translation overhead [7] and justifies the use of TDP, it becomes another concern besides the paging level. Specific to the AMD processor, a way is suggested in [8] to accelerate the TDP walk for guest by extending the existing page walk cache also to include the nested dimension of the 2D page walk, caching the nested page table translations, as well as skipping multiple page entry references. This technique has already gained its application in some AMD processors. Not limited to virtual cases, attention is paid in [9] to compare the effectiveness of five MMU cache organizations, which shows that two of the newly introduced structures - the variants of the translation outperform the existing structures in many situations.</p>
+</blockquote>
+<p>TLB在减少地址翻译的损耗扮演了一个很重要的角色，并且很适合TDP的使用场景，所以它成为了除了paging level之外的另外一个条件。仅限AMD处理器，实际上有一个加速guest TDP查询的方法，就是增加已有的page walk cache并且包含嵌套的2D page walk。缓存嵌套的页表翻译，同时跳过多页面引用。这个技术已经在一些AMD处理器的一些应用上被采用了。不仅限于虚拟化场景，其实对比与其他五个MMU cache组织，也说明了最新的两个结构，对于翻译性能的提升，在很多情况都是优于已有的结构的。</p>
+<p>评论：</p>
+<p>我的cache无限大，速度够快，那其实根本不需要page，直接都放到cache里不是更好</p>
+<blockquote>
+<p>As a potential technical breakthrough, TDP is different from SPT in many aspects. However, for compatibility reason, the main structure of SPT is still reused by TDP. This, though at first may seem quite misleading, enables the TDP to fit seamlessly into the current framework previously created for SPT. As far as TDP feature is available in the hardware, it is preferred to SPT for general better performance. While in the absence of TDP hardware feature, SPT may serve as a fall-back way and the only choice for the hypervisor to perform the guest-to-host address translation.</p>
+</blockquote>
+<p>作为一个潜在的技术重大突破，TDP其实和SPT在很多方面都不一样。然而，因为很多兼容性原因，SPT的主要数据结构都被TDP复用了。因此一开始看的时候会感觉非常误导，启用TDP和现有的为SPT创建的框架无缝衔接。目前为止，TDP特性在硬件上可用，相比SPT来说有更好的性能。因为缺少TDP的硬件特性，SPT可以所谓一个备用方，也是hypervisor层来实现guest到host地址翻译的唯一方法。</p>
+<p>评论：</p>
+<p>好像也没想出啥好办法，开始叹气</p>
+
+
+<blockquote>
+<p>In KVM, SPT and TDP share the same data structure of the virtual MMU and page tables (surprisingly, both are named as shadow page table). The shadow page table is organized as shown by Fig. 1, of which kvm mmu page is the basic unit gluing all information about the shadow pages together. For each level of the shadow page table, a pageful of 64-bit sptes containing the translations for this page are pointed to by *spt, whose role regarding the paging mode, dirty and access bits, level etc. are defined by the corresponding bits in role. The page pointed to by spt will have its page-&gt;private pointing back at the shadow page structure. The sptes in spt point either at guest pages, or at lower-level shadow pages [10]. As the sptes contained in a shadow page may be either one level of the PML4, PDP, PD and PT, the pte parents provides the reverse mapping for the pte/ptes pointing at the current page’s spt. The bit 0 of parent ptes is used to differentiate this number from one to many. If bit 0 is zero, only one spte points at this pages and parent ptes points at this single spte, otherwise, multiple sptes are pointing at this page and the parent ptes &amp; 0x1 points at a data structure with a list of parent ptes. spt array forms a directed acyclic graph structure, with the shadow page as a node, and guest pages as leaves [10].</p>
+</blockquote>
+<p>在KVM中，SPT和TDP使用相同的数据结构，也就是virtual MMU和page tables（很惊讶，他们都叫做shadow page table）。shadow page tables的结构如Fig.1所示。kvm mmu page是一个基础的单元，把所有shadow pages相关的信息黏合在一起（突然想到python是glue language）。对任意一级的shadow page table来说，一个64bit的sptes整个page包含了这个page所有的翻译，是通过*spt指针指向的，里面的role字段则是表示paging mode，dirty bit，access bit以及级别等等。都是在role里面的比特位定义的。spt指向的page有对应的page-&gt;priavte pointing back的从shadow page structure指回去的指针。spt中的spte指针也只想guest的page，或者是更低级别的shadow page。因为shadow page包含的sptes也可能是另外一个级别的PML4，PDP，PD和PT，对应的pte parents需要提供对pte/ptes指针的反向指针，指向当前page的spt。Parent ptes的第一个比特位，bit0是用来区分是一对多还是一对一，如果bit0是zero，那么说明当前page的spte指针只有一个spte和page parent对应。否则说明有多个sptes指向这个page，同时parent page的ptes &amp; 0x1 指向一个数据结构，表示一个parent ptes的列表。spt数据组织了一个直接非环图结构，shadow page作为一个node，guest的page作为叶子结点。</p>
+<p>评论：</p>
+<p>这段没看懂，回头继续看</p>
+<blockquote>
+<p>KVM MMU also maintains the minimal pieces of information to mark the current state and keep the sptes up to date. unsync indicates if the translations in the current page are still consistent with the guest’s translation. Inconsistence arises when the translation has been modified before the TLB is flushed, which has been read by the guest. unsync children counts the sptes in the page pointing at pages that are unsync or have unsynchronized children. unsync child bitmap is a bitmap indicating which sptes in spt point (directly or indirectly) at pages that may be unsynchronized. For more detailed description, the related Linux kernel documentation [10] is available for reference.</p>
+</blockquote>
+<p>KVM MMU也维护了一个最小程组的信息，来标记当前的状态以及保证sptes是最新状态。如果当前的page和guest的翻译还是一致的就不会标记为需要同步。如果翻译被改动，而TLB还没刷新就会guest读到的内容不一致（因为正确的映射关系是通过shadow page维护的，guest的TLB只是cache，如果没有即使更新就会出现shadow page和TLB不一致的情况）</p>
+<p>Unsync children会计算当前page的指向没同步的或者是存在没同步的子节点的stpes的数量，</p>
+<p>Unsync children bitmap是一个bitmap标记spt指针的sptes（直接或间接的）指向页面的这些指针可能没有同步。</p>
+<p>更多细节的描述可以看Linux kernel的文档。</p>
+<p>评论：</p>
+<p>操作系统代码不熟，需要回炉重造</p>
+<blockquote>
+<p>Multiple kvm mmu page instances are linked by an hlist node structure headed by hlist head, which form the elements in the hash list - mmu page hash pointed to by kvm-&gt;arch. Meanwhile it’s also linked to either the lists active mmu pages or zapped obsolete pages in the kvm-&gt;arch, depending on the current state of the entries contained by this page. Both SPT and TDP keep their “shadow page table” entries and other related information in the same structure. The major difference lies in the hypervisor configuration of the runtime behaviors upon paging-fault-related events in the guest. While the SPT relies on the mechanism of “guest page write-protecting” and “host kernel mode trapping” upon guest page fault for keeping the SPT synchronized with the guest page table, the TDP achieves the same result by a hardware mechanism. As VMCB (virtual machine control block) by AMD or VMCS (virtual machine control structure) by Intel is the basic hardware facility the TDP makes use of, it’s the key thing making difference. Code snippet in Fig. 2 shows the configuration of VMCB for TDP, and that the root address of the TDP page table is kept in the VMCB structure. Meanwhile the guest is configured as exitless for paging-fault exception, which means that the page fault events is handled by the processor. With this configuration, guest is left running undisturbed when the guest page fault occurs.</p>
+</blockquote>
+<p>多个kvm mmu page实例会被连接到一个hlist数据结构的head上，组织称一个hash list。kvm-&gt;arch来指向mmu page hash指针。同时也会在kvm-&gt;arch连接到active的mmu page或者是过期的page，取决于当前这个page包含的entries的状态。SPT和TDP会保持他们的shadow page table entires和其他的关联信息在相同的数据结构里。主要的不同是hypervisor的runtime行为配置对guest中paging-fault相关的事件的处理。因为SPT依赖于guest page write-protecting的机制，以及host kernel mode trapping，当出现guest page fault的时候，为了保证SPT和guest的page同步，TDP需要实现一个硬件的机制。在VMCB（virtual machine control block）AMD的数据结构以及VMCS（virtual machine control structure）intel的数据结构提供给TDP使用，也是最关键的部分。</p>
+<p>代码放在了Fig2，展示了给TDP用的VMCB的配置，对应TDP page的root address被保存在VMCB数据结构里。同时guest配置为碰到page fault错误也不做vm exit（即不走shadow page table的逻辑），这个page fault交给处理器处理。通过这个配置，guest就不会因为page fault受到过多影响（指退出guest mode）</p>
+
+
+<blockquote>
+<p>Besides, as SPT maps GVA to HPA, the spt entries are created and maintained in a per-process way, which leads to poor reusability hence higher memory consumption. These are obvious downsides especially when multiple processes are running in parallel. In contrast, the TDP maintains only the mappings from GPA to HPA, which effectively eliminated such problems associated with SPT. Guest page table is also accessed by the physical processor and forms the first dimension of the entire page table walk. In this way the TDP can not only eliminate the cost for frequent switching between the host and guest modes due to SPT synchronization, but also simplify the mappings and maintenance efforts the “shadow page tables” needs.</p>
+</blockquote>
+<p>除此之外，比如SPT用来映射GVA到HPA，对应的spt条目由每个进程创建和维护，在内存消耗很大的场景下重用性很差（因为进程切换，大部分换出换入）。特别是多进程并行的时候，这些缺陷显而易见。对比之下，TDP仅维护了GPA到HPA的映射，有效的减轻了SPT这样的问题。Guest page table也会被物理处理器访问，并且构建了完整的page的访问。在这个情况下TDP不仅可以减少在host和guest之间因为SPT同步导致不断切换的问题，也能简化shadow page tables映射的麻烦。</p>
+<p>评论：</p>
+<p>又重新讲了一下TDP的作用，感觉有点重复</p>
+<blockquote>
+<p>Two stages are involved in the buildup of the TDP table, namely, the creation of the virtual mmu, and the filling of TDP page tables upon guest page fault during the execution of the guest. As Fig. 3 depicts, in the context of the function kvm vm ioctl, the virtual mmu is created for the first time along with the guest VCPU. It is also when the VMCB is configured. One thing to be noticed is that, as the root address of the TDP page table, the root hpa of the kvm mmu is left without to be allocated a page table, which is deferred to the second stage.</p>
+</blockquote>
+<p>构建TDP table需要两个阶段，首先是创建virtual mmu并且在guest执行的时候发生page fault时填充TDP表。如Fig3所示，kvm vm ioctl功能的上下文中，virtual mmu是首先被创建的，并且不和guest VCPU相关。这也是VMCB被配置的时候。值得注意的是，TDP pagetable的root address中，kvm mmu的root hpa会被保留并且不分配给page table，接下来就到第二阶段了。</p>
+<blockquote>
+<p>Figure 4 depicts the context function vcpu enter guest, in which operations related to the second stage take place. This function serves as an interface for the inner loop3 in the internal architecture of the QEMU-KVM, dealing with host-guest mode switching. Before the guest mode is entered by the processor, much preparation work needs to be done in this context, including the checking and handling of many events, exceptions, requests as well as mmu reloading or I/O emulation. The only thing needed for mmu reloading is to allocate a page for the TDP table and make the starting address of it known to the root hpa of the kvm mmu and the CR3 of the VCPU, which is performed by kvm mmu load.</p>
+</blockquote>
+<p>Fig4说明了vcpu enter guest功能呢，也就是第二阶段发生的时候。这个功能作为一个接口在QEMU-KVM的架构中使用，处理host-guest mode的切换。在guest mode enter之前，很多的准备工作要基于这个上下文完成。包含检查以及处理很多的事件，异常，请求以及mmu加载或者是I/O模拟，需要对mmu加载做的工作就是给TDP表的page分配，并且设置一个起始地址给kvm mmu的root hpa，并且设置VCPU的CR3，这就是kvm mmu load需要做的事情。</p>
+
+
+<blockquote>
+<p>Guest begins to execute until it can’t proceed any further due to some faulty conditions. More often than not, control flow had to be returned to the hypervisor or the host OS kernel to handle the events the guest encountered. Obviously too much vmexit are an interference and grave source of overhead for the guest. With TDP, however, guest is free from vmexit upon guest paging faults. As the guest enters for the first time into execution, the paging mode is enabled and the guest page tables are initialized, however, the TDP tables are still empty. Any fresh access to a page by the guest will first trigger a guest page fault. After the fault is fixed by the guest, another page fault in the second dimension of the TDP is triggered due to the missing entry in TDP table.</p>
+</blockquote>
+<p>guest开始执行直到无法处理其他的条件。大部分情况下，当guest发出一些事件的时候流程处理会转交给hypervisor或者host kernel。显然大部分vmexit就是导致guest性能损耗的原因。通过TDP，guest就能够避免因为page fault导致的vmexit。因为guest一开始就进入了执行状态，paging模式被启用，并且guest的page tables也被初始化了，然而TDP的table还是空的。任意的对新页的访问都会导致guest page fault。放这个错误被处理之后，另外一个page fault在TDP模型里面就是TDP table里缺少条目。</p>
+<blockquote>
+<p>tdp page fault is the page fault handler in this case. As illustrated by Fig. 5, first the host page frame number - pfn is calculated for the faulting address through a chain of functions in try async pf. The pfn is then mapped one level after another into the corresponding positions of the TDP tables by the function direct map. In a predefined format, the entry for a faulting address is split into pieces of PML4E, PDPE, PDE, PTE as well as offset in a page. During the loop, iterator - an instance of the structure kvm shadow walk iterator is used to retrieve the latest physical, virtual addresses and position in the TDP tables for a given address, of which iterator.level determines the number of times for the mapping process.</p>
+</blockquote>
+<p>tdp page fault就是这个场景下的处理逻辑。和Fig5画的一样，首先host page frame number（pfn）会通过这个一系列async pf的函数给错误的地址计算一个pfn。这个pfn被加入到层级映射里面，来映射到一个具体的TDP表的位置。在预定义的情况下，这个给faulting address用的条目可以被分为PML4E，PDPE，PDE，PTE也就是page的offset。再循环里，一个kvm shadow walk迭代器的实力会被用来滴贵的访问最后一个物理、虚拟地址并且找到对应的地址在TDP table里的位置，这个迭代器里面的level也就是对应的进程多少级映射的信息。</p>
+
+
+<blockquote>
+<p>Although the conventional TDP shown in Fig. 6 is mature and the default configuration for better performance, for a certain kind of workloads the limitation is still obvious. They may suffer large overhead due to walking into the second dimension of multi-level page table upon heavy TLB-miss. It is ideal to have a “flat” TDP table by which the wanted pfn can be obtained with a single lookup. Unfortunately, there has long been a problem to allocate large chunk of physically continuous memory in the kernel space. Three functions, namely vmalloc(), kmalloc() and get free pages are used to allocate memory in the current Linux Kernel. The first allocates memory continuous only in virtual address, which is easier to perform but not desired dealing with performance. The second and the third allocate memory chunk continuous in both virtual and physical addresses, however, the maximum memory size allocated is quite limited, thus tends to fall short of the expectation for this purpose. In addition, kmalloc() is very likely to fail allocating large amount of memory, especially in low-memory situations [11]. The amount of memory get free pages can allocate is also limited within 2MAX ORDER−1, where MAX ORDER in the current Linux Kernel for x86 is 11, which means that each time at most 4MB memory can be obtained in the hypervisor. In this condition what we could do is to make the TDP table as “flat” as possible, and to reduce the number of paging with it. Here “flat” means large and physically continuous memory chunk for TDP table. Instead of having thousands of TDP tables managed by their own kvm mmu page instances, we want to merge as many TDP tables as possible into a larger table managed by fewer kvm mmu page instances.</p>
+</blockquote>
+<p>虽然通常的TDP使用表示在Fig6，是一个非常成熟的作为默认性能更好的设置，并且对于一些确切的负载上有的限制还是很明显的。比如有非常多TLB-miss的时候，需要做非常多的多级页表查询造成很大的性能损耗。如果存在一个flat的TDP table，保证pfn的查询只需要一次，那么就非常理想了。不幸的是，内核空间里面没有办法分配一个连续的长的物理内存来处理这个问题。三个方法，分别是vmalloc()，kmalloc()以及获取空闲page来在当前linux内核中分配内存。第一个方法仅在虚拟地址分配连续内存，这个方法简单，但是没办法达到满意的性能。第二个个第三个方法，会在虚拟和物理地址上都分配连续的地址，而最大的内存大小是很有限的，因此还是不能够达到预期。附带一提kmalloc是非常容易分配大量内存失败的，特别是内存少的场景。通过获取空闲page来分配内存也被限制在2<sup>MAX_ORDER-1</sup>,这个MAX_ORDER在当前的x86 kernel里面是11，也就是说最多4MB的内存可以被分配给hypervisor使用。在这个场景下，我们可以让这个TDP table尽量的大，来减少page的数量，这个flat表示给TDP table使用的很大并且物理连续的内存块。代替原本的由KVM mmu管理的上千个TDP table，我们希望尽可能的把这些TDP table合并起来，并使用更少的kvm mmu page实例来管理。</p>
+
+
+<blockquote>
+<p>There could be various ways to implement this, depending on how the indices of a page table entry are split. Two things are to be noticed for this: 1. to leave the indices for paging as long as possible, and 2. to reuse the current source code for KVM as much as we can. Consequently, we come up with a quite straightforward design by merging the bits for currently used indices within a guest page table entry. As Figs. 7 and 8 depict, the former PML4, PDP (higher 18 bits) could be combined as a single index to the root of a TDP table segment, and similarly PD and PT (lower 18 bits) as the index for a physical page. By filling the TDP table entries in a linear ascend order for the GPPFN, the HPPFN could be obtained conveniently by a single lookup into the table. As a result, for the currently used maximal address space of a the 64-bit(48 bits effectively in use) guest, we may have 218 = 256K segments for the TDP tables, with the index of each segment ranging from 0 to 218 − 1 to the host physical pages. The TDP table size is enlarged by 29 times, while the number of the table segments could be reduced to 1 29 of the former. This is actually a f</p>
+</blockquote>
+<p>有很多不同的方法可以实现这个，主要是看选择用什么方式来拆分page table entry。</p>
+<p>两个值得注意的点：</p>
+<ol>
+<li>需要保证分页的索引尽可能的长</li>
+<li>尽可能的复用当前的kvm代码</li>
+</ol>
+<p>因此我们选择了一个非常直接的设计，也就是把bits索引合并到一整个page table entry里。</p>
+<p>如Fig7和Fig8战士的，之前的PML4，PDP（高18位）可以被结合成单个索引，作为TDP table segment的根。类似的PD和PT（低18位）可以作为物理页的索引。通过线性的递增GPPFN和HPPFN来填充TDP的页表，就能够简单的实现一个table的单词查询访问。结果上来说，通过使用最大的64位地址空间（有效位为48位）的guest，我们可以有大约2<sup>18</sup> = 256k 个段用于TDP tables。每个段的索引就是从0到2<sup>18</sup>-1对应到host的物理页。TDP表的大小被扩大了2<sup>9</sup>倍，而对应的table段的数量减少到了之前的 1/2<sup>9</sup></p>
+
+
+
+<blockquote>
+<p>This is actually a fundamental change to the current mmu implementation. Several data structures and functions oriented to the operations upon 4KB∗29 = 2MB TDP page table must be adopted to the type upon 4KB ∗ 218 = 1GB. For example, as depicted by Fig. 9, the data structure of kvm mmu page could be modified as following to reflect the change: 1. since in a “flat” table, there is only two levels and a single root table as parents, the parents-children relation is quite obvious. Besides, all the first level pages have a common parent but no children at all. Members such as unsync children, parent ptes and unsync child bitmap are not necessary; 2. members as gfn, role, unsync etc. are multiplied by 512 to hold the informations previously owned by an individual 4KB ∗ 2<sup>9</sup> = 2MB page table; 3. spt points to a table segment covering an area of 4KB ∗ 2<sup>18</sup> = 1GB; 4. link is moved to a newly introduced structure - page entity to identify the 4KB ∗ 2<sup>9</sup> = 2MB pages that are either in the active or zapped obselete list. By modifying it this way, the depth of the TDP table hierarchy could be reduced from 4 to 2, while the width expanded from 2<sup>9</sup> to 2<sup>18</sup>.</p>
+</blockquote>
+<p>这其实是一个对当前mmu实现的基础修改。不同的基于原本的4KB * 2<sup>9</sup> = 2MB的TDP page table的操作需要支持到现在的 4KB * 2<sup>18</sup> = 1GB。举个例子，比如图9所示，kvm_mmu_page的数据结构可以被修改为如下的映射：</p>
+<ol>
+<li>在一个“flat”表里，只有两个层级和一个单根的表作为parents，亲子关系非常的清晰。此外，第一级的页面有一个共同的parent，但是没有子级。比如没有sync的子节点，parent ptes以及没有同步的子bitmap是没有必要的</li>
+<li>里面的参数比如gfn，角色，未同步等，会被分为512保存，而之前每一个4KB ∗ 2<sup>9</sup> = 2MB page table</li>
+<li>spt指针指向一个table段并覆盖一个4KB * 2<sup>18</sup> = 1GB的部分</li>
+<li>link会被连接到一个新的数据结构来区别是4KB ∗ 2<sup>9</sup> = 2MB page是active还是弃用状态。</li>
+</ol>
+<p>通过这些修改，TDP table结构的深度从4变味了2，并且宽度从2<sup>9</sup> 变成了 2<sup>18</sup> </p>
+
+
+<blockquote>
+<p>Since each kvm mmu page instance contains 2<sup>18</sup>  table entries now, there will be less kvm mmu page instances in use, which means that 2<sup>18</sup>  rather than 2<sup>9</sup>  sptes need to be mapped to a single kvm mmu page instance. This could be achieved by masking out the lower 30 bits of an address and setting the obtained page descriptor’s private field to this kvm mmu page instance, as shown in Fig. 10. Other major affected functions include 1. shadow walk init, 2. kvm mmu get page, 3. direct map, 4. kvm mmu prepare zap page, 5. kvm mmu commit zap page and 6. mmu alloc direct roots</p>
+</blockquote>
+<p>因为每个kvm mmu page的实例包含2<sup>18</sup> 个条目，因此只会有更少的kvm mmu page，也就意味着2<sup>18</sup> 而不是2<sup>9</sup>个sptes需要被映射到一个kvm mmu page实例。通过把低30位地址内容作为page表述的私有比阿亮就能够给解决这个问题了如fig10所示。另外一些主要的功能影响包括：</p>
+<ol>
+<li>shadow walk int</li>
+<li>kvm mmu get page</li>
+<li>direct map</li>
+<li>kvm mmu prepare zap pages</li>
+<li>kvm mmu commit zap page</li>
+<li>mmu alloc direct roots</li>
+</ol>
+
+
+<blockquote>
+<p>Taken a guest commonly with 4GB memory as an example. A page contains 4KB/8B = 512 entries, and for the 4GB, 4GB/4KB = 220 entries are needed, so 220/512 = 2048 pages of 4KB size should be used to save all the table entries. All together it makes a space of about 4KB ∗ 2048 = 8MB size. Although this may be far more than in the conventional TDP case, it is a modest demand and acceptable compared with a host machine configured with dozens of GB RAM.</p>
+</blockquote>
+<p>以常见的guest内存4GB为例，一个page包含4KB/8B也就是512个条目（也就是512条索引一个page），4GB的情况就有4GB/4KB=2<sup>20</sup>个条目（需要索引），</p>
+<p>2<sup>20</sup> / 512 = 2048个4KB的page作为索引保存所有table条目。一共需要4KB * 2048 = 8MB大小。虽然这个比常见的TDP场景差的远，不过是一个最简单的可以接受的用来配置host和GB RAM的规则。</p>
+<blockquote>
+<p>On the other hand, with the 2MB TDP large pages, only 4 kvm mmu page instances are sufficient to cover the entire 4GB address space. Only 4 entries are filled in the root table, which poses no pressure at all to the TLB. For an arbitrary guest virtual address, at most 2 ∗ 5 + 4 = 14 (10 in hypervisor, 4 in guest) memory accesses are enough to get the host physical address - far less than that of the current translation scheme (20 in hypervisor, 4 in guest). With a flatter TDP page table and reduced number of memory access, the KVM guest is expected to be less sensitive to workloads and yield higher performance.</p>
+</blockquote>
+<p>另一方面，用2MB的TDP大page，只需要4个kvm mmu page实例来覆盖4GB的空间。只需要在root table里面加4个条目。实际上对TLB不会造成太大压力。对于个简单的guest内存来说 至少 4 * 5 + 4 = 14 （hypervisor10次，guest4次）的内存访问是足够获取host地址的，而不是目前的（hypervisor20次，guest4次）。使用更flatter的TDP page table并且减少内存访问，KVM guest有希望运行的对负载更不敏感同时性能更好。</p>
+<blockquote>
+<p>We studied the current implementation of the SPT and TDP for the KVM, and attempted to simplify the second dimension paging of the TDP based on a change of the table structure and the related functions in the hypervisor. With this change on software, the current TDP paging level could be reduced and the overall guest performance will be improved. We have implemented a part of this design and found that, the large TDP page table could be allocated without problem as long as the amount is less than 4MB. However, as it is a relative radical change to the traditional mainstream KVM source code, many functions within the mmu code are affected, an executable implementation as well as a benchmark result are unfortunately not yet available. In future we will keep on engaging with this task and work out a concrete solution based on this design.</p>
+</blockquote>
+<p>目前研究了SPT和TDP的kvm上的实现，并且计划简化TPD的second dimension paging的基于TDP的表结构修改以及相关的hypervisor功能呢。通过软件层面的这个修改，目前的TDP级别减少并且guest整体的性能会提升。我们实现了部分设计并且发现使用一个很大的TDP page table小于4MB的时候可以成功分配。然而有一个相关的改动就是原本的主干的KVM代码，很多mmu相关的code都被影响了，一个可执行的benchmark目前并不可用，未来希望继续做相关的具体实现和设计。</p>
+<h2 id="引用"><a href="#引用" class="headerlink" title="引用"></a>引用</h2><ol>
+<li>Preiss, B.R., Eng, P.: Data Structures and Algorithms with Object-Oriented Design Patterns in Java. Wiley, Chichester (1999) </li>
+<li>Hoang, G., Bae, C., Lange, J., Zhang, L., Dinda, P., Joseph, R.: A case for alternative nested paging models for virtualized systems. Comput. Archit. Lett. 9, 17–20, University of Michigan (2010)</li>
+<li>Wang, X., Zang, J., Wang, Z., Luo, Y., Li, X.: Selective hardware/software memory virtualization, VEE 2011, Department of Computer Science and Technology, Beijing University, March 2011</li>
+<li>Bae, C.S., Lange, J.R., Dinda, P.A.: Enhancing virtualized application performance through dynamic adaptive paging mode selection, Northwestern University and University of Pittsburgh, ICAC 2011, June 2011</li>
+<li>Ahn, J., Jin, S., Huh, J.: Revisiting hardware-assisted page walks for virtualized systems. Computer Science Department, KAIST, ISCA 2012, April 2012</li>
+<li>Gandhi, J., Basu, A., Hill, M.D., Swift, M.M.: Efficient memory virtualization. University of Wisconsin-Madison and AMD Research, October 2014</li>
+<li>Adavanced Micro Devices Inc, AMD-V Nested Paging White Paper. Adavanced Micro Devices, July 2008</li>
+<li>Bhargave, R., Serebin, B., Spadini, F., Manne, S.: Accelerating two-dimensional page walks for virtualized systems. Computing Solutions Group and Advanced Architecture &amp; Technology Lab, March 2008</li>
+<li>Barr, T.W., Cox, A.L., Rixner, S.: Translation Caching: Skip, Don’t Walk (the Page Table), Rice University, June 2010</li>
+<li>Linux kernel Documentation about MMU in KVM. <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/">https://www.kernel.org/doc/</a> Documentation/virtual/kvm/mmu.txt</li>
+<li>Johnson, M.K.: Memory allocation. Linux Journal, issue 16, August 1995. http:// <a target="_blank" rel="noopener" href="http://www.linuxjournal.com/article/1133">www.linuxjournal.com/article/1133</a> </li>
+<li>Rubini, A., Corbet, J.: Linux Device Drivers, 2nd edn, June 2014. <a target="_blank" rel="noopener" href="http://www.xml.com/ldd/chapter/book/ch13.html">http://www.xml.com/ldd/chapter/book/ch13.html</a></li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/09/27/a-simplified-TDP-with-large-tables/" data-id="cld1mhecj0076yuwb1brrabt2" data-title="A Simplified TDP with Large Tables" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/09/27/a-simplified-TDP-with-large-tables/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/27/a-simplified-TDP-with-large-tables/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/09/28/libvirt-memory-snapshot/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          (no title)
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/09/23/some-thought-about-software-engineer-interview/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Some thought about software engineer interview</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Hands on vhost-net: Do. Or do not. There is no try | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。 在之前的文章里介绍了网络架构的组成：Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-net">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hands on vhost-net: Do. Or do not. There is no try">
+<meta property="og:url" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。 在之前的文章里介绍了网络架构的组成：Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-net">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
+<meta property="article:published_time" content="2021-12-28T13:55:31.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.350Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="virtio-networking">
+<meta property="article:tag" content="vhost-net">
+<meta property="article:tag" content="virtio-net">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="architecture">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-hands-on-vhost-net-do-or-do-not-there-is-no-try" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" class="article-date">
+  <time class="dt-published" datetime="2021-12-28T13:55:31.000Z" itemprop="datePublished">2021-12-28</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Hands on vhost-net: Do. Or do not. There is no try
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。</p>
+<p>在之前的文章里介绍了网络架构的组成：<a href="#">Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-networking and vhost-net]</a>  同时提供了一个更加详细的解释：<a href="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/" title="[Deep dive into Virtio-networking and vhost-net]">[Deep dive into Virtio-networking and vhost-net]</a>  。这篇文章里我们将会提供一个详细的步骤实践性的设置一个架构。大建好之后我们能够检查主要的组件是如何工作的。</p>
+<p>这篇文章主要面向研发人员，hackers和其他任何有兴趣学习真实的网络卸载是如何做到的。</p>
+<p>在读完这篇文章之后（希望能够在你的PC上重建这个环境），你将会对虚拟化使用到的工具更加熟悉（比如virsh）。你将了解如何建立一个vhost-net环境并且了解到如何检查一个运行的云主机同时测试他的网络性能。</p>
+<p>对那些需要快速建立环境并直接逆向工程的人，这里有特别的准备！<a target="_blank" rel="noopener" href="https://github.com/redhat-virtio-net/virtio-hands-on">https://github.com/redhat-virtio-net/virtio-hands-on</a> 能够自动化部署环境的ansible脚本。</p>
+<h2 id="Setting-things-up"><a href="#Setting-things-up" class="headerlink" title="Setting things up"></a>Setting things up</h2><p>因为懒得准备原文中相同的环境，这里我用ZStack常用环境来做替代</p>
+<h3 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements"></a>Requirements</h3><p>一个安装了CentOS Linux release 7.6.1810 (Core)的环境<br>使用root用户（或者有sudo权限的用户）<br>home目录下有25G以上的空闲空间<br>至少8GB的RAM<br>首先安装一堆依赖，建议通过ZStack iso安装可以选择Host模式，如果是专家模式需要通过，如下命令安装</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum --disablerepo&#x3D;* --enablerepo&#x3D;zstack-mn,qemu-kvm-ev-mn install libguestfs-tools qemu-kvm libvirt kernel-tools iperf3 -y</span><br></pre></td></tr></table></figure>
+
+<p>另外根据OS版本下载一个rpm包 <a target="_blank" rel="noopener" href="https://pkgs.org/download/netperf">https://pkgs.org/download/netperf</a></p>
+<p>对应的Centos 7的包是 <a target="_blank" rel="noopener" href="https://centos.pkgs.org/7/lux/netperf-2.7.0-1.el7.lux.x86_64.rpm.html">https://centos.pkgs.org/7/lux/netperf-2.7.0-1.el7.lux.x86_64.rpm.html</a></p>
+<p>安装virt-install</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum --disablerepo&#x3D;* --enablerepo&#x3D;ali* install virt-install -y</span><br></pre></td></tr></table></figure>
+
+<p>接下来确保当前用户被加入了libvirt的用户组，做一下修改</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo usermod -a -G libvirt $(whoami)</span><br></pre></td></tr></table></figure>
+
+<p>然后重新登录，并重启libvirt</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart libvirtd</span><br></pre></td></tr></table></figure>
+
+<h3 id="Creating-VM"><a href="#Creating-VM" class="headerlink" title="Creating VM"></a>Creating VM</h3><p>首先下载一个镜像，可以在内部 <a target="_blank" rel="noopener" href="http://192.168.200.100/mirror/diskimages/">http://192.168.200.100/mirror/diskimages/</a> 找一个，这里直接用的一个c76的镜像</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https:&#x2F;&#x2F;archive.fedoraproject.org&#x2F;pub&#x2F;archive&#x2F;fedora&#x2F;linux&#x2F;releases&#x2F;30&#x2F;Cloud&#x2F;x86_64&#x2F;images&#x2F;Fedora-Cloud-Base-30-1.2.x86_64.qcow2</span><br></pre></td></tr></table></figure>
+
+<p>这是一个封装好的镜像，我们把他作为一个copy，保证以后可以继续使用，执行如下命令，创建并查一下一下image的信息是否和预期一致</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# qemu-img create -f qcow2 -b Fedora-Cloud-Base-30-1.2.x86_64.qcow2 virtio-test1.qcow2 20G</span><br><span class="line">Formatting &#39;virtio-test1.qcow2&#39;, fmt&#x3D;qcow2 size&#x3D;21474836480 backing_file&#x3D;centos76.qcow2 cluster_size&#x3D;65536 lazy_refcounts&#x3D;off refcount_bits&#x3D;16</span><br><span class="line">[root@host ~]# qemu-img info virtio-test1.qcow2</span><br><span class="line">image: virtio-test1.qcow2</span><br><span class="line">file format: qcow2</span><br><span class="line">virtual size: 20 GiB (21474836480 bytes)</span><br><span class="line">disk size: 196 KiB</span><br><span class="line">cluster_size: 65536</span><br><span class="line">backing file: centos76.qcow2</span><br><span class="line">Format specific information:</span><br><span class="line">    compat: 1.1</span><br><span class="line">    lazy refcounts: false</span><br><span class="line">    refcount bits: 16</span><br><span class="line">    corrupt: false</span><br></pre></td></tr></table></figure>
+
+<p>然后清理一下这个操作系统：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo virt-sysprep --root-password password:password123 --uninstall cloud-init --selinux-relabel -a virtio-test1.qcow2</span><br></pre></td></tr></table></figure>
+
+<p>这个命令会挂载文件系统，并自动做一些基础设置，让这个镜像准备好启动</p>
+<p>我们需要把网络连接到虚拟机网络。Libvirt对网络的配置就和管理虚拟机一样，你可以通过xml文件定义一个网络，通过命令行控制他的启动和停止。</p>
+<p>举个例子，我们使用一个libvirt提供的叫做‘default’的网络的便利设置用如下的命令定义<code>default</code>网络启动并检测他已经运行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# virsh net-define &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line">Network default defined from &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line">[root@host ~]# virsh net-start default</span><br><span class="line">Network default started</span><br><span class="line">[root@host ~]# virsh net-list</span><br><span class="line"> Name      State    Autostart   Persistent</span><br><span class="line">--------------------------------------------</span><br><span class="line"> default   active   no          yes</span><br></pre></td></tr></table></figure>
+
+<p>最后我们能够使用virt-install创建虚拟机。这是一个命令行工具创建一堆操作系统需要的定义，并给出一个基础的我们可以自定义的配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virt-install --import --name virtio-test1 --ram&#x3D;4096 --vcpus&#x3D;2 --nographics --accelerate --network network:default,model&#x3D;virtio --mac 02:ca:fe:fa:ce:01       --debug --wait 0 --console pty --disk &#x2F;root&#x2F;virtio-test1.qcow2,bus&#x3D;virtio</span><br></pre></td></tr></table></figure>
+
+<p>这些命令用的选项特定了vCPUs的数量，还有我们虚拟机的RAM大小并且指定磁盘的路径和云主机要连接的网络。</p>
+<p>除开虚拟机通过我们这些选项定义之外，virt-install命令也能够启动虚拟机，所以我们需要列出来：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# virsh list</span><br><span class="line"> Id   Name           State</span><br><span class="line">------------------------------</span><br><span class="line"> 9    virtio-test1   running</span><br></pre></td></tr></table></figure>
+
+<p>我们的虚拟机在运行了</p>
+<p>提醒一下，virsh是一个libvirt的命令行接口，你可以这样启动一个虚拟机：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>进入虚拟机的console：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh console virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>停止一个运行的虚拟机：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh shutdown virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>删除运行的虚拟机（不要做这个除非你想在创建一遍）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">virsh undefine virtio-test1</span><br><span class="line">Inspecting the guest</span><br></pre></td></tr></table></figure>
+
+<p>就像已经提到的，virt-install命令能够自动使用libvirt创建和启动云主机。每个虚拟机创建都是通过xml文件描述需要模拟的硬件设置并提交给libvirt。我们通过dump配置的内容可以看一下相关的文件。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;devices&gt;</span><br><span class="line">...</span><br><span class="line">    &lt;interface type&#x3D;&#39;network&#39;&gt;</span><br><span class="line">      &lt;mac address&#x3D;&#39;02:ca:fe:fa:ce:01&#39;&#x2F;&gt;</span><br><span class="line">      &lt;source network&#x3D;&#39;default&#39; bridge&#x3D;&#39;virbr0&#39;&#x2F;&gt;</span><br><span class="line">      &lt;target dev&#x3D;&#39;vnet0&#39;&#x2F;&gt;</span><br><span class="line">      &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">      &lt;alias name&#x3D;&#39;net0&#39;&#x2F;&gt;</span><br><span class="line">      &lt;address type&#x3D;&#39;pci&#39; domain&#x3D;&#39;0x0000&#39; bus&#x3D;&#39;0x00&#39; slot&#x3D;&#39;0x02&#39; function&#x3D;&#39;0x0&#39;&#x2F;&gt;</span><br><span class="line">    &lt;&#x2F;interface&gt;</span><br><span class="line">...</span><br><span class="line">&lt;&#x2F;devices&gt;</span><br></pre></td></tr></table></figure>
+
+<p>我们能够看到一个virtio设备被创建好了，并连接到网络，这堆配置里有virbr0。这个设备有PCI，bus和slot</p>
+<p>然后通过console命令进入console</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh console virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>进入guset安装一些测试依赖：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dnf install pciutils iperf3</span><br></pre></td></tr></table></figure>
+
+<p>然后在虚拟机里看一下，实际上虚拟PCI总线上挂了个网络设备</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# lspci -s 0000:00:02.0 -v</span><br><span class="line">00:02.0 Ethernet controller: Red Hat, Inc. Virtio network device</span><br><span class="line">	Subsystem: Red Hat, Inc. Device 0001</span><br><span class="line">	Physical Slot: 2</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 11</span><br><span class="line">	I&#x2F;O ports at c040 [size&#x3D;32]</span><br><span class="line">	Memory at febc0000 (32-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Memory at febf4000 (64-bit, prefetchable) [size&#x3D;16K]</span><br><span class="line">	Expansion ROM at feb80000 [disabled] [size&#x3D;256K]</span><br><span class="line">	Capabilities: [98] MSI-X: Enable+ Count&#x3D;3 Masked-</span><br><span class="line">	Capabilities: [84] Vendor Specific Information: VirtIO: &lt;unknown&gt;</span><br><span class="line">	Capabilities: [70] Vendor Specific Information: VirtIO: Notify</span><br><span class="line">	Capabilities: [60] Vendor Specific Information: VirtIO: DeviceCfg</span><br><span class="line">	Capabilities: [50] Vendor Specific Information: VirtIO: ISR</span><br><span class="line">	Capabilities: [40] Vendor Specific Information: VirtIO: CommonCfg</span><br><span class="line">	Kernel driver in use: virtio-pci</span><br></pre></td></tr></table></figure>
+
+<p>注意：lspci后面跟的地址是根据xml里面的source，bus，slot，function拼接起来的。</p>
+<p>除了典型的PCI设备信息之外（比如内存阈和功能之外，驱动还实现了基于PCI的通用virtio功能吗，并创建了一个由virtio_net驱动的网络设备，比如我们可以深入的看一下这个设备</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# readlink &#x2F;sys&#x2F;devices&#x2F;pci0000\:00&#x2F;0000\:00\:02.0&#x2F;virtio0&#x2F;driver</span><br><span class="line">..&#x2F;..&#x2F;..&#x2F;..&#x2F;bus&#x2F;virtio&#x2F;drivers&#x2F;virtio_net</span><br></pre></td></tr></table></figure>
+
+<p>通过命令行readlink，可以看到这个pci设备使用的是virtio_net驱动。</p>
+<p>是这个virtio_net驱动控制了操作系统使用的网络接口的创建：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# ip link</span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000</span><br><span class="line">    link&#x2F;loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000</span><br><span class="line">    link&#x2F;ether 02:ca:fe:fa:ce:01 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">Inspecting the host</span><br></pre></td></tr></table></figure>
+<p>我们已经看过guset了，让我们再看看host。注意我们通过‘network’类型配置网络接口的默认行为是使用vhost-net</p>
+<p>首先我们看一下vhost-net是否加载</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# lsmod | grep vhost</span><br><span class="line">vhost_net              22507  1</span><br><span class="line">tun                    31881  4 vhost_net</span><br><span class="line">vhost                  48422  1 vhost_net</span><br><span class="line">macvtap                22796  1 vhost_net</span><br></pre></td></tr></table></figure>
+
+<p>我们能够检查到QEMU使用了tun，kvm和vhost-net设备，同时通过检查/proc文件系统也能发现这些文件描述符被分给qemu处理了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# ls -lh &#x2F;proc&#x2F;40888&#x2F;fd | grep &#39;&#x2F;dev&#39;</span><br><span class="line">lrwx------ 1 root root 64 Dec 27 22:55 0 -&gt; &#x2F;dev&#x2F;null</span><br><span class="line">lrwx------ 1 root root 64 Dec 27 22:55 10 -&gt; &#x2F;dev&#x2F;ptmx</span><br><span class="line">lrwx------ 1 root root 64 Dec 27 22:55 13 -&gt; &#x2F;dev&#x2F;kvm</span><br><span class="line">lr-x------ 1 root root 64 Dec 27 22:55 3 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lrwx------ 1 root root 64 Dec 27 22:55 35 -&gt; &#x2F;dev&#x2F;net&#x2F;tun</span><br><span class="line">lrwx------ 1 root root 64 Dec 27 22:55 37 -&gt; &#x2F;dev&#x2F;vhost-net</span><br></pre></td></tr></table></figure>
+
+<p>这意味着qemu进程，不仅打开了kvm设备执行虚拟化操作，同时也创建了一个tun/tap设备和一打开了一个vhost-net设备。当然我们也能够看到一个辅助qemu的vhost内核线程也被创建出来了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# ps -ef | grep &#39;\[vhost&#39;</span><br><span class="line">root     40056 21741  0 09:53 pts&#x2F;0    00:00:00 grep --color&#x3D;auto \[vhost</span><br><span class="line">root     40894     2  0 Dec27 ?        00:00:03 [vhost-40888]</span><br><span class="line">[root@host ~]# pgrep qemu</span><br><span class="line">40888</span><br></pre></td></tr></table></figure>
+
+<p>这个vhost内核线程的名字就是vhost-$qemu_pid</p>
+<p>最后我们可以看到qemu进程创建的tun接口（上面通过/proc找到的）通过bridge把host和guest连在一起了。注意，虽然tap设备被挂在了qemu进程上，实际上进行tap设备读写的是vhost内核线程。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# ip -d tuntap</span><br><span class="line">virbr0-nic: tap UNKNOWN_FLAGS:800</span><br><span class="line">	Attached to processes:</span><br><span class="line">vnet0: tap vnet_hdr</span><br><span class="line">	Attached to processes: qemu-kvm(40888)</span><br></pre></td></tr></table></figure>
+
+<p>OK，所以vhost已经启动并且运行了，qemu也连接到了vhost上。现在我们可以制造一些流量来看看系统的表现。</p>
+<h2 id="Generating-traffic"><a href="#Generating-traffic" class="headerlink" title="Generating traffic"></a>Generating traffic</h2><p>如果你已经完成之前的步骤的话，你已经可以尝试通过ip地址从host发送数据到guest或者反过来。举个例子，通过iperf3测试网络性能，注意这些测试方法不是正确的benchmarks，不同的输入比如软硬件版本，不同的网络协议栈参数，会显著影响测试结果。性能吞吐量，或者是特定的使用量基准不在本文的范围之内。</p>
+<p>首先检查guest的ip地址，执行 iperf3 server (或者任意你打算用来测试连通性的工具）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# ip addr</span><br><span class="line">...</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc fq_codel state UP group default qlen 1000</span><br><span class="line">    link&#x2F;ether 02:ca:fe:fa:ce:01 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.122.41&#x2F;24 brd 192.168.122.255 scope global dynamic noprefixroute eth0</span><br><span class="line">       valid_lft 2808sec preferred_lft 2808sec</span><br><span class="line">    inet6 fe80::ca:feff:fefa:ce01&#x2F;64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br></pre></td></tr></table></figure>
+
+<p>然后再host上运行iperf3的client：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# iperf3 -c 192.168.122.41</span><br><span class="line">Connecting to host 192.168.122.41, port 5201</span><br><span class="line">[ ID] Interval           Transfer     Bandwidth       Retr</span><br><span class="line">[  4]   0.00-10.00  sec  34.3 GBytes  29.5 Gbits&#x2F;sec    1             sender</span><br><span class="line">[  4]   0.00-10.00  sec  34.3 GBytes  29.5 Gbits&#x2F;sec                  receiver</span><br></pre></td></tr></table></figure>
+
+<p>在iperf3的输出里我们能看到一个29.5 Gbits/sec 的传输速率（主机这个网络的带宽收到很多以来的影响，不要假定会和你的环境一致）。我们可以通过 -l 参数修改包的大小来测试更多数据平面。</p>
+<p>如果我们在iperf3测试过程中运行top命令我们能够看到vhost-$pid内核线程使用了100%的core来做包转发，同时QEMU使用了几乎两倍的cores（可以多试几次，刚好中间观察到一个200% 一个100%，注意创建guest的时候指定的qemu的vcpu数量就是2）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">top - 10:07:24 up 7 days, 17:30,  3 users,  load average: 1.49, 0.55, 0.28</span><br><span class="line">Tasks: 612 total,   2 running, 610 sleeping,   0 stopped,   0 zombie</span><br><span class="line">%Cpu(s):  2.9 us,  6.6 sy,  0.0 ni, 90.4 id,  0.0 wa,  0.0 hi,  0.2 si,  0.0 st</span><br><span class="line">KiB Mem : 13174331+total, 10001235+free,  4672644 used, 27058324 buff&#x2F;cache</span><br><span class="line">KiB Swap:  4194300 total,  4194300 free,        0 used. 12307848+avail Mem</span><br><span class="line"></span><br><span class="line">  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span><br><span class="line">40888 root      20   0 6158388   1.2g  11436 S 200.0  0.9   3:38.41 qemu-kvm</span><br><span class="line">40894 root      20   0       0      0      0 R 100.0  0.0   0:58.46 vhost-40888</span><br></pre></td></tr></table></figure>
+
+<p>要测试延迟，我们使用netperf命令启动一个netperf服务，然后测试延迟。（注：需要在guest里先启动一个netserver，如何在guest安装netperf 2021.12.18 fedora安装netperf）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# netperf -l 30 -H 192.168.122.41 -p 16604 -t TCP_RR</span><br><span class="line">MIGRATED TCP REQUEST&#x2F;RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.122.41 () port 0 AF_INET : first burst 0</span><br><span class="line">Local &#x2F;Remote</span><br><span class="line">Socket Size   Request  Resp.   Elapsed  Trans.</span><br><span class="line">Send   Recv   Size     Size    Time     Rate</span><br><span class="line">bytes  Bytes  bytes    bytes   secs.    per sec</span><br><span class="line"></span><br><span class="line">16384  87380  1        1       30.00    36481.26</span><br><span class="line">16384  131072</span><br></pre></td></tr></table></figure>
+
+<p>计算打开vhost-net host → guest TCP_RR延迟为 1 / 36481.26 = 0.0000274s</p>
+<p>就像之前说的，我们进行的不是benchmark或者是吞吐测试。我们只是熟悉一下这个方法。</p>
+<h2 id="Extra-Disable-vhost-net"><a href="#Extra-Disable-vhost-net" class="headerlink" title="Extra: Disable vhost-net"></a>Extra: Disable vhost-net</h2><p>就像我们看到的vhost-net是被作为默认行为的，因为带来了性能的提升。然而因为我们是来实践学习的，金庸vhost-net来看一下性能有什么不同，通过这个我们将知道qemu做了多“重”的包处理的操作，以及对性能造成了什么影响。</p>
+<p>首先停止vm：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh shutdown virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>编辑云主机配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh edit virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>修改网卡配置为，增加了<driver name='qemu'/></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;devices&gt;</span><br><span class="line">...</span><br><span class="line">    &lt;interface type&#x3D;&#39;network&#39;&gt;</span><br><span class="line">      &lt;mac address&#x3D;&#39;02:ca:fe:fa:ce:01&#39;&#x2F;&gt;</span><br><span class="line">      &lt;source network&#x3D;&#39;default&#39;&#x2F;&gt;</span><br><span class="line">      &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">      &lt;driver name&#x3D;&#39;qemu&#39;&#x2F;&gt;</span><br><span class="line">      &lt;address type&#x3D;&#39;pci&#39; domain&#x3D;&#39;0x0000&#39; bus&#x3D;&#39;0x00&#39; slot&#x3D;&#39;0x02&#39; function&#x3D;&#39;0x0&#39;&#x2F;&gt;</span><br><span class="line">    &lt;&#x2F;interface&gt;</span><br><span class="line">...</span><br><span class="line">&lt;&#x2F;devices&gt;</span><br></pre></td></tr></table></figure>
+
+<p>修改成功后llibvirt会显示</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Domain virtio-test1 XML configuration not changed</span><br></pre></td></tr></table></figure>
+
+<p>然后启动云主机：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start virtio-test1</span><br></pre></td></tr></table></figure>
+
+<p>我们可以检查一下指向/dev/vhost-net的文件描述符没了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# ls -lh &#x2F;proc&#x2F;37518&#x2F;fd | grep &#39;&#x2F;dev&#39;</span><br><span class="line">lrwx------ 1 root root 64 Dec 28 11:22 0 -&gt; &#x2F;dev&#x2F;null</span><br><span class="line">lrwx------ 1 root root 64 Dec 28 11:22 10 -&gt; &#x2F;dev&#x2F;ptmx</span><br><span class="line">lrwx------ 1 root root 64 Dec 28 11:22 13 -&gt; &#x2F;dev&#x2F;kvm</span><br><span class="line">lr-x------ 1 root root 64 Dec 28 11:22 3 -&gt; &#x2F;dev&#x2F;urandom</span><br><span class="line">lrwx------ 1 root root 64 Dec 28 11:22 33 -&gt; &#x2F;dev&#x2F;net&#x2F;tun</span><br><span class="line">Analyzing the performance impact</span><br></pre></td></tr></table></figure>
+
+<p>如果我们在没有vhost-net的环境重复之前的测试，我们能看到vhost-net的线程没有在运行了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# ps -ef | grep &#39;\[vhost&#39;</span><br><span class="line">root      9076 23993  0 11:24 pts&#x2F;0    00:00:00 grep --color&#x3D;auto \[vhost</span><br></pre></td></tr></table></figure>
+
+<p>我们获得的性能iperf3测试结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# iperf3 -c 192.168.122.41</span><br><span class="line">Connecting to host 192.168.122.41, port 5201</span><br><span class="line">[  4] local 192.168.122.1 port 58628 connected to 192.168.122.41 port 5201</span><br><span class="line">[ ID] Interval           Transfer     Bandwidth       Retr  Cwnd</span><br><span class="line">[  4]   0.00-1.00   sec  1.89 GBytes  16.2 Gbits&#x2F;sec    0   2.08 MBytes</span><br><span class="line">[  4]   1.00-2.00   sec  1.78 GBytes  15.3 Gbits&#x2F;sec    0   2.19 MBytes</span><br><span class="line">[  4]   2.00-3.00   sec  1.82 GBytes  15.6 Gbits&#x2F;sec    0   2.37 MBytes</span><br><span class="line">[  4]   3.00-4.00   sec  1.82 GBytes  15.7 Gbits&#x2F;sec    0   2.47 MBytes</span><br><span class="line">[  4]   4.00-5.00   sec  1.73 GBytes  14.8 Gbits&#x2F;sec    0   2.61 MBytes</span><br><span class="line">[  4]   5.00-6.00   sec  1.80 GBytes  15.4 Gbits&#x2F;sec    0   2.64 MBytes</span><br><span class="line">[  4]   6.00-7.00   sec  1.82 GBytes  15.6 Gbits&#x2F;sec    0   2.64 MBytes</span><br><span class="line">[  4]   7.00-8.00   sec  1.81 GBytes  15.6 Gbits&#x2F;sec    0   2.69 MBytes</span><br><span class="line">[  4]   8.00-9.00   sec  2.33 GBytes  20.0 Gbits&#x2F;sec    0   2.81 MBytes</span><br><span class="line">[  4]   9.00-10.00  sec  2.32 GBytes  19.9 Gbits&#x2F;sec    0   2.93 MBytes</span><br><span class="line">- - - - - - - - - - - - - - - - - - - - - - - - -</span><br><span class="line">[ ID] Interval           Transfer     Bandwidth       Retr</span><br><span class="line">[  4]   0.00-10.00  sec  19.1 GBytes  16.4 Gbits&#x2F;sec    0             sender</span><br><span class="line">[  4]   0.00-10.00  sec  19.1 GBytes  16.4 Gbits&#x2F;sec                  receiver</span><br><span class="line"></span><br><span class="line">iperf Done.</span><br></pre></td></tr></table></figure>
+
+<p>可以看到传输速度从上面的29.5 Gbits/sec掉到了16.4 Gbits/sec</p>
+<p>在通过top命令检查，我们可以发现qemu对CPU的使用，峰值会变得很高（这个需要多测试一下，是一个浮动的范围，关掉vhost-net之后大概是150% ～ 260%左右，之前开vhost-net的时候最高也就200%）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">top - 11:27:10 up 7 days, 18:50,  3 users,  load average: 0.57, 0.36, 0.29</span><br><span class="line">Tasks: 617 total,   3 running, 614 sleeping,   0 stopped,   0 zombie</span><br><span class="line">%Cpu(s):  3.8 us,  4.0 sy,  0.0 ni, 91.7 id,  0.5 wa,  0.0 hi,  0.1 si,  0.0 st</span><br><span class="line">KiB Mem : 13174331+total, 10047221+free,  3931432 used, 27339668 buff&#x2F;cache</span><br><span class="line">KiB Swap:  4194300 total,  4194300 free,        0 used. 12381579+avail Mem</span><br><span class="line"></span><br><span class="line">  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span><br><span class="line">37518 root      20   0 6605056 514392  11372 R 242.9  0.4   1:02.22 qemu-kvm</span><br></pre></td></tr></table></figure>
+
+<p>如果我们再比较一下两种不同网络架构下的TCP和UDP的延迟，我们可以看到vhost-net对两种形式的性能都有一致的提升</p>
+<p>记录一下关闭vhoset-net之后的测试结果</p>
+<p>关闭vhost-net的host → guest TCP_RR测试</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# netperf -l 30 -H 192.168.122.41 -p 16604 -t TCP_RR</span><br><span class="line">MIGRATED TCP REQUEST&#x2F;RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.122.41 () port 0 AF_INET : first burst 0</span><br><span class="line">Local &#x2F;Remote</span><br><span class="line">Socket Size   Request  Resp.   Elapsed  Trans.</span><br><span class="line">Send   Recv   Size     Size    Time     Rate</span><br><span class="line">bytes  Bytes  bytes    bytes   secs.    per sec</span><br><span class="line"></span><br><span class="line">16384  87380  1        1       30.00    27209.58</span><br><span class="line">计算延迟为 1&#x2F;27209.58 &#x3D; 0.0000367s</span><br></pre></td></tr></table></figure>
+
+<p>关闭vhost-net的host → guest UDP_RR测试</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# netperf -l 30 -H 192.168.122.41 -p 16604 -t UDP_RR</span><br><span class="line">MIGRATED UDP REQUEST&#x2F;RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.122.41 () port 0 AF_INET : first burst 0</span><br><span class="line">Local &#x2F;Remote</span><br><span class="line">Socket Size   Request  Resp.   Elapsed  Trans.</span><br><span class="line">Send   Recv   Size     Size    Time     Rate</span><br><span class="line">bytes  Bytes  bytes    bytes   secs.    per sec</span><br><span class="line"></span><br><span class="line">212992 212992 1        1       30.00    27516.04</span><br></pre></td></tr></table></figure>
+
+<p>计算延迟为 1/27516.04=0.0000363s</p>
+<p>打开vhost-net的host → guest UDP_RR测试</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# netperf -l 30 -H 192.168.122.41 -p 16604 -t UDP_RR</span><br><span class="line">MIGRATED UDP REQUEST&#x2F;RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.122.41 () port 0 AF_INET : first burst 0</span><br><span class="line">Local &#x2F;Remote</span><br><span class="line">Socket Size   Request  Resp.   Elapsed  Trans.</span><br><span class="line">Send   Recv   Size     Size    Time     Rate</span><br><span class="line">bytes  Bytes  bytes    bytes   secs.    per sec</span><br><span class="line"></span><br><span class="line">212992 212992 1        1       30.00    37681.20</span><br></pre></td></tr></table></figure>
+
+<p>计算延迟为 1/37681.20 = 0.0000265s</p>
+<p>同样的测试一下guest→host方向的流量延迟，这里不列代码只记录测试结果</p>
+<p>打开vhost-net guest→host TCP_RR 1/36030.14 = 0.0000278s</p>
+<p>打开vhost-net guest→host UDP_RR 1/37690.97 = 0.0000265s</p>
+<p>关闭vhost-net guest→host TCP_RR 1/26697.53 = 0.0000375s</p>
+<p>关闭vhost-net guest→host UDP_RR 1/25850.89 = 0.0000387s</p>
+<p>结果如下表</p>
+<img src="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png" class="">
+
+<p>使用strace统计系统调用，关闭vhost-net，测试iperf3的情况</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# strace -c -p 37518 # 进程的pid，统计结束后用ctrl+c结束</span><br><span class="line">strace: Process 37518 attached</span><br><span class="line">^Cstrace: Process 37518 detached</span><br><span class="line">% time     seconds  usecs&#x2F;call     calls    errors syscall</span><br><span class="line">------ ----------- ----------- --------- --------- ----------------</span><br><span class="line"> 41.63    1.137491           8    141188      2775 read</span><br><span class="line"> 28.66    0.783060           6    135331           ioctl</span><br><span class="line"> 27.16    0.742136           6    121757           writev</span><br><span class="line">  2.40    0.065491           8      8380           ppoll</span><br><span class="line">  0.13    0.003653           6       594       275 futex</span><br><span class="line">  0.01    0.000243           5        50           write</span><br><span class="line">  0.00    0.000020          20         1           clone</span><br><span class="line">  0.00    0.000012           3         4           sendmsg</span><br><span class="line">  0.00    0.000008           4         2           rt_sigprocmask</span><br><span class="line">------ ----------- ----------- --------- --------- ----------------</span><br><span class="line">100.00    2.732114                407307      3050 total</span><br></pre></td></tr></table></figure>
+
+<p>打开vhost-net之后的iperf3测试时strace qemu的结果</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@host ~]# strace -c -p 27346</span><br><span class="line">strace: Process 27346 attached</span><br><span class="line">^Cstrace: Process 27346 detached</span><br><span class="line">% time     seconds  usecs&#x2F;call     calls    errors syscall</span><br><span class="line">------ ----------- ----------- --------- --------- ----------------</span><br><span class="line"> 99.96    6.819794      131150        52           ppoll</span><br><span class="line">  0.02    0.001416          10       136           write</span><br><span class="line">  0.01    0.000862          13        66           futex</span><br><span class="line">  0.00    0.000341           9        39           read</span><br><span class="line">  0.00    0.000083          10         8           sendmsg</span><br><span class="line">  0.00    0.000022          22         1           clone</span><br><span class="line">  0.00    0.000016           8         2           rt_sigprocmask</span><br><span class="line">------ ----------- ----------- --------- --------- ----------------</span><br><span class="line">100.00    6.822534                   304           total</span><br></pre></td></tr></table></figure>
+
+<p>另外一个好方法就是看qmue发送了多少IOCTLs到KVM。因为每次I/O事件都需要qemu处理，qemu需要发送IOCTL给KVM来切换回VMX noroot的guest模式。我们可以通过strace分析qemu在每个syscall上花费的时间。根据上面两次strace的结果可以看到没打开vhost-net的情况，存在很多ioctl的调用，而打开vhost之后基本上只有ppoll。</p>
+<h2 id="Conclusions"><a href="#Conclusions" class="headerlink" title="Conclusions"></a>Conclusions</h2><p>在这篇文章里面我们完整了提供了一个创建一个QEMU + vhost-net的虚拟机，检查guest和host来理解这个架构的输入输出。我们也展示了性能是如何变化的。这个系列也到此为止。从 Introduction to virtio-networking and vhost-net 的总览到技术视角深入理解的 Deep dive into Virtio-networking and vhost-net 详细的解释了这些组件，现在展示完了如果配置，希望这些内容呢能够提供足够的资源给IT专家，架构师以及研发人员理解这个技术并开始和他一起工作。</p>
+<p>下一个话题将会涉及 Userland networking and DPDK</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" data-id="cld1mheca005zyuwb5nnk6dee" data-title="Hands on vhost-net: Do. Or do not. There is no try" class="article-share-link">Share</a>
+      
+      
+        <a href="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          How vhost-user came into being Virtio-networking and DPDK
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2021/12/22/deep-dive-virtio-networking-and-vhost-net/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">deep dive virtio networking and vhost net</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Achieving network wirespeed in an open standard manner: introducing vDPA | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="之前的文章里，我们讨论了现存的virtio-networking架构，包括基于内核的（vhost-net&#x2F;virtio-net）以及基于用户态DPDK的（vhost-user&#x2F;vhost-pmd），现在我们需要转移我们的注意力到一个目标是让virtio-networking架构给VM提供有线连接速度的架构 本文将会涵盖构成这个架构的数据面以及控制面组件。我们将会介绍SR-IOV技术，以及这个技术如">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Achieving network wirespeed in an open standard manner: introducing vDPA">
+<meta property="og:url" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="之前的文章里，我们讨论了现存的virtio-networking架构，包括基于内核的（vhost-net&#x2F;virtio-net）以及基于用户态DPDK的（vhost-user&#x2F;vhost-pmd），现在我们需要转移我们的注意力到一个目标是让virtio-networking架构给VM提供有线连接速度的架构 本文将会涵盖构成这个架构的数据面以及控制面组件。我们将会介绍SR-IOV技术，以及这个技术如">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure1.jpeg">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure2.jpeg">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure3.jpeg">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure4.jpeg">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure5.jpeg">
+<meta property="og:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/virtio-arch-compare.png">
+<meta property="article:published_time" content="2022-06-09T14:22:56.000Z">
+<meta property="article:modified_time" content="2022-09-28T01:19:10.290Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="virtio-networking">
+<meta property="article:tag" content="vhost-net">
+<meta property="article:tag" content="virtio-net">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="vDPA">
+<meta property="article:tag" content="architecture">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure1.jpeg">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/" class="article-date">
+  <time class="dt-published" datetime="2022-06-09T14:22:56.000Z" itemprop="datePublished">2022-06-09</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Achieving network wirespeed in an open standard manner: introducing vDPA
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>之前的文章里，我们讨论了现存的virtio-networking架构，包括基于内核的（vhost-net/virtio-net）以及基于用户态DPDK的（vhost-user/vhost-pmd），现在我们需要转移我们的注意力到一个目标是让virtio-networking架构给VM提供有线连接速度的架构</p>
+<p>本文将会涵盖构成这个架构的数据面以及控制面组件。我们将会介绍SR-IOV技术，以及这个技术如何提升网络性能。还会介绍virtio的硬件方案以及vDPA（virtual data path acceleration）带来的巨大好处。最后通过比较这些virtio-networking架构来做一个总结。</p>
+<p>本文主要是为了那些有兴趣想了解不同virtio-networking架构的（包括vDPA），但不那么深入细节的人。当然后面也会提供一个技术细节的分享以及一个实践教程。</p>
+<h2 id="Data-plane-and-control-plane-for-direct-access-to-NIC"><a href="#Data-plane-and-control-plane-for-direct-access-to-NIC" class="headerlink" title="Data plane and control plane for direct access to NIC"></a>Data plane and control plane for direct access to NIC</h2><p>在之前的vhost-net/virtio-net和vhost-user/vhost-pmd架构里，网卡都是接入在OVS kernel或者OVS-DPDK里的，而virtio的后端接口则是从OVS的另外一个port出去的</p>
+<p>为了提升网络性能，直接把网络连到guest里，和之前的virtio架构类似，我们拆分了网卡的控制面和数据面：</p>
+<ol>
+<li>控制面。提供网卡和guest之前的配置修改和特性协商功能，用来建立和销毁数据面通道</li>
+<li>数据面。用来在guest和网卡之间传输数据包。当直接把网卡连接到guest的时候，实际上是要求网卡要支持virtio ring layout的</li>
+</ol>
+<p>这个架构如下图所示：</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure1.jpeg" class="">
+
+<p>笔记：</p>
+<ul>
+<li>如果需要知道KVM，libvirt以及Qemu进程的额外信息，可以看前面的文章</li>
+<li>数据面直接从网卡到guest，实际上是通过guest提供一个网卡可访问的共享内存实现的，并且并不经过host kernel。这个意味着网卡和guest都需要使用完全一致的ring layout否则就需要做地址翻译，地址翻译意味着性能损耗</li>
+<li>控制面的实现则可能设计host kernel或者qemu进程，这个取决于具体的实现</li>
+</ul>
+<h2 id="SR-IOV-for-isolating-VM-traffic"><a href="#SR-IOV-for-isolating-VM-traffic" class="headerlink" title="SR-IOV for isolating VM traffic"></a>SR-IOV for isolating VM traffic</h2><p>在vhost-net/virtio-net和vhost-user/virto-pmd架构里，我们是用了软件交换机（OVS）可以让一个网卡对接到物理端口上，然后分发数据包到不同的虚拟机的端口上。</p>
+<p>把网卡挂在虚拟机上最简单的方法就是硬件透传，也就是直接把一个网卡提供给guest kernel的驱动。</p>
+<p>问题是我们需要在服务器上有一个单独的通过PIC暴露的物理网卡，接下来的问题就是我们如何在物理网卡上创建“虚拟端口”？</p>
+<p>SR-IOV（Single root I/O virtualization)是一种PCI设备规范，允许共享一个物理设备给多个虚拟机。换言之，这个功能允许不同的虚拟环境里的虚拟机共享一个网卡。这意味着我们能够拥有一个类似把一个物理网卡拆分为多个以太网接口的功能，帮我们解决了上面提到的“虚拟端口”的创建问题。</p>
+<p>SR-IOV有两个主要功能</p>
+<ol>
+<li>Physical Functions，即PCI设备的完整功能，包括发现，管理和配置功能。每个网卡都有一个对应的PF能提供整个网卡设备的配置</li>
+<li>Virtual Functions，是单个PCI功能，可以控制设备的一部分，并且是PF的子集。同一个网卡上能有多个VF</li>
+</ol>
+<p>我们需要在网卡上配置VF，PF，VF相当于是虚拟接口，PF相当于是网络接口，举个例子，我们有一个10GB网卡有一个外部接口和8个VF。那么这个外部端口的速度以及双工是取决于PF的配置而频率限制则是VF的设置</p>
+<p>hypervisor提供了映射virtual function到虚拟机的功能，每个VF都可以被映射到一个VM（一个VM可以同时有多个VF）</p>
+<p>然后来看看SR-IOV是如何映射到guest kernel，用户态DPDK或者是直接到host kernel的吧</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure2.jpeg" class="">
+
+<ol>
+<li>OVS和SR-IOV： 我们使用SR-IOV给OVS提供多个物理面端口，比如配置多个单独的mac地址，虽然我们只有一个物理网卡，但可以通过VF实现。并且给每分配一段内核内存到特定到VF（每个VF都有）</li>
+<li>OVS DPDK和SR-IOV：跳过物理机内核，通过SR-IOV直接从物理网卡到OVS-DPDK。映射host用户态内存给网卡的VF</li>
+<li>SR-IOV + guests：映射guest内存到网卡，跳过所有物理机环节。注意：使用设备透传，ring layout在物理网卡和guest之间是共享的，因此特定网卡才能被使用，因为这个逻辑一定是网卡厂商提供的。</li>
+</ol>
+<p>注意：当然还有不是很常见的第四个方案，就是透传设备给guest里的用户态DPDK应用。</p>
+<h2 id="SR-IOV-for-mapping-NIC-to-guest"><a href="#SR-IOV-for-mapping-NIC-to-guest" class="headerlink" title="SR-IOV for mapping NIC to guest"></a>SR-IOV for mapping NIC to guest</h2><p>重点说一下SR-IOV到guest的情况，这里存在一个问题就是在直接映射内存到网卡的场景下，如何更高效的发包收包。</p>
+<p>我们有下面两个方法解决这个问题：</p>
+<ol>
+<li>使用guest kerel驱动：这个方法就是使用网卡厂商提供的kernel驱动，即直接映射IO内存，这样的话硬件设备就能够直接访问guest kernel的内存了</li>
+<li>在guest里使用DPDK-pmd驱动：这个方法，就是使用网卡厂商提供的DPDK pmd驱动，运行在guest的用户态，能够直接映射IO内存，因此硬件设备也能够直接访问用户态的特定进程</li>
+</ol>
+<p>这一段我们重点看看DPDP pmd驱动的方案，整合起来就是下面这个图：</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure3.jpeg" class="">
+
+<p>笔记：</p>
+<ul>
+<li>数据面是和厂商挂钩的直接访问VF</li>
+<li>对SRIOV，网卡厂商的驱动需要在host和guest都装</li>
+<li>host内核驱动以及guest的pmd驱动并不直接互相访问，PF/VF的驱动是通过其他接口配置的（比如libvirt等）</li>
+<li>厂商提供的VF-pmd需要负责网卡VF的配置而PF驱动则负责在host内核上管理好物理网卡设备</li>
+</ul>
+<p>总结一下这个方案，我们可以通过SR-IOV + DPDK PMC的方式给Guest提供一个很好的网络性能，不过这个方法还是挺麻烦的。因为这个方法是和厂商绑定的，因此需要在guest和host跑一样的驱动，并且特定网卡。这意味着网卡硬件升级，虚拟机应用驱动也需要升级。如果网卡被替换成了另外一个厂商的网卡，那么guest也需要装一个新的pmd。同时迁移虚拟机则会要求host上配置完全一致。也就是说网卡需要版本一致，物理位置需要一致，并且厂家还要提供迁移支持。</p>
+<p>因此我们要处理的问题就是如何使用标准接口实现SR-IOV的性能提升，最好是只需要标准驱动，把这个驱动问题从整个架构中解耦出来。</p>
+<p>下面的两个方案就是来解决这个问题的</p>
+<h2 id="Virtio-full-HW-offloading"><a href="#Virtio-full-HW-offloading" class="headerlink" title="Virtio full HW offloading"></a>Virtio full HW offloading</h2><p>第一个方案是virtio的硬件替代方案，把virtio的控制面和数据面都转移到硬件上，也就是说网卡（当然还是通过VF来提供虚拟接口），支持virtio控制面的标准，包括发现，特性协商，以及建立/销毁数据面，等等。这个设备也支持virtio rang layout，因此一旦内存在网卡和guest之间被映射了，他们就能够直接通信了。</p>
+<p>这个方案里，guest能够直接和网卡使用PCI通讯吗所以没有必要使用额外的驱动。然而需要网卡厂商提供支持virtio标准的网卡，包括控制面的软件实现，一般来说都是操作系统实现的，这个情况就是需要网卡自己实现。</p>
+<p>下面是硬件架构的图：</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure4.jpeg" class="">
+
+<p>笔记：</p>
+<ul>
+<li>实际上控制面需要的操作是非常负责的主要是和IOMMU以及vIOMMU，下篇文章里会说</li>
+<li>实际上在host kernel，qemu进程还有guest kernel都涉及这个流程，图里面简化了</li>
+<li>当然也可以吧virtio数据面控制面放到kernel里而不是用户态（和SRIOV的场景一致），也就是直接使用virtio-net驱动来和网卡通讯（而不是使用virtio-pmd）</li>
+</ul>
+<h2 id="vDPA-standard-data-plane"><a href="#vDPA-standard-data-plane" class="headerlink" title="vDPA - standard data plane"></a>vDPA - standard data plane</h2><p>Virtual data path acceleration (vDPA) 是一个通过virtio ring layout和放置一个SRIOV在guest，来标准化网卡SRIOV数据面将这个网络性能改善和厂家实现解耦的方案，通过增加一个通用的控制面以及阮家架构来支持vDPA。提供一个抽象层，在SRIOV之上，并且给未来的可拓展IOV打好基础。</p>
+<p>和virtio的硬件方案类似，数据面直接建立在网卡和guest之间，都使用virtio ring layout。然而每个网卡厂家可能就会提供各自的驱动了，然后一个通用的vDPA驱动就被添加到了kernel里面来完成常见网卡驱动或控制面之间的virtio控制面翻译工作。</p>
+<p>vDPA是一个灵活性更高的方案，相比硬件方案来说，网卡厂家支持virtio ring layout的成本更小了，并且也能够达到性能提升的目的。</p>
+<p>示例图如下：</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/2019-10-02-vdpa-figure5.jpeg" class="">
+
+<p>笔记：</p>
+<ul>
+<li>实际上在host kernel，qemu进程还有guest kernel都涉及这个流程，图里面简化了</li>
+<li>类似SRIOV和virtio全硬件方案，数据面控制面都是在guest内核里而不是用户态（优劣和之前提到的一样）</li>
+</ul>
+<p>vDPA有潜力成为一个权威的给虚拟机提供以太网接口的方案：</p>
+<ol>
+<li>开源的标准：任何人可用，并且贡献标准，而不被特定的厂商限制</li>
+<li>优异的性能：接近SRIOV，中间没有翻译成本</li>
+<li>可以支持未来的硬件平台拓展技术</li>
+<li>独立于特定厂商的标准驱动，意味着只需要配置一次驱动，而不用太关心网卡和版本</li>
+<li>传输保护，guest直接使用单个接口。从host角度容易发现，并可以做好切换</li>
+<li>在线迁移，提供不同网卡不同版本的在线迁移</li>
+<li>提供一个标准的容器加速接口</li>
+<li>裸机，提供标准的网卡驱动mvirtio网卡驱动可以被作为一个裸机驱动，当时用vDPA软件架构的时候，驱动这个驱动来适配不同网卡硬件</li>
+</ol>
+<h2 id="Comparing-virtio-architectures"><a href="#Comparing-virtio-architectures" class="headerlink" title="Comparing virtio architectures"></a>Comparing virtio architectures</h2><p>总结一下之前的系列里我们学到的内容，包括四种提供给vm以太网络的架构，vhost-net/virito-net, vhost-user/virito-pmd, virtio full HW offloading 和 vDPA。</p>
+<p>然后来比较一下他们的优劣：</p>
+<img src="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/virtio-arch-compare.png" class="">
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章我们包含了四种提供以太网接口的virtio-networking架构概览，包括速度慢的（virtio-net）到比较快的（vhost-user）还有最快的（virtio硬件方案和vDPA）</p>
+<p>我们强调vDPA和SR-IOV相对其他技术来说的优势，也提供了四种技术的对比，接下来会更加深入的使用virtio硬件方案以及vDPA。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/" data-id="cld1mhe9t0001yuwbfbjaec59" data-title="Achieving network wirespeed in an open standard manner: introducing vDPA" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2022/06/30/kvm-introduction-00/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          KVM introduction 00
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2022/06/04/linux-memory-management-1/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Linux memory management(1)</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 10px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+          <li>
+            <a href="/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/">JVM loaded classes rapidly increased issue</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-01-16T03:23:08.759Z</updated>
+  <updated>2023-02-03T02:10:05.545Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,35 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Windows install virtio then reboot met BSOD</title>
+    <link href="http://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/"/>
+    <id>http://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/</id>
+    <published>2023-02-03T02:05:19.000Z</published>
+    <updated>2023-02-03T02:10:05.545Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h1 id=&quot;Windows-install-virtio-then-reboot-met-BSOD&quot;&gt;&lt;a href=&quot;#Windows-install-virtio-then-reboot-met-BSOD&quot; class=&quot;headerlink&quot;</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+    <category term="windows" scheme="http://hanayo.cn/tags/windows/"/>
+    
+    <category term="BSOD" scheme="http://hanayo.cn/tags/BSOD/"/>
+    
+  </entry>
   
   <entry>
     <title>Live migration failed due to libvirt keepalive timeout</title>
@@ -561,35 +590,6 @@
     <category term="virt" scheme="http://hanayo.cn/tags/virt/"/>
     
     <category term="kvm" scheme="http://hanayo.cn/tags/kvm/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Python ElementTree notes</title>
-    <link href="http://hanayo.cn/2022/07/01/python-elementtree-notes/"/>
-    <id>http://hanayo.cn/2022/07/01/python-elementtree-notes/</id>
-    <published>2022-07-01T07:13:28.000Z</published>
-    <updated>2022-09-28T01:19:10.376Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;Develop with libvrt python API, xml parse and operation is frequently required. ElementTree (stantard python library) is introduced in</summary>
-        
-      
-    
-    
-    
-    <category term="languages" scheme="http://hanayo.cn/categories/languages/"/>
-    
-    <category term="Python" scheme="http://hanayo.cn/categories/languages/Python/"/>
-    
-    
-    <category term="Python" scheme="http://hanayo.cn/tags/Python/"/>
-    
-    <category term="ElementTree" scheme="http://hanayo.cn/tags/ElementTree/"/>
     
   </entry>
   

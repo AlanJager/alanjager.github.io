@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Windows install virtio then reboot met BSOD | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Windows install virtio then reboot met BSODScopeThis blog is a practice search about windows virtio driver installation. BackgroudFor virtualization software, normally guest will install virtio relate">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Windows install virtio then reboot met BSOD">
+<meta property="og:url" content="http://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Windows install virtio then reboot met BSODScopeThis blog is a practice search about windows virtio driver installation. BackgroudFor virtualization software, normally guest will install virtio relate">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-02-03T02:05:19.000Z">
+<meta property="article:modified_time" content="2023-02-03T02:10:05.545Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="virtio">
+<meta property="article:tag" content="windows">
+<meta property="article:tag" content="BSOD">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-windows-install-virtio-then-reboot-met-BSOD" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/" class="article-date">
+  <time class="dt-published" datetime="2023-02-03T02:05:19.000Z" itemprop="datePublished">2023-02-03</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Windows install virtio then reboot met BSOD
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="Windows-install-virtio-then-reboot-met-BSOD"><a href="#Windows-install-virtio-then-reboot-met-BSOD" class="headerlink" title="Windows install virtio then reboot met BSOD"></a>Windows install virtio then reboot met BSOD</h1><h2 id="Scope"><a href="#Scope" class="headerlink" title="Scope"></a>Scope</h2><p>This blog is a practice search about windows virtio driver installation.</p>
+<h2 id="Backgroud"><a href="#Backgroud" class="headerlink" title="Backgroud"></a>Backgroud</h2><p>For virtualization software, normally guest will install virtio related drivers to get better virtualization performance. But instll virtio driver to windows guest sometimes became complex, so many softwares offer a practice guide about virtio dirver installation</p>
+<table>
+<thead>
+<tr>
+<th>Software</th>
+<th>practice guide</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Proxmox</td>
+<td><a target="_blank" rel="noopener" href="https://pve.proxmox.com/wiki/Windows_VirtIO_Drivers">https://pve.proxmox.com/wiki/Windows_VirtIO_Drivers</a> <br /><a target="_blank" rel="noopener" href="https://pve.proxmox.com/wiki/Windows_10_guest_best_practices">https://pve.proxmox.com/wiki/Windows_10_guest_best_practices</a></td>
+</tr>
+<tr>
+<td>IBM Cloud orchestrator</td>
+<td><a target="_blank" rel="noopener" href="https://www.ibm.com/docs/en/cloud-orchestrator/2.5.0.3?topic=images-installing-virtio-driver-kvm-hypervisor-only">https://www.ibm.com/docs/en/cloud-orchestrator/2.5.0.3?topic=images-installing-virtio-driver-kvm-hypervisor-only</a></td>
+</tr>
+</tbody></table>
+<p>the guide introduce that how to install virtio driver from win-virtio.iso while lauch windows install.</p>
+<p>But in practice, if user want install driver to exists guest, windows still get BSOD after virtio driver installed.</p>
+<p>So I write this blog to solve related problems.</p>
+<h3 id="Newly-virtio-driver-installation"><a href="#Newly-virtio-driver-installation" class="headerlink" title="Newly virtio driver installation"></a>Newly virtio driver installation</h3><p>Windows running root disk attached to ide controller and install virtio driver. Then stop guest and move the disk from ide controller to virtio-serial controller, start guest will meet BSOD (no accessible boot device).</p>
+<p>This is because windows do not load the virtio controller when install virtio driver to running vm.</p>
+<p>According to P2V practice, how to inject virtio driver to a guest <a target="_blank" rel="noopener" href="https://portal.nutanix.com/page/documents/kbs/details?targetId=kA00e000000kAWeCAM">https://portal.nutanix.com/page/documents/kbs/details?targetId=kA00e000000kAWeCAM</a> </p>
+<p>we need manually load driver</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">drvload vioser.inf</span><br></pre></td></tr></table></figure>
+
+<p>then install the driver to disk where windows installed:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dism &#x2F;image:c:\ &#x2F;add-driver &#x2F;driver:vioscsi.inf</span><br></pre></td></tr></table></figure>
+
+<p>but if you try to do this on a running windows vm, dism will tell you that this operation is not allowed on a running windows. So the kv tell user to do the operation through cmd prompt when windows failed to boot not convinence if there are many guest need do this.</p>
+<p>from superuser <a target="_blank" rel="noopener" href="https://superuser.com/questions/1057959/windows-10-in-kvm-change-boot-disk-to-virtio/1253728#1253728">https://superuser.com/questions/1057959/windows-10-in-kvm-change-boot-disk-to-virtio/1253728#1253728</a></p>
+<p>other solution is raised, the best one is by setting guest into safeboot mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bcdedit &#x2F;set &quot;&#123;current&#125;&quot; safeboot minimal</span><br></pre></td></tr></table></figure>
+
+<p>windows will load all drivers then change the disk controller seems make sense, but still manually operation is required.</p>
+<p>A tricky way is noticed by adding a dummy virtio disk to windows and then install virtio driver, the controller will be loaded at first.</p>
+<p>the following steps I followed:</p>
+<ol>
+<li>Install the virtio driver in windows</li>
+<li>Add a additional “dummy” virtio disk. Reboot and check if the “dummy” works.</li>
+<li>If Step 2 works, then switch the boot disk to virtio.</li>
+<li>Reboot</li>
+<li>Remove the additional “dummy” virtio disk</li>
+</ol>
+<p>because we do not need to do more operation inside guest, so this solution can be changed to a automatic way.</p>
+<p>And more discussion can be found on reddit:</p>
+<blockquote>
+<p>Looks like you’re having the issue of windows refusing to load the virtio storage drivers at boot.</p>
+<p>The only thing I found that works for me is using this method - <a target="_blank" rel="noopener" href="https://superuser.com/a/1200899">https://superuser.com/a/1200899</a>. You can also try this method of adding another disk and installing the driver but I personally found that to be very hit and miss.</p>
+<p>For the first method you need to use diskpart to assign drive letters to your windows drive and virtio iso this tutorial should help if you don’t know how to do it.</p>
+</blockquote>
+<p>but luckily, </p>
+<blockquote>
+<p>You need to install the virtio drivers on a per storage device basis.</p>
+<p>I suggest swapping back to sata and add a empty virtio device to your guest. Then boot and install the virtio driver for the new the device. Last step is to delete the old sata device and mount the device image at the virtio device and boot your guest.</p>
+<p>Make sure that libvirt didn’t changed the pcie address of your virtio device as windows registers the driver on a per device basis.</p>
+</blockquote>
+<p>the dummy disk work around can be used because the pci address acutally reused (as the virtio device will be removed and reboot)</p>
+<p>This method works well when virtio drivers are newly added, but if you have booted guest with virtio driver installed, change the controller from ide to virtio is complex.</p>
+<p>We prefer user to install virtio driver during first windows intallation and make it as a image to avoid controller change.</p>
+<h2 id="Virtio-driver-already-installed"><a href="#Virtio-driver-already-installed" class="headerlink" title="Virtio driver already installed"></a>Virtio driver already installed</h2><p>While virtio already installed and reboot windows and the disk controller not changed. After reboot the boot disk is still ide. </p>
+<p>If you attach virtio-blk disk to guest, it will be recognized and loaded right now. </p>
+<p>But if follow the steps below to attach a dummy disk (in this case you attached a virtio-blk disk actually), change the ide controller to virtio will not work, windows kept report BSOD after changed.</p>
+<p>Work around is uninstall the virtio driver and reinstall with the steps than reboot every will works.</p>
+<p>I think maybe windows only load all drivers which are newly installed. But for existing driver, it only works per disk basis.</p>
+<h2 id="Virtio-scsi-always-works"><a href="#Virtio-scsi-always-works" class="headerlink" title="Virtio-scsi always works"></a>Virtio-scsi always works</h2><p>Cheerfully, if you change the ide/sata controller to virtio-scsi controller after virtio driver installed, windows works well.</p>
+<p>More performance test is needed because we kept use virtio-blk for root disk due to some version of virtio driver offered virtio-scsi has bad performance.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/" data-id="cldnw2sji0000r2cabzpp6s00" data-title="Windows install virtio then reboot met BSOD" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Live migration failed due to libvirt keepalive timeout</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 11.67px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
+          </li>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
+          </li>
+        
+          <li>
+            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

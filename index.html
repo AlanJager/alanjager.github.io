@@ -72,6 +72,523 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-virtqueues-and-virtio-ring-how-the-data-travels" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" class="article-date">
+  <time class="dt-published" datetime="2023-02-22T15:48:33.000Z" itemprop="datePublished">2023-02-22</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>This post continues where the “<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtio-devices-and-drivers-overview-headjack-and-phone">Virtio devices and drivers overview</a>“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel from the virtio-device to the driver and back?</p>
+</blockquote>
+<p>这篇文章继续 “Virtio设备和驱动概述 “的内容。在上一篇文章中，我们已经解释了这个场景，我们即将到达重点：数据如何从virtio设备到驱动，然后再返回？</p>
+<h2 id="Buffers-and-notifications-The-work-routine"><a href="#Buffers-and-notifications-The-work-routine" class="headerlink" title="Buffers and notifications: The work routine"></a>Buffers and notifications: The work routine</h2><blockquote>
+<p>As stated earlier, a virtqueue is just a queue of guest’s buffers that the host consumes, either reading them or writing to them. A buffer can be read-only or write-only from the device point of view, but never both.</p>
+</blockquote>
+<p>如前所述，virtqueue只是一个guest的缓冲区队列，主机消耗它们，要么读取它们，要么写入它们。从设备的角度来看，一个缓冲区可以是只读的，也可以是只写的，但绝不是两者都是。</p>
+<blockquote>
+<p>The descriptors can be chained, and the framing of the message can be spread whatever way is more convenient. For example, to spread a 2000 byte message in one single buffer or to use two 1000 byte buffers should be the same. </p>
+</blockquote>
+<p>描述符可以是链状的，消息的构架可以以任何更方便的方式传播。例如，将2000字节的信息分散在一个单一的缓冲区中，或使用两个1000字节的缓冲区，应该是一样的。</p>
+<blockquote>
+<p>Also, it provides driver to device notifications (doorbell) method, to signal that one or more buffers have been added to the queue, and vice-versa, devices can interrupt the driver to signal used buffers. It is up to the underlying driver to provide the right method to dispatch the actual notification, for example using PCI interruptions or memory writing: The virtqueue only standardizes the semantics of it.</p>
+</blockquote>
+<p>另外，它还提供了驱动程序到设备的通知（门铃）方法，以信号显示一个或多个缓冲区已被添加到队列中，反之亦然，设备可以中断驱动程序以信号显示已使用的缓冲区。这取决于底层驱动程序提供正确的方法来调度实际的通知，例如使用PCI中断或内存写入。virtqueue只是对它的语义进行了标准化。</p>
+<blockquote>
+<p>As stated before, the driver and the device can advise the other to not to emit notifications to reduce its dispatching overhead. Since this operation is asynchronous we will describe how to do so in further sections.</p>
+</blockquote>
+<p>如前所述，驱动和设备可以建议对方不要发出通知，以减少其调度开销。由于这个操作是异步的，我们将在后续章节中描述如何做到这一点。</p>
+<h2 id="Split-virtqueue-the-beauty-of-simplicity"><a href="#Split-virtqueue-the-beauty-of-simplicity" class="headerlink" title="Split virtqueue: the beauty of simplicity"></a>Split virtqueue: the beauty of simplicity</h2><blockquote>
+<p>The split virtqueue format separates the virtqueue into three areas, where each area is writable by either the driver or the device, but not both:</p>
+<ul>
+<li>Descriptor Area: used for describing buffers.</li>
+<li>Driver Area: data supplied by driver to the device. Also called avail virtqueue.</li>
+<li>Device Area: data supplied by device to driver. Also called used virtqueue.</li>
+</ul>
+</blockquote>
+<p>split virtqueue格式将virtqueue分成三个区域，每个区域都可以被驱动或设备写入，但不能同时写入。</p>
+<ul>
+<li>描述符区：用于描述缓冲区。</li>
+<li>驱动区：由驱动提供给设备的数据。也称为利用虚拟队列。</li>
+<li>设备区：由设备提供给驱动的数据。也称为used virtqueue。</li>
+</ul>
+<blockquote>
+<p>They need to be allocated in the driver’s memory for it to be able to access them in a straightforward way. Buffer addresses are stored from the driver’s point of view, and the device needs to perform an address translation. There are many ways for the device to access it depending on the latter nature:</p>
+<ul>
+<li>For an emulated device in the hypervisor (like qemu), the guest’s address is in its own process memory.</li>
+<li>For other emulated devices like vhost-net or vhost-user, a memory mapping needs to be done, like POSIX shared memory. A file descriptor to that memory is shared through vhost protocol.</li>
+<li>For a real device a hardware-level translation needs to be done, usually via IOMMU.</li>
+</ul>
+</blockquote>
+<p>它们需要被分配到驱动程序的内存中，以便它能够直接访问它们。缓冲区地址从驱动程序的角度存储，设备需要进行地址转换。根据后者的性质，设备有很多方法可以访问它。</p>
+<ul>
+<li>对于管理程序中的仿真设备（如qemu），客户的地址在它自己的进程内存中。</li>
+<li>对于其他仿真设备，如vhost-net或vhost-user，需要做一个内存映射，像POSIX共享内存一样。该内存的文件描述符是通过vhost协议共享的。</li>
+<li>对于一个真实的设备，需要做一个硬件级的转换，通常是通过IOMMU。</li>
+</ul>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png" class="">
+
+<p><strong>Shared memory with split ring elements</strong></p>
+<h3 id="Descriptor-ring-Where-is-my-data"><a href="#Descriptor-ring-Where-is-my-data" class="headerlink" title="Descriptor ring: Where is my data?"></a>Descriptor ring: Where is my data?</h3><blockquote>
+<p>The descriptor area (or descriptor ring) is the first one that needs to be understood. It contains an array of a number of guest addressed buffers and its length. Each descriptor also contains a set of flags indicating more information about it. For example, the buffer continues in another descriptor buffer if the 0x1 bit is set, and the buffer is write-only for the device if the bit 0x2 is set, and is read-only if it is clear.</p>
+</blockquote>
+<p>描述符区（或描述符环）是第一个需要被理解的。它包含一个由若干客体寻址的缓冲区和其长度组成的数组。每个描述符还包含一组标志，表示关于它的更多信息。例如，如果0x1位被设置，缓冲区在另一个描述符缓冲区中继续，如果0x2位被设置，缓冲区对设备来说是只写的，如果它被清除，则是只读的。</p>
+<blockquote>
+<p>This is the layout of a single descriptor. We will call leN for N bits in little endian format.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_desc</span> &#123;</span> </span><br><span class="line">        le64 addr;</span><br><span class="line">        le32 len;</span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 next; <span class="comment">// Will explain this one later in the section &quot;Chained descriptors&quot;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Split Virtqueue descriptor layout</strong></p>
+</blockquote>
+<p>这是一个单一描述符的布局。我们将调用leN来表示little endian格式的N位。</p>
+<h3 id="Avail-ring-Supplying-data-to-the-device"><a href="#Avail-ring-Supplying-data-to-the-device" class="headerlink" title="Avail ring: Supplying data to the device"></a>Avail ring: Supplying data to the device</h3><blockquote>
+<p>The next interesting structure is the driver area, or avail ring. Is the room where the driver places the descriptor (indexes) the device is going to consume. Note that placing a buffer here doesn’t mean that the device needs to consume immediately: virtio-net, for example, provides a bunch of descriptors for packet receiving that are only used by the device when a packet arrives, and are “ready to consume” until that moment.</p>
+</blockquote>
+<p>下一个有趣的结构是驱动区，或者说Avail环。是驱动程序放置设备要消耗的描述符（索引）的空间。注意，在这里放置缓冲区并不意味着设备需要立即消费：例如，virtio-net为数据包接收提供了一堆描述符，这些描述符只有在数据包到达时才会被设备使用，直到那一刻才会 “准备消费”。</p>
+<blockquote>
+<p>The avail ring has two important fields that only the driver can write and the device only can read them: idx and flags. The idx field indicates where the driver would put the next descriptor entry in the avail ring (modulo the queue size). On the other hand, the least significant bit of flags indicates if the driver wants to be notified or not (called <code>VIRTQ_AVAIL_F_NO_INTERRUPT</code>).</p>
+</blockquote>
+<p>avail环有两个重要的字段，只有驱动程序可以写入，设备只能读取它们：idx和flags。idx字段指出了驱动程序将把下一个描述符条目放在avail ring中的位置（modulo the queue size）。另一方面，flags的最小有效位表示驱动是否要被通知（称为<code>VIRTQ_AVAIL_F_NO_INTERRUPT</code>）。</p>
+<blockquote>
+<p>After these two fields, an array of integers of the same length as the descriptors ring. So the avail virtqueue layout is:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_avail</span> &#123;</span></span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 idx;</span><br><span class="line">        le16 ring[ <span class="comment">/* Queue Size */</span> ];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Avail virtqueue layout</strong></p>
+</blockquote>
+<p>在这两个字段之后，是一个与描述符环相同长度的整数阵列。因此，avail virtqueue layout:</p>
+<blockquote>
+<p><strong>Figure 1</strong> shows a descriptor table with a 2000 bytes long buffer that starts in position 0x8000, and an avail ring that still does not have any entry. After all the steps, a components diagram highlighting the descriptor area update. The first step for the driver is to allocate the buffer with the memory and fill it (this is the step 1 in the “Process to make a buffer available” diagram), and to make available on the descriptor area after that (step 2).</p>
+</blockquote>
+<p>图1显示了一个具有2000字节长的缓冲区的描述符表，它从位置0x8000开始，而一个利用环仍然没有任何条目。在所有的步骤之后，一个组件图突出了描述符被更新的部分。驱动程序的第一步是分配缓冲区的内存并将其填满（这是 “使缓冲区可用的过程 “图中的第1步），然后在描述符区上使其可用（第2步）。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig2.png" class="">
+
+<p><strong>Figure 1: Driver writes a buffer in descriptor ring</strong></p>
+<blockquote>
+<p>After populating descriptor entry, driver advises of it using the avail ring: It writes the descriptor index #0 in the first entry of the avail ring, and updates idx entry accordly. The result of this is shown in Figure 2. In the case that supply chained buffers, only the descriptor head index should be added this way, and avail idx would increase only by 1. This is the step 3 in the diagram.</p>
+</blockquote>
+<p>在填充完描述符条目后，驱动通知它使用空闲环。它将描述符的索引#0写在avail ring的第一个条目中，并相应地更新idx条目。其结果如图2所示。在提供链式缓冲区的情况下，只有描述符头部的索引应该这样添加，而avail idx只增加1。这就是图中的第三步。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig3.png" class="">
+
+<p><strong>Figure 2: Driver offers the buffer with avail ring</strong></p>
+<blockquote>
+<p>From now on, the driver should not modify the available descriptor or the exposed buffer at any moment: It is under the device’s control. Now the driver needs to notify the device if the latter has enabled notifications at that moment (more on how the device manages this later). This is the last step 4 in the diagram.</p>
+</blockquote>
+<p>从现在开始，驱动程序不应该在任何时候修改可用的描述符或暴露的缓冲区。这是由设备控制的。现在，驱动程序需要通知设备，如果后者在当时启用了通知功能（后面会有更多关于设备如何管理的内容）。这就是图中的最后一步4。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig4.png" class="">
+
+<p><strong>Diagram: Process to make a buffer available</strong></p>
+<blockquote>
+<p>The avail ring must be able to hold the same number of descriptors as the descriptor area, and the descriptor area must have a size power of two, so idx wraps naturally at some point. For example, if the ring size is 256 entries, idx 1 references the same descriptor as idx 257, 513… And it will wrap at a 16 bit boundary. This way, neither side needs to worry about processing an invalid idx: They are all valid.</p>
+</blockquote>
+<p>Avail环必须能够容纳与描述符区相同数量的描述符，描述符区的大小必须是2的幂，所以idx在某一点上自然会被包裹起来。例如，如果环的大小是256个条目，idx 1引用的描述符与idx 257、513…相同。而它将在16位边界处被包裹起来。这样一来，双方都不需要担心处理无效的idx。它们都是有效的。</p>
+<blockquote>
+<p>Note that descriptors can be added in any order to the avail ring, one does not need to start from descriptor table entry 0 nor continue by the next descriptor.</p>
+</blockquote>
+<p>请注意，描述符可以以任何顺序添加到利用环中，不需要从描述符表的第0条开始，也不需要从下一个描述符继续。</p>
+<h3 id="Chained-descriptors-Supplying-large-data-to-the-device"><a href="#Chained-descriptors-Supplying-large-data-to-the-device" class="headerlink" title="Chained descriptors: Supplying large data to the device"></a>Chained descriptors: Supplying large data to the device</h3><blockquote>
+<p>The driver can also chain more than one descriptor using its next member. If the NEXT (0x1) flag of a descriptor is set, the data continue in another buffer, making a chain of descriptors. Note that the descriptors in a chain do not share flags: Some descriptors can be read-only, and the others can be write-only. In this case, write-only descriptors must come after all write-only ones.</p>
+</blockquote>
+<p>驱动程序也可以使用其下一个成员来连锁一个以上的描述符。如果一个描述符的NEXT(0x1)标志被设置，数据在另一个缓冲区中继续，形成一个描述符链。注意，一个链中的描述符不共享标志。有些描述符可以是只读的，而其他描述符可以是只写的。在这种情况下，只写的描述符必须排在所有只写的描述符之后。</p>
+<blockquote>
+<p>For example, if the driver has sent us two buffers in a chain with descriptor table indexes 0 and 1 as first operation, the device would see the scenario in Figure 3, and it would be the step 2 again.</p>
+</blockquote>
+<p>例如，如果驱动程序在描述符表索引为0和1的链中向我们发送了两个缓冲区，作为第一次操作，设备会看到图3中的情景，它将再次成为步骤2。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig5.png" class="">
+
+<p><strong>Figure 3: Device sees chained buffers</strong></p>
+<h3 id="Used-ring-When-the-device-is-done-with-the-data"><a href="#Used-ring-When-the-device-is-done-with-the-data" class="headerlink" title="Used ring: When the device is done with the data"></a>Used ring: When the device is done with the data</h3><blockquote>
+<p>The device employs the used ring to return the used (read or written) buffers to the driver. As the avail ring, it has the flags and idx members. They have the same layout and serve the same purpose, although the notification flag is now called <code>VIRTQ_USED_F_NO_NOTIFY</code>.</p>
+</blockquote>
+<p>设备使用使用过的环将使用过的（读或写）缓冲区返回给驱动。与avail环一样，它也有flags和idx成员。它们具有相同的布局和相同的目的，尽管通知标志现在被称为<code>VIRTQ_USED_F_NO_NOTIFY</code>。</p>
+<blockquote>
+<p>After them, it maintains an array of used descriptors. In this array, the device returns not only the descriptor index but also the used length in case of writing.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_used</span> &#123;</span></span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 idx;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">virtq_used_elem</span> <span class="title">ring</span>[ /* <span class="title">Queue</span> <span class="title">Size</span> */];</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_used_elem</span> &#123;</span></span><br><span class="line">        <span class="comment">/* Index of start of used descriptor chain. */</span></span><br><span class="line">        le32 id;</span><br><span class="line">        <span class="comment">/* Total length of the descriptor chain which was used (written to) */</span></span><br><span class="line">        le32 len;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Used virtqueue layout</strong></p>
+</blockquote>
+<p>在它们之后，它维护一个已使用的描述符数组。在这个数组中，设备不仅返回描述符的索引，而且在写入的情况下返回已使用的长度。</p>
+<blockquote>
+<p>In case of returning a chain of descriptors, only the id of the head of the chain is returned, and the total written length through all descriptors, not increasing it when data is read. The descriptor table is not touched at all, it is read-only for the device. This is step 5 in the “Process to make a buffer as used” diagram.</p>
+</blockquote>
+<p>在返回描述符链的情况下，只返回链头的id，以及通过所有描述符的总写入长度，在读取数据时不增加它。描述符表完全不被触及，它对设备来说是只读的。这是 “制作使用的缓冲区的过程 “图中的第5步。</p>
+<blockquote>
+<p>For example, if the device uses the chain of descriptors exposed in the Chained descriptors version:</p>
+</blockquote>
+<p>例如，如果设备使用链式描述符版本中暴露的链式描述符:</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig6.png" class="">
+
+<p><strong>Figure 4: Device returns buffer chain</strong></p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig7.png" class="">
+
+<p><strong>Diagram: Process to mark a buffer as used</strong></p>
+<blockquote>
+<p>Lastly, the device will notify the driver if it sees that the driver wants to be notified, using the used queue flags to know it (step 6).</p>
+</blockquote>
+<p>最后，如果设备看到驱动想被通知，它将通知驱动，使用使用的队列标志来知道它（步骤6）。</p>
+<h3 id="Indirect-descriptors-supplying-a-lot-of-data-to-the-device"><a href="#Indirect-descriptors-supplying-a-lot-of-data-to-the-device" class="headerlink" title="Indirect descriptors: supplying a lot of data to the device"></a>Indirect descriptors: supplying a lot of data to the device</h3><blockquote>
+<p>Indirect descriptors are a way to dispatch a larger number of descriptors in a batch, increasing the ring capacity. The driver stores a table of indirect descriptors (the same layout as the regular descriptors) anywhere in memory, and inserts a descriptor in the virtqueue with the flag <code>VIRTQ_DESC_F_INDIRECT (0x4)</code> set. The descriptor’s address and length correspond to the indirect table’s ones.</p>
+</blockquote>
+<p>间接描述符是一种在一个批次中调度更多描述符的方法，增加了环的容量。驱动程序在内存的任何地方存储一个间接描述符表（与普通描述符的布局相同），并在virtqueue中插入一个描述符，并设置标志<code>VIRTQ_DESC_F_INDIRECT（0x4）</code>。该描述符的地址和长度对应于间接表的长度。</p>
+<blockquote>
+<p>If we want to add the chain described in section Chained descriptors to an indirect table, the driver first allocates the memory region of 2 entries (32 bytes) to hold the latter (step 2 in the diagram after allocate the buffers in the step 1):</p>
+<table>
+<thead>
+<tr>
+<th>Buffer</th>
+<th>Len</th>
+<th>Flags</th>
+<th>Next</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0x8000</td>
+<td>0x2000</td>
+<td>W|N</td>
+<td>1</td>
+</tr>
+<tr>
+<td>0xD000</td>
+<td>0x2000</td>
+<td>W</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p><strong>Figure 4: Indirect table for indirect descriptors</strong></p>
+</blockquote>
+<p>如果我们想在一个间接表上添加链式描述符，驱动程序首先分配2个条目（32字节）的内存区域来容纳后者（图中的第2步，在第1步中分配了缓冲区之后）。</p>
+<blockquote>
+<p>Let’s suppose it has been allocated on memory position <code>0x2000</code>, and it is the first descriptor made available. As usual, the first step is to include it in the Descriptor area (step 3 in the diagram), so it would look like:</p>
+<table>
+<thead>
+<tr>
+<th>Descriptor Area</th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Buffer</td>
+<td>Len</td>
+<td>Flags</td>
+<td>Next</td>
+</tr>
+<tr>
+<td>0x2000</td>
+<td>32</td>
+<td>I</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p><strong>Figure 5: Add indirect table to Descriptor area</strong></p>
+</blockquote>
+<p>让我们假设它被分配在内存位置<code>0x2000</code>，并且是第一个可用的描述符。像往常一样，第一步是把它纳入描述符区域（图中的第3步），所以它看起来像。</p>
+<blockquote>
+<p>After that, the steps are the same as with regular descriptors: The driver adds the index of the descriptor marked with the flag in the descriptor area to the avail ring (#0 in this case, step 4 in the diagram), and notify the device as usual (step 5).</p>
+</blockquote>
+<p>之后，步骤与普通描述符相同。驱动程序将描述符区域中标有标志的描述符的索引添加到利用环中（本例中为#0，图中第4步），并像往常一样通知设备（第5步）。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig8.png" class="">
+
+<p><strong>Diagram: Driver make available indirect descriptors</strong></p>
+<blockquote>
+<p>For the device to use its data, and would use the same memory addresses to return its <code>0x3000</code> bytes (all <code>0x8000-0x9FFF</code> and <code>0xD000-0xDFFF</code>) (Step 6 and 7, same as with regular descriptors). Once used by the device, the driver can release the indirect memory or do whatever it wants with it, as it could do with any regular buffer.</p>
+</blockquote>
+<p>对于设备使用其数据，并将使用相同的内存地址来返回其0x3000字节（所有0x8000-0x9FFF和0xD000-0xDFFF）（步骤6和7，与常规描述符相同）。一旦被设备使用，驱动程序可以释放间接内存或对其做任何事情，就像它可以对任何常规缓冲区做的那样。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig9.png" class="">
+
+<p><strong>Diagram: Device mark the indirect descriptor as used</strong></p>
+<blockquote>
+<p>Descriptors with <code>INDIRECT</code> flag cannot have <code>NEXT</code> or <code>WRITE</code> flags set, so you cannot chain indirect descriptors in the descriptor table, and the indirect table can contain at maximum the same number of descriptors as the descriptor table.</p>
+</blockquote>
+<p>带有INDIRECT标志的描述符不能设置NEXT或WRITE标志，所以不能在描述符表中连锁间接描述符，间接表最多可以包含与描述符表相同数量的描述符。</p>
+<h3 id="Notifications-Learning-the-“do-not-disturb”-mode"><a href="#Notifications-Learning-the-“do-not-disturb”-mode" class="headerlink" title="Notifications. Learning the “do not disturb” mode"></a>Notifications. Learning the “do not disturb” mode</h3><blockquote>
+<p>In many systems used and available buffer notifications involve significant overhead. To mitigate it, each virtring maintains a flag to indicate when it wants to be notified. Remember that the driver’s one is read-only by the device, and the device’s one is read-only by the driver.</p>
+</blockquote>
+<p>在许多系统中，使用的和可用的缓冲区通知涉及大量的开销。为了减轻它，每个virtring都维护着一个标志，以表明它什么时候想被通知。记住，驱动的那个是设备只读的，而设备的那个是驱动只读的。</p>
+<blockquote>
+<p>We already know all of this, and its use is pretty straightforward. The only thing you need to take care of is the asynchronous nature of this method: The side of the communication that disables or enables it can’t be sure that the other end is going to know the change, so you can miss notifications or to have more than expected.</p>
+</blockquote>
+<p>我们已经知道了这些，它的使用是非常直接的。你唯一需要注意的是这个方法的异步性。通信中禁用或启用它的一方不能确定另一端是否会知道这个变化，所以你可能会错过通知或要比预期的多。</p>
+<blockquote>
+<p>A more effective way of notifications toggle is enabled if the <code>VIRTIO_F_EVENT_IDX</code> feature bit is negotiated by device and driver: Instead of disable them in a binary fashion, driver and device can specify how far the other can progress before a notification is required using an specific descriptor id. This id is advertised using a extra le16 member at the end of the structure, so they grow like this:</p>
+</blockquote>
+<p>如果设备和驱动协商<code>VIRTIO_F_EVENT_IDX</code>特性位，就可以启用一种更有效的通知切换方式。而不是以二进制的方式禁用它们，驱动和设备可以使用一个特定的描述符id来指定对方在需要通知之前可以进展到什么程度。这个id在结构的末尾使用一个额外的le16成员进行宣传，所以它们的增长方式是这样的。</p>
+<blockquote>
+<p>The struct layout is:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">struct virtq_avail &#123;              struct virtq_used &#123;</span><br><span class="line">  le16 flags;                       le16 flags;</span><br><span class="line">  le16 idx;                         le16 idx;</span><br><span class="line">  le16 ring[ &#x2F;* Queue Size *&#x2F; ];    struct virtq_used_elem ring[Q. size];</span><br><span class="line">  le16 used_event;                  le16 avail_event;</span><br><span class="line">&#125;;                                &#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing 3: Event suppression struct notification</strong></p>
+</blockquote>
+<blockquote>
+<p>This way, every time the driver wants to make available a buffer it needs to check the avail_event on the used ring: If driver’s idx field was equal to avail_event, it’s time to send a notification, ignoring the lower bit of used ring flags member (<code>VIRTQ_USED_F_NO_NOTIFY</code>).</p>
+</blockquote>
+<p>这样一来，每次驱动程序想要提供一个缓冲区时，它需要检查已用环上的avail_event。如果驱动的idx字段等于avail_event，那么就是发送通知的时候了，忽略已用环标志成员的低位（<code>VIRTQ_USED_F_NO_NOTIFY</code>）。</p>
+<blockquote>
+<p>Similarly, if <code>VIRTIO_F_EVENT_IDX</code> has been negotiated, the device will check used_event to know if it needs to send a notification or not. This can be very effective for maintaining a virtqueue of buffers for the device to write, like in the virtio-net device receive queue.</p>
+</blockquote>
+<p>同样，如果<code>VIRTIO_F_EVENT_IDX</code>已经协商好了，设备将检查used_event以知道它是否需要发送通知。这对于维护一个供设备写入的缓冲区的虚拟队列非常有效，就像在virtio-net设备接收队列中一样。</p>
+<blockquote>
+<p>In our next post, we’re going to wrap up and take a look at a number of optimizations on top of both ring layouts which depend on the communication/device type or how each part is implemented.</p>
+</blockquote>
+<p>在我们的下一篇文章中，我们将总结并看看在这两个环形布局之上的一些优化，这些优化取决于通信/设备类型或每个部分的实现方式。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" data-id="clefunqbh0000l2wb9oyqhw88" data-title="Virtqueues and virtio ring: How the data travels" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-virtio-devices-and-drivers-overview-the-headjack-and-the-phone" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" class="article-date">
+  <time class="dt-published" datetime="2023-02-22T14:12:09.000Z" itemprop="datePublished">2023-02-22</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/">Virtio devices and drivers overview: The headjack and the phone</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed virtqueue. This is the basis for the communication between hosts and virtual environments like guests or containers.</p>
+</blockquote>
+<p>这个由三部分组成的系列，将会带你了解virtio数据平面的布局，split virtuqueue 和 packed virtqueue。这是物理机与虚拟环境比如虚拟机或容器交流的基础。</p>
+<blockquote>
+<p>One of the challenges when coming to explain these approaches is the lack of documentation and the many terms involved. This set of posts attempts to demystify the virtio data plane and provide you with a clear down to earth explanation of what is what.</p>
+</blockquote>
+<p>在解释这些方法时，面临的挑战之一是缺乏文档和涉及的许多术语。这组文章试图揭开virtio数据平面的神秘面纱，并为你提供一个清晰的解释，说明什么是什么。</p>
+<blockquote>
+<p>This is a technical deep dive and is relevant for those who are interested in the bits and bytes of things. It details the communication format between the different virtio parts and data plane protocols.</p>
+</blockquote>
+<p>这是一个技术上的深入研究，与那些对事物的比特和字节感兴趣的人有关。它详细介绍了不同virtio部件和数据平面协议之间的通信格式。</p>
+<blockquote>
+<p>While further extensions, optimizations and features are being added to both virtqueue versions, to improve performance and to simplify implementation, the core of the virtqueue operations remains the same. This is because it has been designed with extensibility in mind. </p>
+</blockquote>
+<p>虽然两个版本的virtqueue都加入了进一步的扩展、优化和功能，以提高性能和简化实现，但virtqueue操作的核心仍然保持不变。这是因为它在设计时就考虑到了可扩展性。</p>
+<blockquote>
+<p>Packed virtqueue, which complements the split virtqueue has been merged in the virtio 1.1 spec, and successfully implemented in both emulated devices (qemu, virtio_net, dpdk) and physical devices.</p>
+</blockquote>
+<p>作为split virtqueue的补充，packed virtqueue已被合并到virtio 1.1规范中，并在模拟设备（qemu、virtio_net、dpdk）和物理设备中成功实现。</p>
+<blockquote>
+<p>We’ll start with an overview of the virtio device, drivers and their data plane interaction. Then we’ll move on to explain the details of the split virtqueue ring layout. This is followed by an overview of the packed ring layout and the advantages it brings over the split virtqueue approach.</p>
+</blockquote>
+<p>我们将首先概述virtio设备、驱动程序和它们的数据平面互动。然后，我们将继续解释split virtqueue ring layout的细节。随后，我们将概述packed ring layout以及它比split virtqueue方法带来的优势。</p>
+<h2 id="Virtio-devices-and-drivers-overview-who-is-who"><a href="#Virtio-devices-and-drivers-overview-who-is-who" class="headerlink" title="Virtio devices and drivers overview: who is who"></a>Virtio devices and drivers overview: who is who</h2><blockquote>
+<p>This section provides a brief overview of the virtio devices, virtio drivers, examples of the different architectures you can use and the different components. If you’re already familiar with these topics or you have already followed the virtio networking series you can jump directly to the next section focusing on the virtio rings.</p>
+</blockquote>
+<p>本节简要介绍了virtio设备、virtio驱动、你可以使用的不同架构的例子以及不同的组件。如果你已经熟悉了这些主题，或者你已经关注了virtio网络系列，你可以直接跳到下一节，重点介绍virtio rings。</p>
+<h3 id="Virtio-devices-In-and-out-the-virtual-world"><a href="#Virtio-devices-In-and-out-the-virtual-world" class="headerlink" title="Virtio devices: In and out the virtual world"></a>Virtio devices: In and out the virtual world</h3><blockquote>
+<p>A virtio device is a device that exposes a virtio interface for the software to manage and exchange information. It can be exposed to the emulated environment using PCI, Memory Mapping I/O (Just to expose the device in a region of memory) and S/390 Channel I/O. Part of the communication needs to be delegated to theses, like device discovery.</p>
+</blockquote>
+<p>Virtio设备是一个暴露出virtio接口的设备，供软件管理和交换信息。它可以使用PCI、内存映射I/O（只是在内存的一个区域暴露设备）和S/390通道I/O暴露在仿真环境中。部分通信需要委托给这些设备，如设备发现。</p>
+<blockquote>
+<p>Its main task is to convert the signal from the format they have outside of the virtual environment (the VM, the container, etc) to the format they need to be exchanged through the virtio dataplane and vice-versa. This signal could be real (for example the electricity or the light from a NIC) or already virtual (like the representation the host has from a network packet).</p>
+</blockquote>
+<p>它的主要任务是将信号从它们在虚拟环境（虚拟机、容器等）之外的格式转换成它们需要通过virtio数据线交换的格式，反之亦然。这个信号可以是真实的（例如来自网卡的电或光），或者已经是虚拟的（如主机从网络包中得到的表示）。</p>
+<blockquote>
+<p>The virtio interface consist of the following mandatory parts (<a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.1/cs01/virtio-v1.1-cs01.html#x1-90002">virtio1.1 spec</a>): </p>
+<ul>
+<li>Device status field</li>
+<li>Feature bits</li>
+<li>Notifications</li>
+<li>One or more virtqueues</li>
+</ul>
+<p>Now we’ll provide additional details to each of these parts and how the device and driver starts communicating using these.</p>
+</blockquote>
+<p>virtio接口由以下强制性部分组成（virtio1.1规范）:</p>
+<ul>
+<li>设备状态字段</li>
+<li>特征位</li>
+<li>通知</li>
+<li>一个或多个虚拟队列</li>
+</ul>
+<p>现在我们将提供这些部分的额外细节，以及设备和驱动如何使用这些部分开始通信。</p>
+<h3 id="Device-status-field-Is-everything-ok"><a href="#Device-status-field-Is-everything-ok" class="headerlink" title="Device status field: Is everything ok?"></a>Device status field: Is everything ok?</h3><blockquote>
+<p>The device status field is a sequence of bits the device and the driver use to perform their initialization. We can imagine it as traffic lights on a console, each part set and clear each bit indicating their status.</p>
+</blockquote>
+<p>设备状态字段是设备和驱动程序用来执行其初始化的一个比特序列。我们可以把它想象成控制台上的交通灯，每个部分设置和清除每个位，表示它们的状态。</p>
+<blockquote>
+<p>The guest or the driver set the bit <code>ACKNOWLEDGE</code> (0x1) in the device status field to indicate that it acknowledges the device, and the bit <code>DRIVER</code> (0x2) to indicate an initialization in progress. After that, it starts a feature negotiation using the feature bits (more on this later), and sets bit <code>DRIVER_OK</code> (0x4) and <code>FEATURES_OK</code> (0x8) to acknowledge the features, so communication can start. If the device wants to indicate a fatal failure, it can set bit <code>DEVICE_NEEDS_RESET</code> (0x40), and the driver can do the same with bit <code>FAILED</code> (0x80).</p>
+</blockquote>
+<p>访客或驱动程序在设备状态字段中设置位<code>ACKNOWLEDGE</code>（0x1）以表示它确认了设备，并设置位<code>DRIVER</code>（0x2）以表示初始化正在进行。之后，它开始使用功能位进行功能协商（后面会详细介绍），并设置位<code>DRIVER_OK</code>（0x4）和<code>FEATURES_OK</code>（0x8）来确认功能，这样就可以开始通信了。如果设备想指示一个致命的故障，它可以设置位<code>DEVICE_NEEDS_RESET</code> (0x40)，而驱动程序可以用位<code>FAILED</code> (0x80)做同样的事情。</p>
+<blockquote>
+<p>The device communicates the location of these bits using transport specific methods, like PCI scanning or knowing the address for MMIO.</p>
+</blockquote>
+<p>设备使用传输的特定方法来传达这些位的位置，如PCI扫描或知道MMIO的地址。</p>
+<h3 id="Feature-bits-Setting-the-communication-agreement-points"><a href="#Feature-bits-Setting-the-communication-agreement-points" class="headerlink" title="Feature bits: Setting the communication agreement points"></a>Feature bits: Setting the communication agreement points</h3><blockquote>
+<p>Device’s feature bits are used to communicate what features it supports, and to agree with the drivers about what of them will be used. These can be device-generic or device-specific. As an example of the first case, a bit can acknowledge if the device supports SR-IOV or what memory mode can be used. An example of the second case can be the different offloads it can perform, like checksumming or scatter-gather If the device is a network interface.</p>
+</blockquote>
+<p>设备的功能位用于交流它支持哪些功能，并与驱动程序商定将使用其中哪些功能。这些位可以是设备通用的，也可以是设备特定的。作为第一种情况的一个例子，一个比特可以确认设备是否支持SR-IOV或者可以使用什么内存模式。第二种情况的一个例子是，如果设备是一个网络接口，它可以执行不同的卸载，如校验和或散点收集。</p>
+<blockquote>
+<p>After the device initialization exposed in the previous section, the former reads the feature bits the device offers, and sends back the subset that it can handle. If they agree on them, the driver will allocate and inform about the virtqueues to the device, and all other configuration needed.</p>
+</blockquote>
+<p>在上一节暴露的设备初始化之后，前者会读取设备提供的功能位，并发回它能处理的子集。如果他们达成一致，驱动程序将分配和通知设备的虚拟队列，以及所有其他需要的配置。</p>
+<h3 id="Notifications-You-have-work-to-do"><a href="#Notifications-You-have-work-to-do" class="headerlink" title="Notifications: You have work to do"></a>Notifications: You have work to do</h3><blockquote>
+<p>Devices and drivers must notify that they have information to communicate using a notification. While the semantic of these is specified in the standard, the implementation of these are transport specific, like a PCI interruption or to write to a specific memory location. The device and the driver needs to expose at least one notification method. We will expand on this later in future sections.</p>
+</blockquote>
+<p>设备和驱动程序必须通知他们有使用通知的信息进行通信。虽然这些的语义是在标准中规定的，但这些的实现是特定于传输的，比如PCI中断或写到一个特定的内存位置。设备和驱动程序需要公开至少一个通知方法。我们将在以后的章节中对此进行阐述。</p>
+<h3 id="One-or-more-virtqueues-The-communication-vehicles"><a href="#One-or-more-virtqueues-The-communication-vehicles" class="headerlink" title="One or more virtqueues: The communication vehicles"></a>One or more virtqueues: The communication vehicles</h3><blockquote>
+<p>A virtqueue is just a queue of guest’s buffers that the host consumes, either reading them or writing to them, and returns to the guest. The current memory layout of a virtqueue implementation is a circular ring, so it is often called the virtring or vring.</p>
+<p>They will be the main topic of the next section, Virtqueues and virtio ring, so at this moment is enough with that definition.</p>
+</blockquote>
+<p>virtqueue只是一个guest缓冲区的队列，主机消耗这些缓冲区，要么读取它们，要么写入它们，然后返回给客体。目前virtqueue实现的内存布局是一个圆形的环，所以它通常被称为virtring或vring。</p>
+<p>它们将是下一节的主要话题，即virtqueues和virtio ring，所以此刻有了这个定义就足够了。</p>
+<h2 id="Virtio-drivers-The-software-avatar"><a href="#Virtio-drivers-The-software-avatar" class="headerlink" title="Virtio drivers: The software avatar"></a>Virtio drivers: The software avatar</h2><blockquote>
+<p>The virtio driver is the software part in the virtual environment that talks with the virtio device using the relevant parts of the virtio spec.</p>
+<p>Generally speaking, its virtio control plane tasks are:</p>
+<ul>
+<li>Look for the device</li>
+<li>To allocate shared memory in the guest for the communication</li>
+</ul>
+<p>Start it using the protocol in Virtio devices.</p>
+</blockquote>
+<p>virtio驱动是虚拟环境中的软件部分，它使用virtio规范的相关部分与virtio设备对话。</p>
+<p>一般来说，其virtio控制面的任务是。</p>
+<ul>
+<li>寻找设备</li>
+<li>在客户中为通信分配共享内存</li>
+</ul>
+<p>使用virtio设备中的协议启动它。</p>
+<h3 id="Devices-and-drivers-interaction-The-scenarios"><a href="#Devices-and-drivers-interaction-The-scenarios" class="headerlink" title="Devices and drivers interaction: The scenarios"></a>Devices and drivers interaction: The scenarios</h3><blockquote>
+<p>In this section we are going to locate each virtio networking element (device, driver, and how the communication works) in three different architectures, to provide both a common frame to start explaining the virtio data plane and to show how adaptive it is. We have already presented these elements in past posts, so you can skip this section if you are a virtio-net series reader. On the other hand, if you have not read them, you can use them as a reference to understand this part better.</p>
+</blockquote>
+<p>在这一节中，我们将把每个virtio网络元素（设备、驱动和通信如何工作）放在三个不同的架构中，以提供一个共同的框架来开始解释virtio数据平面，并展示它的适应性。我们已经在过去的文章中介绍了这些元素，所以如果你是virtio-net系列的读者，你可以跳过这一部分。另一方面，如果你没有读过这些文章，你可以把它们作为参考来更好地理解这一部分。</p>
+<blockquote>
+<p>In Introduction to virtio-networking and vhost-net we showed the environment in which qemu created an emulated net device and offered it to the guest’s virtio-net driver. In this environment, the driver notifications are routed from whatever method is exposed to guests (usually, PCI) to KVM interruptions that stop the guest’s processor and return the control to the host (vmexit). Similarly, the device notifications are a special ioctl the host can send to the KVM device (vCPU IRQ). QEMU can access virtqueue information using the shared memory.</p>
+</blockquote>
+<p>在介绍virtio-networking和vhost-net时，我们展示了qemu创建一个模拟的net设备并将其提供给客户的virtio-net驱动程序的环境。在这个环境中，驱动程序的通知从任何暴露给客体的方法（通常是PCI）被路由到KVM中断，停止客体的处理器并将控制权返回给主机（vmexit）。同样地，设备通知是主机可以向KVM设备发送的特殊ioctl（vCPU IRQ）。QEMU可以使用共享内存访问virtqueue信息。</p>
+<blockquote>
+<p>Please note the implications of the virtio rings shared memory concept: The memory the driver and the device access is the same page in RAM, they are not two different regions that follow a protocol to synchronize.</p>
+</blockquote>
+<p>请注意virtio环的共享内存概念的含义。驱动程序和设备访问的内存是RAM中的同一个页面，它们不是两个不同的区域，它们遵循一个协议来进行同步。</p>
+
+
+<p><em>Figure 1: Qemu emulated device component diagram</em></p>
+<blockquote>
+<p>Since the notification now needs to travel from the guest (KVM), to QEMU, and then to the kernel for the latter to forward the network frame, we can spawn a thread in the kernel with access to the guest’s shared memory mapping and then let it handle the virtio dataplane.</p>
+</blockquote>
+<p>由于通知现在需要从guest（KVM）到QEMU，再到内核，以便后者转发网络帧，我们可以在内核中生成一个线程，访问客体的共享内存映射，然后让它处理virtio数据平面。</p>
+<blockquote>
+<p>In that context, QEMU initiates the device using the virtio dataplane, and then forwards the virtio device status to vhost-net, delegating the data plane to it. In this scenario, KVM will use an event file descriptor (eventfd) to communicate the device interruptions, and expose another one to receive CPU interruptions. The guest does not need to be aware of this change, it will operate as the previous scenario.</p>
+</blockquote>
+<p>在这种情况下，QEMU使用virtio数据平面启动设备，然后将virtio设备状态转发给vhost-net，将数据平面委托给它。在这种情况下，KVM将使用一个事件文件描述符（eventfd）来传达设备中断，并公开另一个文件描述符来接收CPU中断。guest不需要意识到这种变化，它将像之前的方案一样操作。</p>
+<blockquote>
+<p>Also, in order to increase the performance, we created an in-kernel virtio-net device (called vhost-net) to offload the data plane directly to the kernel, where packet forwarding takes place:</p>
+</blockquote>
+<p>另外，为了提高性能，我们创建了一个内核内的virtio-net设备（称为vhost-net），将数据平面直接卸载到内核，在那里进行数据包转发。</p>
+<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig2.png" class="">
+
+<p><em>Figure 2: Virtio-net components diagram</em></p>
+<blockquote>
+<p>Later on, we moved the virtio device from the kernel to an userspace process in the host (covered in the post “A journey to the vhost-users realm”) that can run a packet forwarding framework like DPDK. The protocol to set all this up is called virtio-user.</p>
+</blockquote>
+<p>后来，我们把virtio设备从内核移到了主机的用户空间进程中（在 “通往vhost-users领域的旅程 “一文中有所涉及），该进程可以运行像DPDK这样的包转发框架。设置这一切的协议被称为virtio-user。</p>
+<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig3.png" class="">
+
+<p><em>Figure 3: Virtio-user components diagram</em></p>
+<blockquote>
+<p>It even allows guests to run virtio drivers in guest’s userland, instead of the kernel! In this case, virtio names driver the process that is managing the memory and the virtqueues, not the kernel code that runs in the guest.</p>
+</blockquote>
+<p>它甚至允许客户在客户的用户区运行virtio驱动，而不是在内核中运行 在这种情况下，virtio将驱动程序命名为管理内存和virtqueues的进程，而不是在guest中运行的内核代码</p>
+<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig4.png" class="">
+
+<p><em>Figure 4: Virtio-user with userland driver in guest</em></p>
+<blockquote>
+<p>Lastly, we can directly do a virtio device passthrough with the proper hardware. If the NIC supports the virtio data plane, we can expose it directly to the guest with proper hardware (IOMMU device, able to translate between the guest’s and device’s memory addresses) and software (for example, VFIO linux driver, that enables the host to directly give the control of a PCI device to the guest). The device uses the typical hardware signals for notifications infrastructure, like PCI and CPU interruptions (IRQ).</p>
+</blockquote>
+<p>最后，我们可以通过适当的硬件直接进行virtio设备透传。如果网卡支持virtio数据平面，我们可以通过适当的硬件（IOMMU设备，能够在guest和设备的内存地址之间进行转换）和软件（例如，VFIO linux驱动，使主机能够直接将PCI设备的控制权交给guest）将其直接暴露给guest。该设备使用典型的硬件信号来通知基础设施，如PCI和CPU中断（IRQ）。</p>
+<blockquote>
+<p>If a hardware NIC wants to go this way, the easiest approach is to build its driver on top of <a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/achieving-network-wirespeed-open-standard-manner-introducing-vdpa">vDPA</a>, also explained in earlier posts of this series.</p>
+</blockquote>
+<p>如果硬件网卡想走这条路，最简单的方法是在vDPA的基础上构建它的驱动程序，在本系列的早期文章中也有解释.</p>
+<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig5.png" class="">
+
+<p><em>Figure 5: Virtio hardware passthrough components diagram</em></p>
+<blockquote>
+<p>We will explain what happens inside of the dataplane communication in the rest of the posts.</p>
+</blockquote>
+<p>我们将在接下来的文章中解释数据平面通信内部发生了什么。</p>
+<blockquote>
+<p>Thanks to the deep investment in standardization, the virtio data plane is the same in whatever way we use across these scenarios, and whatever transport protocol we use. The format of the exchanged messages are the same, and different devices or drivers can negotiate different capabilities or features based on its characteristics using the feature bits, previously mentioned. This way, the virtqueues only act as a common thin layer of device-driver communication that allows to reduce the investment of development and deployment.</p>
+</blockquote>
+<p>由于对标准化的深入投资，virtio数据平面在这些场景中，无论我们使用什么方式，无论我们使用什么传输协议，都是一样的。交换的消息的格式是相同的，不同的设备或驱动程序可以根据它的特点，使用前面提到的特征位，协商不同的能力或特征。这样一来，虚拟队列只是作为设备-驱动程序通信的一个普通薄层，可以减少开发和部署的投资。</p>
+<blockquote>
+<p>As stated on <a target="_blank" rel="noopener" href="https://www.redhat.com/en/virtio-networking-series">previous blogs on this series</a>, the interest of this standardization is to achieve a slim layer of communication with the virtual environment (instead of emulating a complete piece of hardware), that makes it easier to verify for correctness across different virtualization technologies or hardware.</p>
+</blockquote>
+<p>正如本系列的前几篇博客所述，这种标准化的兴趣在于实现与虚拟环境的薄层通信（而不是模拟一个完整的硬件），这使得在不同的虚拟化技术或硬件之间验证正确性更加容易。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" data-id="clefret8n0000t1wbey3l78ev" data-title="Virtio devices and drivers overview: The headjack and the phone" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-windows-install-virtio-then-reboot-met-BSOD" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/" class="article-date">
@@ -1075,259 +1592,6 @@
 
 
   
-    <article id="post-jvm-metaspace-memory-leak-analysis" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/10/11/jvm-metaspace-memory-leak-analysis/" class="article-date">
-  <time class="dt-published" datetime="2022-10-11T09:13:39.000Z" itemprop="datePublished">2022-10-11</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/languages/">languages</a>►<a class="article-category-link" href="/categories/languages/java/">java</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/10/11/jvm-metaspace-memory-leak-analysis/">JVM metaspace memory leak analysis</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="Background"><a href="#Background" class="headerlink" title="Background"></a>Background</h2><p>Out system became unavailable due to <code>java.lang.OutOfMemoryError: Metaspace</code> and according to a stackoverflow answer: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/36051813/java8-java-lang-outofmemoryerror-metaspace">https://stackoverflow.com/questions/36051813/java8-java-lang-outofmemoryerror-metaspace</a>, I started to figure out what wrong with the system.</p>
-<p>Before finding start analysis jvm memory dump, we need to known what means memory leak. In this case, we found thread failed to execution because create task failed due to OOM. But there are two typical reason.</p>
-<ul>
-<li>Too many classes need to be loaded</li>
-<li>Memory leak causes some classes not unloaded</li>
-</ul>
-<p>Everytime you new a object, metaspace will be allocated to store metadata of the object. </p>
-<p>Following code could reproduce this issue:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; ; i++) &#123;</span><br><span class="line">            Class c = cp.makeClass(<span class="string">&quot;eu.plumbr.demo.Generated&quot;</span> + i).toClass();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>pom.xml</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.javassist<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>javassist<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>3.27.0-GA<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>so dynamic created class will add new class information into metaspace but if there is no class loader reference to the class, the class will be cleared after GC.</p>
-<p>So it’s clear that if memory leak happened to your metaspace, you can find your application no problem when just started and oom happens after it runs for a period of time.</p>
-<h2 id="Tools"><a href="#Tools" class="headerlink" title="Tools"></a>Tools</h2><p>A couple of tools are available for memory leak analysis and only refer to what I have used when I figure out this issue.</p>
-<h3 id="JConsole"><a href="#JConsole" class="headerlink" title="JConsole"></a>JConsole</h3><blockquote>
-<p> <strong>JConsole</strong> is a graphical monitoring tool to monitor <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Virtual_Machine">Java Virtual Machine</a> (JVM) and Java applications both on a local or remote machine.</p>
-<p> JConsole uses underlying features of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Virtual_Machine">Java Virtual Machine</a> to provide information on performance and resource consumption of applications running on the Java platform using <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Management_Extensions">Java Management Extensions</a> (JMX) technology. JConsole comes as part of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Development_Kit">Java Development Kit</a> (JDK) and the graphical console can be started using “jconsole” command. </p>
-</blockquote>
-<p>As JConsole is a part of JDK, you can easily find it. On macOS, you can use commandline directly</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jconsole</span><br></pre></td></tr></table></figure>
-
-<p>or find your java_home by </p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/usr/libexec/java_home -V</span><br></pre></td></tr></table></figure>
-
-<p>the jconsole is under</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/Library/Java/JavaVirtualMachines/jdk1.8.0_271.jdk/Contents/Home/bin/jconsole</span><br></pre></td></tr></table></figure>
-
-<p>and then connect to local or remote application.</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1000.00.54.png" class="">
-
-<p>Note: </p>
-<p>In order to use JConsole, jmx need to be enabled for your application’s jvm options</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=10000 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=your_ip_address</span><br></pre></td></tr></table></figure>
-
-<p>make sure your ip adress and port is available for remote access.</p>
-<p>From JConsole we can monitor loaded class number, unloaded class number, perform gc and check if metaspace is continuously increasing.</p>
-<h3 id="VisualVM"><a href="#VisualVM" class="headerlink" title=" VisualVM"></a> VisualVM</h3><p>A replacement for JConsole except jvm monitor, heap dump, application snapshot is available which is quite efficient for memory leak analysis.</p>
-<h3 id="Memory-Analyzer-MAT"><a href="#Memory-Analyzer-MAT" class="headerlink" title="Memory Analyzer (MAT)"></a>Memory Analyzer (MAT)</h3><p>The Eclipse Memory Analyzer is a fast and feature-rich <strong>Java heap analyzer</strong> that helps you find memory leaks and reduce memory consumption.Use the Memory Analyzer to analyze productive heap dumps with hundreds of millions of objects, quickly calculate the retained sizes of objects, see who is preventing the Garbage Collector from collecting objects, run a report to automatically extract leak suspects.</p>
-<p>My application use openjdk-1.8, so only MemoryAnalyzer-1.11.0.20201202-macosx.cocoa.x86_64.dmg</p>
-<p>could be used. After that MAT only support java11.</p>
-<h2 id="Start-debug"><a href="#Start-debug" class="headerlink" title="Start debug"></a>Start debug</h2><p>Combining background and tools, finding continuously increasing memory is easy but how to get to the code seems more diffcult.</p>
-<p>But we could seperate debug procedure to several steps</p>
-<ul>
-<li>Do heap dump during a period to known always in memory classes and dynamic classes</li>
-<li>Compare heap dump to figure out what increase metaspace</li>
-<li>Find a operation that causes the leak</li>
-</ul>
-<p>Use visualVM connect to java application and monitor for a time</p>
-<p>Metaspace leak can be monitored because after manually perforce GC, it still not decrease.</p>
-<p>GC performed we have 72246 loaded classes.</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.07.29.png" class="">
-
-<p>after aboubt 1minutes, GC performed but loaded class increased to 72262</p>
-<p>![截屏2022-10-11 16.08.23](/Users/kayo/Desktop/blog/JVM metaspace memory leak analysis/截屏2022-10-11 16.08.23.png)</p>
-<p>Aboviously there are some leak problems, so still use 1 minute as period and collect two heap dump for next step analysis.</p>
-<p>Open the heap dumps with MAT to do compare, from heap dump’s dominator tree</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.17.40.png" class="">
-
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.17.44.png" class="">
-
-<p>Luckily, we found the increased class at first glance. The SessionFactoryImpl seems to blame.</p>
-<p>Except this we found another issue with Groovy’s GStringTemplateEngine which causes groovy.reflection.ClassInfo increases and we will tell the details in next section.</p>
-<p>Expand the suspects to get more details about it. By list all objects, query plan cache increased, so just google for this value</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.30.49.png" class="">
-
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.30.58.png" class="">
-
-<p>from <a target="_blank" rel="noopener" href="https://docs.jboss.org/hibernate/orm/5.0/javadocs/org/hibernate/engine/query/spi/QueryPlanCache.html">https://docs.jboss.org/hibernate/orm/5.0/javadocs/org/hibernate/engine/query/spi/QueryPlanCache.html</a>:  Acts as a cache for compiled query plans, as well as query-parameter metadata.</p>
-<p>And check its source code:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * the cache of the actual plans...</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> BoundedConcurrentHashMap queryPlanCache;</span><br></pre></td></tr></table></figure>
-
-<p>it seems a bounded hashmap and created like below:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">queryPlanCache = <span class="keyword">new</span> BoundedConcurrentHashMap( maxQueryPlanCount, <span class="number">20</span>, BoundedConcurrentHashMap.Eviction.LIRS );</span><br></pre></td></tr></table></figure>
-
-<p>and hibernate use default 2048 as maxQueryPlanCount and LIRS as eviction strategy. So no need to solve a cache increasing.</p>
-<h2 id="GStringTemplateEngine"><a href="#GStringTemplateEngine" class="headerlink" title="GStringTemplateEngine"></a>GStringTemplateEngine</h2><p>By debug steps, we find GStringTemplateScript occupied metaspace and thousands of classes are created.</p>
-<p>Check its implements, </p>
-<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">groovyClass = loader.parseClass(<span class="keyword">new</span> GroovyCodeSource(templateExpressions.toString(), <span class="string">&quot;GStringTemplateScript&quot;</span> + GStringTemplateEngine.counter.incrementAndGet() + <span class="string">&quot;.groovy&quot;</span>, <span class="string">&quot;x&quot;</span>));</span><br></pre></td></tr></table></figure>
-
-<p>GStringTemplateScript will be created every GStringTemplate created. So for template creation, will cause dynamic class creation and finally let jvm run out of memory.</p>
-<p>According to some related fix, <a target="_blank" rel="noopener" href="https://issues.apache.org/jira/browse/GROOVY-7017">https://issues.apache.org/jira/browse/GROOVY-7017</a> this fix use a seperate class loader to make sure gstring template could be gced from heap but metaspace is still occupied.</p>
-<p>And another article talk about: <a target="_blank" rel="noopener" href="https://tigase.net/how-aws-helped-us-optimize-memory-usage-tigase-http-api/">https://tigase.net/how-aws-helped-us-optimize-memory-usage-tigase-http-api/</a> AWS improve Tigase HTTP API Memory usage, following fix is suggested: </p>
-<ul>
-<li>We load all templates at once using single <code>GStringTemplateEngine</code> and cache generate templates. <strong>No more automatic reloading of templates.</strong></li>
-<li>When manual reload of templates is initiated we release old instance of <code>GStringTemplateEngine</code> and parse templates using the new one.</li>
-</ul>
-<p>So do some test before change our code:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> groovy.text.GStringTemplateEngine;</span><br><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.StringReader;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.ManagementFactory;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.MemoryPoolMXBean;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GroovyMetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">final</span> String EVENT_CHINESE_TEMPLATE = <span class="string">&quot;事件 发生了 事件详情: 名称:&quot;</span>;</span><br><span class="line"></span><br><span class="line">        GStringTemplateEngine engine = <span class="keyword">new</span> GStringTemplateEngine();</span><br><span class="line">        HashMap&lt;Integer, groovy.text.Template&gt; templateHashMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            groovy.text.Template template = templateHashMap.get(EVENT_CHINESE_TEMPLATE.hashCode());</span><br><span class="line">            <span class="keyword">if</span> (template == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    template = (groovy.text.Template) engine.createTemplate(<span class="keyword">new</span> StringReader(EVENT_CHINESE_TEMPLATE));</span><br><span class="line">                &#125; <span class="keyword">catch</span> (ClassNotFoundException | IOException e) &#123;</span><br><span class="line">                    <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                templateHashMap.put(EVENT_CHINESE_TEMPLATE.hashCode(), template);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.out.println(template.make().toString());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (MemoryPoolMXBean memoryMXBean : (ManagementFactory.getMemoryPoolMXBeans())) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="string">&quot;Metaspace&quot;</span>.equals(memoryMXBean.getName())) &#123;</span><br><span class="line">                    System.out.println(memoryMXBean.getUsage().getUsed()/<span class="number">1024</span>/<span class="number">1024</span> + <span class="string">&quot; mb&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.gc();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>by use templateHashMap as cache to avoid duplicate template creation, we can see Metaspace memory usage not changed</p>
-<p>but if change the code without templateHashMap:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> groovy.text.GStringTemplateEngine;</span><br><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.StringReader;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.ManagementFactory;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.MemoryPoolMXBean;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GroovyMetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">final</span> String EVENT_CHINESE_TEMPLATE = <span class="string">&quot;事件 发生了 事件详情: 名称:&quot;</span>;</span><br><span class="line"></span><br><span class="line">        GStringTemplateEngine engine = <span class="keyword">new</span> GStringTemplateEngine();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            groovy.text.Template template;</span><br><span class="line">            <span class="comment">//= templateHashMap.get(EVENT_CHINESE_TEMPLATE.hashCode());</span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                template = (groovy.text.Template) engine.createTemplate(<span class="keyword">new</span> StringReader(EVENT_CHINESE_TEMPLATE));</span><br><span class="line">            &#125; <span class="keyword">catch</span> (ClassNotFoundException | IOException e) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.out.println(template.make().toString());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (MemoryPoolMXBean memoryMXBean : (ManagementFactory.getMemoryPoolMXBeans())) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="string">&quot;Metaspace&quot;</span>.equals(memoryMXBean.getName())) &#123;</span><br><span class="line">                    System.out.println(memoryMXBean.getUsage().getUsed()/<span class="number">1024</span>/<span class="number">1024</span> + <span class="string">&quot; mb&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.gc();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>the metaspace will increase until oom.</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/10/11/jvm-metaspace-memory-leak-analysis/" data-id="cld1mhead000kyuwb98bvg0mn" data-title="JVM metaspace memory leak analysis" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/10/11/jvm-metaspace-memory-leak-analysis/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/11/jvm-metaspace-memory-leak-analysis/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/" rel="tag">java</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-iommu" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/10/06/iommu/" class="article-date">
-  <time class="dt-published" datetime="2022-10-06T06:55:56.000Z" itemprop="datePublished">2022-10-06</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/linux/">linux</a>►<a class="article-category-link" href="/categories/linux/memory-management/">memory management</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/10/06/iommu/">Input–output memory management unit</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>From Wikipedia, the free encyclopedia</p>
-<blockquote>
-<p>In <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Computing">computing</a>, an <strong>input–output memory management unit</strong> (<strong>IOMMU</strong>) is a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Memory_management_unit">memory management unit</a> (MMU) connecting a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">direct-memory-access</a>–capable (DMA-capable) I/O <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Computer_bus">bus</a> to the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Main_memory">main memory</a>. Like a traditional MMU, which translates <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Central_processing_unit">CPU</a>-visible <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_address">virtual addresses</a> to <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Physical_address">physical addresses</a>, the IOMMU maps device-visible virtual addresses (also called <em>device addresses</em> or <em>I/O addresses</em> in this context) to physical addresses. Some units also provide <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Memory_protection">memory protection</a> from faulty or malicious devices.</p>
-</blockquote>
-<p>计算机中，<strong>input–output memory management unit</strong> (<strong>IOMMU</strong>) 是直接连接到主存的一个direct-memory-access-capable（DMA-capable，允许内存直接访问的）I/O总线内存管理单元（MMU）。类似传统的MMU，会翻译CPU可见的虚拟地址为物理地址，IOMMU映射设备可见的虚拟地址（也叫做设备地址或者I/O地址）到物理地址。一些单元也提供内存保护功能，避免设备出错或者受到攻击。</p>
-<blockquote>
-<p>An example IOMMU is the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Graphics_address_remapping_table">graphics address remapping table</a> (GART) used by <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Accelerated_Graphics_Port">AGP</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/PCI_Express">PCI Express</a> graphics cards on Intel Architecture and AMD computers.</p>
-<p>On the x86 architecture, prior to splitting the functionality of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Northbridge_(computing)">northbridge</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Southbridge_(computing)">southbridge</a> between the CPU and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Platform_Controller_Hub">Platform Controller Hub</a> (PCH), I/O virtualization was not performed by the CPU but instead by the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Chipset">chipset</a>.[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-1">1]</a>[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-2">2]</a></p>
-</blockquote>
-<p>举个例子，在Intel架构和AMD计算机上被AGP和PCI Express图形卡使用的graphics address remapping table（GART）就是IOMMU</p>
-<p>在x86架构，提前拆分CPU，平台控制器HUB（PCH），I/O虚拟化在北桥和南桥的功能并不是CPU直接处理的，而是由芯片组解决的。</p>
-<blockquote>
-<p>The advantages of having an IOMMU, compared to direct physical addressing of the memory (DMA), include[*<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Wikipedia:Citation_needed">citation needed</a>*]:</p>
-<ul>
-<li>Large regions of memory can be allocated without the need to be contiguous in physical memory – the IOMMU maps contiguous virtual addresses to the underlying fragmented physical addresses. Thus, the use of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Vectored_I/O">vectored I/O</a> (<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Scatter-gather">scatter-gather</a> lists) can sometimes be avoided.</li>
-<li>Devices that do not support memory addresses long enough to address the entire physical memory can still address the entire memory through the IOMMU, avoiding overheads associated with copying buffers to and from the peripheral’s addressable memory space.</li>
-<li>For example, x86 computers can address more than 4 gigabytes of memory with the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Physical_Address_Extension">Physical Address Extension</a> (PAE) feature in an x86 processor. Still, an ordinary 32-bit PCI device simply cannot address the memory above the 4 GiB boundary, and thus it cannot directly access it. Without an IOMMU, the operating system would have to implement time-consuming <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Bounce_buffer">bounce buffers</a> (also known as double buffers[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-3">3]</a>).</li>
-<li>Memory is protected from malicious devices that are attempting DMA attacks and faulty devices that are attempting errant memory transfers because a device cannot read or write to memory that has not been explicitly allocated (mapped) for it. The memory protection is based on the fact that OS running on the CPU (see figure) exclusively controls both the MMU and the IOMMU. The devices are physically unable to circumvent or corrupt configured memory management tables.</li>
-<li>In <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Hardware-assisted_virtualization">virtualization</a>, <em>guest</em> operating systems can use hardware that is not specifically made for virtualization. Higher performance hardware such as graphics cards use DMA to access memory directly; in a virtual environment all memory addresses are re-mapped by the virtual machine software, which causes DMA devices to fail. The IOMMU handles this re-mapping, allowing the native device drivers to be used in a guest operating system.</li>
-<li>In some architectures IOMMU also performs <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Hardware_interrupt">hardware interrupt</a> re-mapping, in a manner similar to standard memory address re-mapping.</li>
-<li>Peripheral memory paging can be supported by an IOMMU. A peripheral using the PCI-SIG PCIe Address Translation Services (ATS) Page Request Interface (PRI) extension can detect and signal the need for memory manager services.</li>
-</ul>
-<p>For system architectures in which port I/O is a distinct address space from the memory address space, an IOMMU is not used when the CPU communicates with devices via <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/I/O_port">I/O ports</a>. In system architectures in which port I/O and memory are mapped into a suitable address space, an IOMMU can translate port I/O accesses.</p>
-</blockquote>
-<p>IOMMU的优势，和内存的直接物理映射（DMA）相比，包括：</p>
-<ul>
-<li>支持分配大片的内存，而且不需要是物理上连续的。IOMMU的映射保证虚拟地址连续，物理地址可以不连续。因此<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Vectored_I/O">vectored I/O</a> (<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Scatter-gather">scatter-gather</a> lists) 有些时候是不能用的</li>
-<li>内存地址长度不支持映射整个物理内存的时候也可以通过IOMMU来找到整个内存的地址。同时可以避免拷贝特定的内存到外围的内存空间而造成损耗<ul>
-<li>对x86计算机，具备通过Physical Address Extension（PAE）寻址超过4GB的内存的特性。同时一个普通的32位 PCI设备并不能很简单的找到超过4GB的内存地址，并且也无法访问这个地址。没有IOMMU的情况下，操作系统必须要实现一个消耗时间的bounce buffers（也叫做double buffer）</li>
-</ul>
-</li>
-<li>内存保护，避免恶意设备通过DMA攻击或者错误的设备尝试传输不正确的内存，因为一个设备并不能读或者写并不是这个设备分配映射的内存。内存保护是基于OS在CPU上运行并且排他的控制MMU以及IOMMU的事实实现的。设备在物理上就是没办法去避免或者破坏已经配置好的内存管理表的。<ul>
-<li>在虚拟化中，guest操作系统可以使用非特殊的虚拟化模式的硬件（物理硬件）。高性能硬件，比如说图形卡就是使用DMA来直接访问内存的。在虚拟环境中，所有的内存地址都被虚拟机软件重新做了映射，这就会导致DMA设备会访问失败。IOMMU需要处理这个重新映射的行为，并允许本地的硬件驱动能够被虚拟机操作系统使用。</li>
-</ul>
-</li>
-<li>在一些架构中，IOMMU也执行硬件中断的重新映射，类似标准内存地址的重新映射</li>
-<li>IOMMU也支持外围的内存页。一个外围的使用PIC-SIG PCIe地址翻译服务（Address Translation Services）页请求接口（Page Request Interface）拓展能够探测并发出信号给需要内存管理的服务</li>
-</ul>
-<p>对port I/O在内存空间中有有独有地址空间系统架构里，IOMMU并不通过I/O ports进行设备和CPU的沟通。系统架构里，port I/O和内存是映射到合适的地址空间里，IOMMU可以翻译port I/O的访问。</p>
-<blockquote>
-<p>The disadvantages of having an IOMMU, compared to direct physical addressing of the memory, include:[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-price-of-safety-4">4]</a></p>
-<ul>
-<li>Some degradation of performance from translation and management overhead (e.g., page table walks).</li>
-<li>Consumption of physical memory for the added I/O <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_table">page (translation) tables</a>. This can be mitigated if the tables can be shared with the processor.</li>
-<li>In order to decrease the page table size the granularity of many IOMMUs is equal to the memory paging (often 4096 bytes), and hence each small buffer that needs protection against DMA attack has to be page aligned and zeroed before making visible to the device. Due to OS memory allocation complexity this means that the device driver needs to use bounce buffers for the sensitive data structures and hence decreasing overall performance.</li>
-</ul>
-</blockquote>
-<p>IOMMU的缺点，和内存直接访问物理地址，包括：</p>
-<ul>
-<li>因为翻译和管理地址导致的性能损耗（比如page table walks）</li>
-<li>增加I/O page（translation）tables需要消耗物理内存。如果处理器可以共享page table就能够给减缓这个问题</li>
-<li>为了减少page tables的大小以及减少page的粒度，大部分IOMMUs是和内存页（通常是4096字节）对等的，并且因为每个小buffer都需要避免DMA attack，在提供给设备访问之前，必须要被对齐并且置为0。由于OS内存分配的复杂性，这意味着设备驱动对敏感的数据结构要使用一个弹性的buffers因此降低了性能（因为要动态分配）</li>
-</ul>
-<blockquote>
-<p>When an operating system is running inside a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_machine">virtual machine</a>, including systems that use <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Paravirtualization">paravirtualization</a>, such as <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Xen">Xen</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine">KVM</a>, it does not usually know the host-physical addresses of memory that it accesses. This makes providing direct access to the computer hardware difficult, because if the guest OS tried to instruct the hardware to perform a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">direct memory access</a> (DMA) using guest-physical addresses, it would likely corrupt the memory, as the hardware does not know about the mapping between the guest-physical and host-physical addresses for the given virtual machine. The corruption can be avoided if the hypervisor or host OS intervenes in the I/O operation to apply the translations. However, this approach incurs a delay in the I/O operation.</p>
-<p>An IOMMU solves this problem by re-mapping the addresses accessed by the hardware according to the same (or a compatible) translation table that is used to map guest-physical address to host-physical addresses.[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-5">5]</a></p>
-</blockquote>
-<p>当操作系统运行在虚拟机里，包括操作系统辅助虚拟化，比如Xen和KVM，通常情况下是不知道内存要访问的物理机器物理地址的。这个情况下要直接提供计算机的硬件地址是很困难的，因为如果guest OS尝试去命令硬件使用guest的物理地址执行直接内存访问（DMA），将会是一个错误的地址（因为虚拟化，guest的内存空间实际上和host的内存空间不是一回事），这是由于硬件并不知道guest物理地址和host物理地址之间的映射关系。通过host OS的介入把这个I/O操作翻译掉，就能够解决这个问题，而这个方法就会造成I/O操作变慢。</p>
-<p>一个IOMMU可以通过宠幸映射硬件关联地址的翻译来解决这个问题，也就是用来做guest物理地址和host物理地址的映射。</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/10/06/iommu/" data-id="cld1mheaa000gyuwbhmka8138" data-title="Input–output memory management unit" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/10/06/iommu/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/06/iommu/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -1343,7 +1607,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Categories</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
     </div>
   </div>
 
@@ -1363,7 +1627,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 16.67px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 11.67px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.33px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 15px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -1385,6 +1649,14 @@
       <ul>
         
           <li>
+            <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/">Virtio devices and drivers overview: The headjack and the phone</a>
+          </li>
+        
+          <li>
             <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
           </li>
         
@@ -1394,14 +1666,6 @@
         
           <li>
             <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
-          </li>
-        
-          <li>
-            <a href="/2022/11/16/uefi-windows-guest-hang-after-live-migration/">UEFI Windows guest hang after live migration</a>
-          </li>
-        
-          <li>
-            <a href="/2022/11/09/plugable-system-in-practice-00/">Plugable system in practice 00</a>
           </li>
         
       </ul>

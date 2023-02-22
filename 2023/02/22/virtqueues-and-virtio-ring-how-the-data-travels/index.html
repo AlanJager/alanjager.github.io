@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Virtqueues and virtio ring: How the data travels | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Virtqueues and virtio ring: How the data travels">
+<meta property="og:url" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig2.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig3.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig4.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig5.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig6.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig7.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig8.png">
+<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig9.png">
+<meta property="article:published_time" content="2023-02-22T15:48:33.000Z">
+<meta property="article:modified_time" content="2023-02-22T15:49:00.364Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="virtio">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-virtqueues-and-virtio-ring-how-the-data-travels" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" class="article-date">
+  <time class="dt-published" datetime="2023-02-22T15:48:33.000Z" itemprop="datePublished">2023-02-22</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Virtqueues and virtio ring: How the data travels
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>This post continues where the “<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtio-devices-and-drivers-overview-headjack-and-phone">Virtio devices and drivers overview</a>“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel from the virtio-device to the driver and back?</p>
+</blockquote>
+<p>这篇文章继续 “Virtio设备和驱动概述 “的内容。在上一篇文章中，我们已经解释了这个场景，我们即将到达重点：数据如何从virtio设备到驱动，然后再返回？</p>
+<h2 id="Buffers-and-notifications-The-work-routine"><a href="#Buffers-and-notifications-The-work-routine" class="headerlink" title="Buffers and notifications: The work routine"></a>Buffers and notifications: The work routine</h2><blockquote>
+<p>As stated earlier, a virtqueue is just a queue of guest’s buffers that the host consumes, either reading them or writing to them. A buffer can be read-only or write-only from the device point of view, but never both.</p>
+</blockquote>
+<p>如前所述，virtqueue只是一个guest的缓冲区队列，主机消耗它们，要么读取它们，要么写入它们。从设备的角度来看，一个缓冲区可以是只读的，也可以是只写的，但绝不是两者都是。</p>
+<blockquote>
+<p>The descriptors can be chained, and the framing of the message can be spread whatever way is more convenient. For example, to spread a 2000 byte message in one single buffer or to use two 1000 byte buffers should be the same. </p>
+</blockquote>
+<p>描述符可以是链状的，消息的构架可以以任何更方便的方式传播。例如，将2000字节的信息分散在一个单一的缓冲区中，或使用两个1000字节的缓冲区，应该是一样的。</p>
+<blockquote>
+<p>Also, it provides driver to device notifications (doorbell) method, to signal that one or more buffers have been added to the queue, and vice-versa, devices can interrupt the driver to signal used buffers. It is up to the underlying driver to provide the right method to dispatch the actual notification, for example using PCI interruptions or memory writing: The virtqueue only standardizes the semantics of it.</p>
+</blockquote>
+<p>另外，它还提供了驱动程序到设备的通知（门铃）方法，以信号显示一个或多个缓冲区已被添加到队列中，反之亦然，设备可以中断驱动程序以信号显示已使用的缓冲区。这取决于底层驱动程序提供正确的方法来调度实际的通知，例如使用PCI中断或内存写入。virtqueue只是对它的语义进行了标准化。</p>
+<blockquote>
+<p>As stated before, the driver and the device can advise the other to not to emit notifications to reduce its dispatching overhead. Since this operation is asynchronous we will describe how to do so in further sections.</p>
+</blockquote>
+<p>如前所述，驱动和设备可以建议对方不要发出通知，以减少其调度开销。由于这个操作是异步的，我们将在后续章节中描述如何做到这一点。</p>
+<h2 id="Split-virtqueue-the-beauty-of-simplicity"><a href="#Split-virtqueue-the-beauty-of-simplicity" class="headerlink" title="Split virtqueue: the beauty of simplicity"></a>Split virtqueue: the beauty of simplicity</h2><blockquote>
+<p>The split virtqueue format separates the virtqueue into three areas, where each area is writable by either the driver or the device, but not both:</p>
+<ul>
+<li>Descriptor Area: used for describing buffers.</li>
+<li>Driver Area: data supplied by driver to the device. Also called avail virtqueue.</li>
+<li>Device Area: data supplied by device to driver. Also called used virtqueue.</li>
+</ul>
+</blockquote>
+<p>split virtqueue格式将virtqueue分成三个区域，每个区域都可以被驱动或设备写入，但不能同时写入。</p>
+<ul>
+<li>描述符区：用于描述缓冲区。</li>
+<li>驱动区：由驱动提供给设备的数据。也称为利用虚拟队列。</li>
+<li>设备区：由设备提供给驱动的数据。也称为used virtqueue。</li>
+</ul>
+<blockquote>
+<p>They need to be allocated in the driver’s memory for it to be able to access them in a straightforward way. Buffer addresses are stored from the driver’s point of view, and the device needs to perform an address translation. There are many ways for the device to access it depending on the latter nature:</p>
+<ul>
+<li>For an emulated device in the hypervisor (like qemu), the guest’s address is in its own process memory.</li>
+<li>For other emulated devices like vhost-net or vhost-user, a memory mapping needs to be done, like POSIX shared memory. A file descriptor to that memory is shared through vhost protocol.</li>
+<li>For a real device a hardware-level translation needs to be done, usually via IOMMU.</li>
+</ul>
+</blockquote>
+<p>它们需要被分配到驱动程序的内存中，以便它能够直接访问它们。缓冲区地址从驱动程序的角度存储，设备需要进行地址转换。根据后者的性质，设备有很多方法可以访问它。</p>
+<ul>
+<li>对于管理程序中的仿真设备（如qemu），客户的地址在它自己的进程内存中。</li>
+<li>对于其他仿真设备，如vhost-net或vhost-user，需要做一个内存映射，像POSIX共享内存一样。该内存的文件描述符是通过vhost协议共享的。</li>
+<li>对于一个真实的设备，需要做一个硬件级的转换，通常是通过IOMMU。</li>
+</ul>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png" class="">
+
+<p><strong>Shared memory with split ring elements</strong></p>
+<h3 id="Descriptor-ring-Where-is-my-data"><a href="#Descriptor-ring-Where-is-my-data" class="headerlink" title="Descriptor ring: Where is my data?"></a>Descriptor ring: Where is my data?</h3><blockquote>
+<p>The descriptor area (or descriptor ring) is the first one that needs to be understood. It contains an array of a number of guest addressed buffers and its length. Each descriptor also contains a set of flags indicating more information about it. For example, the buffer continues in another descriptor buffer if the 0x1 bit is set, and the buffer is write-only for the device if the bit 0x2 is set, and is read-only if it is clear.</p>
+</blockquote>
+<p>描述符区（或描述符环）是第一个需要被理解的。它包含一个由若干客体寻址的缓冲区和其长度组成的数组。每个描述符还包含一组标志，表示关于它的更多信息。例如，如果0x1位被设置，缓冲区在另一个描述符缓冲区中继续，如果0x2位被设置，缓冲区对设备来说是只写的，如果它被清除，则是只读的。</p>
+<blockquote>
+<p>This is the layout of a single descriptor. We will call leN for N bits in little endian format.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_desc</span> &#123;</span> </span><br><span class="line">        le64 addr;</span><br><span class="line">        le32 len;</span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 next; <span class="comment">// Will explain this one later in the section &quot;Chained descriptors&quot;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Split Virtqueue descriptor layout</strong></p>
+</blockquote>
+<p>这是一个单一描述符的布局。我们将调用leN来表示little endian格式的N位。</p>
+<h3 id="Avail-ring-Supplying-data-to-the-device"><a href="#Avail-ring-Supplying-data-to-the-device" class="headerlink" title="Avail ring: Supplying data to the device"></a>Avail ring: Supplying data to the device</h3><blockquote>
+<p>The next interesting structure is the driver area, or avail ring. Is the room where the driver places the descriptor (indexes) the device is going to consume. Note that placing a buffer here doesn’t mean that the device needs to consume immediately: virtio-net, for example, provides a bunch of descriptors for packet receiving that are only used by the device when a packet arrives, and are “ready to consume” until that moment.</p>
+</blockquote>
+<p>下一个有趣的结构是驱动区，或者说Avail环。是驱动程序放置设备要消耗的描述符（索引）的空间。注意，在这里放置缓冲区并不意味着设备需要立即消费：例如，virtio-net为数据包接收提供了一堆描述符，这些描述符只有在数据包到达时才会被设备使用，直到那一刻才会 “准备消费”。</p>
+<blockquote>
+<p>The avail ring has two important fields that only the driver can write and the device only can read them: idx and flags. The idx field indicates where the driver would put the next descriptor entry in the avail ring (modulo the queue size). On the other hand, the least significant bit of flags indicates if the driver wants to be notified or not (called <code>VIRTQ_AVAIL_F_NO_INTERRUPT</code>).</p>
+</blockquote>
+<p>avail环有两个重要的字段，只有驱动程序可以写入，设备只能读取它们：idx和flags。idx字段指出了驱动程序将把下一个描述符条目放在avail ring中的位置（modulo the queue size）。另一方面，flags的最小有效位表示驱动是否要被通知（称为<code>VIRTQ_AVAIL_F_NO_INTERRUPT</code>）。</p>
+<blockquote>
+<p>After these two fields, an array of integers of the same length as the descriptors ring. So the avail virtqueue layout is:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_avail</span> &#123;</span></span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 idx;</span><br><span class="line">        le16 ring[ <span class="comment">/* Queue Size */</span> ];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Avail virtqueue layout</strong></p>
+</blockquote>
+<p>在这两个字段之后，是一个与描述符环相同长度的整数阵列。因此，avail virtqueue layout:</p>
+<blockquote>
+<p><strong>Figure 1</strong> shows a descriptor table with a 2000 bytes long buffer that starts in position 0x8000, and an avail ring that still does not have any entry. After all the steps, a components diagram highlighting the descriptor area update. The first step for the driver is to allocate the buffer with the memory and fill it (this is the step 1 in the “Process to make a buffer available” diagram), and to make available on the descriptor area after that (step 2).</p>
+</blockquote>
+<p>图1显示了一个具有2000字节长的缓冲区的描述符表，它从位置0x8000开始，而一个利用环仍然没有任何条目。在所有的步骤之后，一个组件图突出了描述符被更新的部分。驱动程序的第一步是分配缓冲区的内存并将其填满（这是 “使缓冲区可用的过程 “图中的第1步），然后在描述符区上使其可用（第2步）。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig2.png" class="">
+
+<p><strong>Figure 1: Driver writes a buffer in descriptor ring</strong></p>
+<blockquote>
+<p>After populating descriptor entry, driver advises of it using the avail ring: It writes the descriptor index #0 in the first entry of the avail ring, and updates idx entry accordly. The result of this is shown in Figure 2. In the case that supply chained buffers, only the descriptor head index should be added this way, and avail idx would increase only by 1. This is the step 3 in the diagram.</p>
+</blockquote>
+<p>在填充完描述符条目后，驱动通知它使用空闲环。它将描述符的索引#0写在avail ring的第一个条目中，并相应地更新idx条目。其结果如图2所示。在提供链式缓冲区的情况下，只有描述符头部的索引应该这样添加，而avail idx只增加1。这就是图中的第三步。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig3.png" class="">
+
+<p><strong>Figure 2: Driver offers the buffer with avail ring</strong></p>
+<blockquote>
+<p>From now on, the driver should not modify the available descriptor or the exposed buffer at any moment: It is under the device’s control. Now the driver needs to notify the device if the latter has enabled notifications at that moment (more on how the device manages this later). This is the last step 4 in the diagram.</p>
+</blockquote>
+<p>从现在开始，驱动程序不应该在任何时候修改可用的描述符或暴露的缓冲区。这是由设备控制的。现在，驱动程序需要通知设备，如果后者在当时启用了通知功能（后面会有更多关于设备如何管理的内容）。这就是图中的最后一步4。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig4.png" class="">
+
+<p><strong>Diagram: Process to make a buffer available</strong></p>
+<blockquote>
+<p>The avail ring must be able to hold the same number of descriptors as the descriptor area, and the descriptor area must have a size power of two, so idx wraps naturally at some point. For example, if the ring size is 256 entries, idx 1 references the same descriptor as idx 257, 513… And it will wrap at a 16 bit boundary. This way, neither side needs to worry about processing an invalid idx: They are all valid.</p>
+</blockquote>
+<p>Avail环必须能够容纳与描述符区相同数量的描述符，描述符区的大小必须是2的幂，所以idx在某一点上自然会被包裹起来。例如，如果环的大小是256个条目，idx 1引用的描述符与idx 257、513…相同。而它将在16位边界处被包裹起来。这样一来，双方都不需要担心处理无效的idx。它们都是有效的。</p>
+<blockquote>
+<p>Note that descriptors can be added in any order to the avail ring, one does not need to start from descriptor table entry 0 nor continue by the next descriptor.</p>
+</blockquote>
+<p>请注意，描述符可以以任何顺序添加到利用环中，不需要从描述符表的第0条开始，也不需要从下一个描述符继续。</p>
+<h3 id="Chained-descriptors-Supplying-large-data-to-the-device"><a href="#Chained-descriptors-Supplying-large-data-to-the-device" class="headerlink" title="Chained descriptors: Supplying large data to the device"></a>Chained descriptors: Supplying large data to the device</h3><blockquote>
+<p>The driver can also chain more than one descriptor using its next member. If the NEXT (0x1) flag of a descriptor is set, the data continue in another buffer, making a chain of descriptors. Note that the descriptors in a chain do not share flags: Some descriptors can be read-only, and the others can be write-only. In this case, write-only descriptors must come after all write-only ones.</p>
+</blockquote>
+<p>驱动程序也可以使用其下一个成员来连锁一个以上的描述符。如果一个描述符的NEXT(0x1)标志被设置，数据在另一个缓冲区中继续，形成一个描述符链。注意，一个链中的描述符不共享标志。有些描述符可以是只读的，而其他描述符可以是只写的。在这种情况下，只写的描述符必须排在所有只写的描述符之后。</p>
+<blockquote>
+<p>For example, if the driver has sent us two buffers in a chain with descriptor table indexes 0 and 1 as first operation, the device would see the scenario in Figure 3, and it would be the step 2 again.</p>
+</blockquote>
+<p>例如，如果驱动程序在描述符表索引为0和1的链中向我们发送了两个缓冲区，作为第一次操作，设备会看到图3中的情景，它将再次成为步骤2。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig5.png" class="">
+
+<p><strong>Figure 3: Device sees chained buffers</strong></p>
+<h3 id="Used-ring-When-the-device-is-done-with-the-data"><a href="#Used-ring-When-the-device-is-done-with-the-data" class="headerlink" title="Used ring: When the device is done with the data"></a>Used ring: When the device is done with the data</h3><blockquote>
+<p>The device employs the used ring to return the used (read or written) buffers to the driver. As the avail ring, it has the flags and idx members. They have the same layout and serve the same purpose, although the notification flag is now called <code>VIRTQ_USED_F_NO_NOTIFY</code>.</p>
+</blockquote>
+<p>设备使用使用过的环将使用过的（读或写）缓冲区返回给驱动。与avail环一样，它也有flags和idx成员。它们具有相同的布局和相同的目的，尽管通知标志现在被称为<code>VIRTQ_USED_F_NO_NOTIFY</code>。</p>
+<blockquote>
+<p>After them, it maintains an array of used descriptors. In this array, the device returns not only the descriptor index but also the used length in case of writing.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_used</span> &#123;</span></span><br><span class="line">        le16 flags;</span><br><span class="line">        le16 idx;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">virtq_used_elem</span> <span class="title">ring</span>[ /* <span class="title">Queue</span> <span class="title">Size</span> */];</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_used_elem</span> &#123;</span></span><br><span class="line">        <span class="comment">/* Index of start of used descriptor chain. */</span></span><br><span class="line">        le32 id;</span><br><span class="line">        <span class="comment">/* Total length of the descriptor chain which was used (written to) */</span></span><br><span class="line">        le32 len;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Used virtqueue layout</strong></p>
+</blockquote>
+<p>在它们之后，它维护一个已使用的描述符数组。在这个数组中，设备不仅返回描述符的索引，而且在写入的情况下返回已使用的长度。</p>
+<blockquote>
+<p>In case of returning a chain of descriptors, only the id of the head of the chain is returned, and the total written length through all descriptors, not increasing it when data is read. The descriptor table is not touched at all, it is read-only for the device. This is step 5 in the “Process to make a buffer as used” diagram.</p>
+</blockquote>
+<p>在返回描述符链的情况下，只返回链头的id，以及通过所有描述符的总写入长度，在读取数据时不增加它。描述符表完全不被触及，它对设备来说是只读的。这是 “制作使用的缓冲区的过程 “图中的第5步。</p>
+<blockquote>
+<p>For example, if the device uses the chain of descriptors exposed in the Chained descriptors version:</p>
+</blockquote>
+<p>例如，如果设备使用链式描述符版本中暴露的链式描述符:</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig6.png" class="">
+
+<p><strong>Figure 4: Device returns buffer chain</strong></p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig7.png" class="">
+
+<p><strong>Diagram: Process to mark a buffer as used</strong></p>
+<blockquote>
+<p>Lastly, the device will notify the driver if it sees that the driver wants to be notified, using the used queue flags to know it (step 6).</p>
+</blockquote>
+<p>最后，如果设备看到驱动想被通知，它将通知驱动，使用使用的队列标志来知道它（步骤6）。</p>
+<h3 id="Indirect-descriptors-supplying-a-lot-of-data-to-the-device"><a href="#Indirect-descriptors-supplying-a-lot-of-data-to-the-device" class="headerlink" title="Indirect descriptors: supplying a lot of data to the device"></a>Indirect descriptors: supplying a lot of data to the device</h3><blockquote>
+<p>Indirect descriptors are a way to dispatch a larger number of descriptors in a batch, increasing the ring capacity. The driver stores a table of indirect descriptors (the same layout as the regular descriptors) anywhere in memory, and inserts a descriptor in the virtqueue with the flag <code>VIRTQ_DESC_F_INDIRECT (0x4)</code> set. The descriptor’s address and length correspond to the indirect table’s ones.</p>
+</blockquote>
+<p>间接描述符是一种在一个批次中调度更多描述符的方法，增加了环的容量。驱动程序在内存的任何地方存储一个间接描述符表（与普通描述符的布局相同），并在virtqueue中插入一个描述符，并设置标志<code>VIRTQ_DESC_F_INDIRECT（0x4）</code>。该描述符的地址和长度对应于间接表的长度。</p>
+<blockquote>
+<p>If we want to add the chain described in section Chained descriptors to an indirect table, the driver first allocates the memory region of 2 entries (32 bytes) to hold the latter (step 2 in the diagram after allocate the buffers in the step 1):</p>
+<table>
+<thead>
+<tr>
+<th>Buffer</th>
+<th>Len</th>
+<th>Flags</th>
+<th>Next</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0x8000</td>
+<td>0x2000</td>
+<td>W|N</td>
+<td>1</td>
+</tr>
+<tr>
+<td>0xD000</td>
+<td>0x2000</td>
+<td>W</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p><strong>Figure 4: Indirect table for indirect descriptors</strong></p>
+</blockquote>
+<p>如果我们想在一个间接表上添加链式描述符，驱动程序首先分配2个条目（32字节）的内存区域来容纳后者（图中的第2步，在第1步中分配了缓冲区之后）。</p>
+<blockquote>
+<p>Let’s suppose it has been allocated on memory position <code>0x2000</code>, and it is the first descriptor made available. As usual, the first step is to include it in the Descriptor area (step 3 in the diagram), so it would look like:</p>
+<table>
+<thead>
+<tr>
+<th>Descriptor Area</th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Buffer</td>
+<td>Len</td>
+<td>Flags</td>
+<td>Next</td>
+</tr>
+<tr>
+<td>0x2000</td>
+<td>32</td>
+<td>I</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p><strong>Figure 5: Add indirect table to Descriptor area</strong></p>
+</blockquote>
+<p>让我们假设它被分配在内存位置<code>0x2000</code>，并且是第一个可用的描述符。像往常一样，第一步是把它纳入描述符区域（图中的第3步），所以它看起来像。</p>
+<blockquote>
+<p>After that, the steps are the same as with regular descriptors: The driver adds the index of the descriptor marked with the flag in the descriptor area to the avail ring (#0 in this case, step 4 in the diagram), and notify the device as usual (step 5).</p>
+</blockquote>
+<p>之后，步骤与普通描述符相同。驱动程序将描述符区域中标有标志的描述符的索引添加到利用环中（本例中为#0，图中第4步），并像往常一样通知设备（第5步）。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig8.png" class="">
+
+<p><strong>Diagram: Driver make available indirect descriptors</strong></p>
+<blockquote>
+<p>For the device to use its data, and would use the same memory addresses to return its <code>0x3000</code> bytes (all <code>0x8000-0x9FFF</code> and <code>0xD000-0xDFFF</code>) (Step 6 and 7, same as with regular descriptors). Once used by the device, the driver can release the indirect memory or do whatever it wants with it, as it could do with any regular buffer.</p>
+</blockquote>
+<p>对于设备使用其数据，并将使用相同的内存地址来返回其0x3000字节（所有0x8000-0x9FFF和0xD000-0xDFFF）（步骤6和7，与常规描述符相同）。一旦被设备使用，驱动程序可以释放间接内存或对其做任何事情，就像它可以对任何常规缓冲区做的那样。</p>
+<img src="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig9.png" class="">
+
+<p><strong>Diagram: Device mark the indirect descriptor as used</strong></p>
+<blockquote>
+<p>Descriptors with <code>INDIRECT</code> flag cannot have <code>NEXT</code> or <code>WRITE</code> flags set, so you cannot chain indirect descriptors in the descriptor table, and the indirect table can contain at maximum the same number of descriptors as the descriptor table.</p>
+</blockquote>
+<p>带有INDIRECT标志的描述符不能设置NEXT或WRITE标志，所以不能在描述符表中连锁间接描述符，间接表最多可以包含与描述符表相同数量的描述符。</p>
+<h3 id="Notifications-Learning-the-“do-not-disturb”-mode"><a href="#Notifications-Learning-the-“do-not-disturb”-mode" class="headerlink" title="Notifications. Learning the “do not disturb” mode"></a>Notifications. Learning the “do not disturb” mode</h3><blockquote>
+<p>In many systems used and available buffer notifications involve significant overhead. To mitigate it, each virtring maintains a flag to indicate when it wants to be notified. Remember that the driver’s one is read-only by the device, and the device’s one is read-only by the driver.</p>
+</blockquote>
+<p>在许多系统中，使用的和可用的缓冲区通知涉及大量的开销。为了减轻它，每个virtring都维护着一个标志，以表明它什么时候想被通知。记住，驱动的那个是设备只读的，而设备的那个是驱动只读的。</p>
+<blockquote>
+<p>We already know all of this, and its use is pretty straightforward. The only thing you need to take care of is the asynchronous nature of this method: The side of the communication that disables or enables it can’t be sure that the other end is going to know the change, so you can miss notifications or to have more than expected.</p>
+</blockquote>
+<p>我们已经知道了这些，它的使用是非常直接的。你唯一需要注意的是这个方法的异步性。通信中禁用或启用它的一方不能确定另一端是否会知道这个变化，所以你可能会错过通知或要比预期的多。</p>
+<blockquote>
+<p>A more effective way of notifications toggle is enabled if the <code>VIRTIO_F_EVENT_IDX</code> feature bit is negotiated by device and driver: Instead of disable them in a binary fashion, driver and device can specify how far the other can progress before a notification is required using an specific descriptor id. This id is advertised using a extra le16 member at the end of the structure, so they grow like this:</p>
+</blockquote>
+<p>如果设备和驱动协商<code>VIRTIO_F_EVENT_IDX</code>特性位，就可以启用一种更有效的通知切换方式。而不是以二进制的方式禁用它们，驱动和设备可以使用一个特定的描述符id来指定对方在需要通知之前可以进展到什么程度。这个id在结构的末尾使用一个额外的le16成员进行宣传，所以它们的增长方式是这样的。</p>
+<blockquote>
+<p>The struct layout is:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">struct virtq_avail &#123;              struct virtq_used &#123;</span><br><span class="line">  le16 flags;                       le16 flags;</span><br><span class="line">  le16 idx;                         le16 idx;</span><br><span class="line">  le16 ring[ &#x2F;* Queue Size *&#x2F; ];    struct virtq_used_elem ring[Q. size];</span><br><span class="line">  le16 used_event;                  le16 avail_event;</span><br><span class="line">&#125;;                                &#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing 3: Event suppression struct notification</strong></p>
+</blockquote>
+<blockquote>
+<p>This way, every time the driver wants to make available a buffer it needs to check the avail_event on the used ring: If driver’s idx field was equal to avail_event, it’s time to send a notification, ignoring the lower bit of used ring flags member (<code>VIRTQ_USED_F_NO_NOTIFY</code>).</p>
+</blockquote>
+<p>这样一来，每次驱动程序想要提供一个缓冲区时，它需要检查已用环上的avail_event。如果驱动的idx字段等于avail_event，那么就是发送通知的时候了，忽略已用环标志成员的低位（<code>VIRTQ_USED_F_NO_NOTIFY</code>）。</p>
+<blockquote>
+<p>Similarly, if <code>VIRTIO_F_EVENT_IDX</code> has been negotiated, the device will check used_event to know if it needs to send a notification or not. This can be very effective for maintaining a virtqueue of buffers for the device to write, like in the virtio-net device receive queue.</p>
+</blockquote>
+<p>同样，如果<code>VIRTIO_F_EVENT_IDX</code>已经协商好了，设备将检查used_event以知道它是否需要发送通知。这对于维护一个供设备写入的缓冲区的虚拟队列非常有效，就像在virtio-net设备接收队列中一样。</p>
+<blockquote>
+<p>In our next post, we’re going to wrap up and take a look at a number of optimizations on top of both ring layouts which depend on the communication/device type or how each part is implemented.</p>
+</blockquote>
+<p>在我们的下一篇文章中，我们将总结并看看在这两个环形布局之上的一些优化，这些优化取决于通信/设备类型或每个部分的实现方式。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" data-id="clefunqbh0000l2wb9oyqhw88" data-title="Virtqueues and virtio ring: How the data travels" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Virtio devices and drivers overview: The headjack and the phone</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.33px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 15px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/">Virtio devices and drivers overview: The headjack and the phone</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
+          </li>
+        
+          <li>
+            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+          </li>
+        
+          <li>
+            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

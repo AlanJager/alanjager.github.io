@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-02-03T02:10:34.900Z</updated>
+  <updated>2023-02-22T15:49:00.364Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,74 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Virtqueues and virtio ring: How the data travels</title>
+    <link href="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/"/>
+    <id>http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/</id>
+    <published>2023-02-22T15:48:33.000Z</published>
+    <updated>2023-02-22T15:49:00.364Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This post continues where the “&lt;a</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="translation" scheme="http://hanayo.cn/categories/virtualization/translation/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/categories/virtualization/translation/virtio/"/>
+    
+    
+    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
+    
+    <category term="architecture" scheme="http://hanayo.cn/tags/architecture/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Virtio devices and drivers overview: The headjack and the phone</title>
+    <link href="http://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/"/>
+    <id>http://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/</id>
+    <published>2023-02-22T14:12:09.000Z</published>
+    <updated>2023-02-22T15:43:55.133Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="translation" scheme="http://hanayo.cn/categories/virtualization/translation/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/categories/virtualization/translation/virtio/"/>
+    
+    
+    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
+    
+    <category term="architecture" scheme="http://hanayo.cn/tags/architecture/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+  </entry>
   
   <entry>
     <title>Windows install virtio then reboot met BSOD</title>
@@ -532,64 +600,6 @@
     
     
     <category term="java" scheme="http://hanayo.cn/tags/java/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Dive into edk2-ovmf fisrt debug trip</title>
-    <link href="http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/"/>
-    <id>http://hanayo.cn/2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/</id>
-    <published>2022-07-27T12:02:47.000Z</published>
-    <updated>2022-09-28T01:19:10.298Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;h2 id=&quot;Prepare-environment&quot;&gt;&lt;a href=&quot;#Prepare-environment&quot; class=&quot;headerlink&quot; title=&quot;Prepare environment&quot;&gt;&lt;/a&gt;Prepare</summary>
-        
-      
-    
-    
-    
-    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
-    
-    <category term="edk2-ovmf" scheme="http://hanayo.cn/categories/virtualization/edk2-ovmf/"/>
-    
-    
-    <category term="edk2-ovmf" scheme="http://hanayo.cn/tags/edk2-ovmf/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Go through KVM code due to a tdp_page_fault</title>
-    <link href="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/"/>
-    <id>http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/</id>
-    <published>2022-07-15T02:23:14.000Z</published>
-    <updated>2022-09-28T01:19:10.306Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;h2 id=&quot;What-happened&quot;&gt;&lt;a href=&quot;#What-happened&quot; class=&quot;headerlink&quot; title=&quot;What happened?&quot;&gt;&lt;/a&gt;What happened?&lt;/h2&gt;&lt;p&gt;Our CI/CD system ran</summary>
-        
-      
-    
-    
-    
-    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/categories/virtualization/kvm/"/>
-    
-    
-    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
-    
-    <category term="virt" scheme="http://hanayo.cn/tags/virt/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/tags/kvm/"/>
     
   </entry>
   

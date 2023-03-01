@@ -72,6 +72,219 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-windows-2003-vmware-v2v-hands-on" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/" class="article-date">
+  <time class="dt-published" datetime="2022-10-27T07:27:12.000Z" itemprop="datePublished">2022-10-27</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/v2v/">v2v</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/10/27/windows-2003-vmware-v2v-hands-on/">Windows 2003 vmware v2v hands-on</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet following blue screen issue:</p>
+<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/image-2022-10-09-21-15-41-292.png" class="">
+
+<p>with code 0x0000007B.</p>
+<p>So I write a hands-on blog to help fix this issue.</p>
+<p>When search for this error on vmware kb or MSDN, we can find out that, wrong driver is the main reason cause this problem.</p>
+<p>Usually, it’s recommanded to do following check for the v2v vm:</p>
+<ol>
+<li>Confirm the vm running well on original host, if its already error check configuration first.</li>
+<li>Check if virt-v2v failed to install virtio driver to guest during virt-v2v convert.</li>
+<li>Check kvm configuration, that root disk use ide to keep compitable.</li>
+<li>Check if windows disabled driver installatin by its group policy.</li>
+</ol>
+<p>Besides those issues, if you migrate a windows 2003 with cd-rom you will also met this blue screen issue. Due to windows will change device order after v2v and root disk not work as expected.</p>
+<p>So I write this practical blog to resolve device changed issue on windows 2003 v2v.</p>
+<ol>
+<li><p>Uninstall vmware guest tools and drivers (avoid failed to install driver issue)</p>
+</li>
+<li><p>Change the disk controller to ide and reboot guest</p>
+<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.33.png" class="">
+</li>
+<li><p>Attach MergeIde.iso to guest</p>
+<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.43.png" class="">
+<p>the iso contains a .reg and a .bat file. Run the .reg first and run the .bat. The device will be recorded and prepare for hypervisor change.</p>
+</li>
+<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.14.29.png" class="">
+<p>export ovf template or use virt-v2v to export the vm the kvm.</p>
+</li>
+<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.10.01.png" class="">
+<p>check the vm started without blue screen.</p>
+</li>
+</ol>
+<p>For windows, it seems that with cd-rom or disk order changed guest, after hypervisor migration, windows can not identify the original order of thoes devices due to hardware change. So record the device seems a easy solution for v2v case.</p>
+<p>Note: this solution is also useful for Windows XP v2v</p>
+<p>Download MergeIDE.iso from: <a target="_blank" rel="noopener" href="https://www.virtualbox.org/wiki/Migrate_Windows">https://www.virtualbox.org/wiki/Migrate_Windows</a></p>
+<p>Refer to Microsoft commands: <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting">https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/10/27/windows-2003-vmware-v2v-hands-on/" data-id="cld1mheb6001lyuwb9nbs97t5" data-title="Windows 2003 vmware v2v hands-on" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/27/windows-2003-vmware-v2v-hands-on/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-plugable-architecture-design-and-thoughts-about-implementation" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" class="article-date">
+  <time class="dt-published" datetime="2022-10-20T16:45:32.000Z" itemprop="datePublished">2022-10-21</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/">Plugable module architecture design and thoughts about its implementation</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>Software’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on customizing features for some commercial reasons which pushed us to think about how to get rid of customizing feature efforts and focus   on core function to earn more technical advantages.</p>
+<p>Generallly, customizing features is harmful when compared to normal features (but maybe it can get commercial benifits so do not take this as absolute     rule), because more customers use normal features.</p>
+<p>But because some integration requests already designed which not only require maintainance but also need development for new integration. For example, a feature for security is desing to use third-part machine to do encryption，but when customer use the feature, they all use different machine which caused lots of development cost for us to do the integrations.</p>
+<p>In these cases, a plugable architecture is required to cut down the cost and this is the reason to write this blog to record related design and make it a repeatable practice.</p>
+<h2 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements"></a>Requirements</h2><p>For existing systems which need to support multi types of resources, typically use a register way to connect the management layer and application layers. And the application layers use a couple of standard interfaces to keep consistency and seperate implementation from mechanism.</p>
+<p>So for the aim of delveloping a plugable module architecture if we still follows the pattern, easily we will be distrubed by the change of core codes from the mechanism. For example, if the core changes the mechanism as a result, application should change all of the interfaces as expected, so development is required which is not satisfied with out target.</p>
+<p>Just after that small think, list all requirements before starting design. Following points are the aim of this architecture:</p>
+<ul>
+<li>Low development efforts or configuration as a service.</li>
+<li>No core code dependency. Any changes to mechanism should be avoid.</li>
+<li>Security. Plugin module should not cause any security issue.</li>
+</ul>
+<p>Base on those points, the architecture should be changed to expose its mechanism by interfaces.</p>
+<p>For example</p>
+<ol>
+<li>read plugin configuration and verify it</li>
+<li>generate code proxy according to the configuration</li>
+<li>limited db access controled by the code proxy</li>
+<li>Invokations can be verified by unit test to check the plugin can work as expected</li>
+<li>change the configuration the refresh it could update the code proxy</li>
+<li>plugin configurations use a specified syntax</li>
+<li>if code proxy support runtime refresh can be configured</li>
+</ol>
+<p>From writing configurations, functional features can be easily supported.</p>
+<p>If any requests need data structure support, a configuration map shoud be support for more customize and in this way we can easily create a http client to support some modules.</p>
+<p>But if customize feature use any third-part libs, only configuration is not enough to support.</p>
+<p>For code level, maybe open source interfaces is still needed.</p>
+<p>We should offer read only data structure and functional interfaces but should not involve core codes of Java which in most cases, are aspectj support, spring containers and so on. Only pure java should be used for all plugin modules.</p>
+<p>In next section, we will raise examples of two module, one is not suitable for plugable module and other one is suitable for plugable.</p>
+<h2 id="Login-module"><a href="#Login-module" class="headerlink" title="Login module"></a>Login module</h2><p>Multiple login methods should be supported because many standard third-part authentication is already exists for example, CAS, oauth2, ldap and so on.</p>
+<p>If you already have a customized system for authentication, I seems diffcult to integrate another system with existing one. Because the authentication actually need to transfer sensitive information to do authenticate but which is not safe enough to expose those data for plugin exactly.</p>
+<p>From the usage of CAS, oauth2 we can see a generally authentication service just redirect authentication to itself and returns a authentication result and finally redirect to the right page. So sensitive information do not transferred but use a token to verify client’s response instead. </p>
+<p>For ldap, just access its database directly to verify if the user is exists and finish authentication. Because ldap just integrated with ZStack so also no data transferred but ldap module itself need to care about the security issue which already resolve by third-part libs.</p>
+<p>So when we tries to support plugin for login, password or any key liked information need to be exposed which is quite unsafe and have potential security risks. Compared to ldap verification, password is used directly and also faces the same problem.</p>
+<p>For login module integration, two ways are recommended. One is using open-source authentication like CAS or oauth2. Another is integrating ZStack API to use account/user directly.</p>
+<p>Following figure shows the flows of login module</p>
+<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure1.png" class="">
+
+<ul>
+<li>Support plugable system, main auth or additinal auth should be exposed</li>
+<li>Sensitive information go through the whole flow</li>
+<li>CAS and oauth2 use their own authentication which is not related the current architecture</li>
+</ul>
+<h2 id="Alarm-Event-system"><a href="#Alarm-Event-system" class="headerlink" title="Alarm/Event system"></a>Alarm/Event system</h2><p>For alarm event system, only expose monitor messages which seems more suitable to be developed as a plugable system.</p>
+<p>When have lots of endpoint support, some use stantard libs like dingtalk and microsoft teams, offers api for message sending. But when sms system require integration, this became diffcult due to the lack of stantard apis.</p>
+<p>So a plugable system can be powerful to reduce development efforts.</p>
+<p>For example, sms systems all have their own apis the usages, so the interation of api is the first step. But actually the business scenarios are not only limited on send message. Maybe message distribution strategy is required, and message format is required.</p>
+<p>So seperate those parts as followings:</p>
+<ul>
+<li>Send sms message</li>
+<li>Distribution strategy</li>
+<li>Message format</li>
+<li>….</li>
+</ul>
+<p>When design plugable system, the most important thing is that we should seperate mechanism requirements and strategy requirements. </p>
+<p>For message format, actually, all kinds of message required this feature and can be noted as general feature and mechanism and we can also call it customize message format. The format change do not influence how the message send or comsumed.</p>
+<p>Distribution strategy, from the name, we can known that no specific rules or format could be announced because the strategy always changes from one the another.</p>
+<p>Send sms message. also the integration part but the message with a format is what we can offered and only how to send the message should be defined and which is I think can be seperated from the system.</p>
+<p>And more informations maybe, endpoint type, status and those ZStack defined fields also need to be involved in the plugable system so we get a architecture like following:</p>
+<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure2.png" class="">
+
+<p>A plugable endpoint in designed to manage endpoint plugins and plugin should obey following rules: </p>
+<ul>
+<li>Offer endpoint type</li>
+<li>Implement interface to send message</li>
+<li>Unit test for endpoint plugin</li>
+</ul>
+<p>And the design of plugable endpoint may like following:</p>
+<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure3.png" class="">
+
+<p>So plugable endpoint should define a interface require type and send() method’s implementation for the usage. Take the interface to a seperate open source package and publish to maven repository, its easy for develop and easy to use. By reflections, endpoint could be initialized from jar so just add jar to your dependency directory is ok.</p>
+<p>To develop a plugin for new sns endpoint no need to known the logic or usage of orignal application system but developer could focus on the send method itself.</p>
+<p>On the other hand, application level should extend orignal CURD api to suitable for those plugin definition and keep compitable with other endpoints.</p>
+<h2 id="TODO"><a href="#TODO" class="headerlink" title="TODO"></a>TODO</h2><ul>
+<li>Database access is not limited which should add limited on database service itself.</li>
+<li>Rules for all kind of plugins so that plugins can be managed together and distribution can keep consistency</li>
+<li>More examples</li>
+<li>For exsiting modules, try to refactor the plugin types to get rid of module dependency</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" data-id="cld1mheas0011yuwbeb60edrj" data-title="Plugable module architecture design and thoughts about its implementation" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-jvm-metaspace-memory-leak-analysis" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/10/11/jvm-metaspace-memory-leak-analysis/" class="article-date">
@@ -993,321 +1206,6 @@
 
 
   
-    <article id="post-guest-free-page-hinting-notes-01" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/09/04/guest-free-page-hinting-notes-01/" class="article-date">
-  <time class="dt-published" datetime="2022-09-04T13:41:09.000Z" itemprop="datePublished">2022-09-04</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/09/04/guest-free-page-hinting-notes-01/">Guest Free Page Hinting notes 01</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>基于virtio1.2的推送，在virtio-balloon设备下有一条新特性：free page hints</p>
-<p>因为不太了解这个东西具体做了啥，查了一番资料</p>
-<h2 id="KVM-Guest-Free-Page-Hinting"><a href="#KVM-Guest-Free-Page-Hinting" class="headerlink" title="KVM: Guest Free Page Hinting"></a>KVM: Guest Free Page Hinting</h2><p>在2019年2月有这样一封邮件记录 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/778432/">https://lwn.net/Articles/778432/</a></p>
-<blockquote>
-<p>The following patch-set proposes an efficient mechanism for handing freed memory between the guest and the host. It enables the guests with no page cache to rapidly free and reclaims memory to and from the host respectively.</p>
-</blockquote>
-<p>看起来主要目的是为了优化guest和host之间的空闲内存管理，避免出现需要快速释放或者回收page cache内存</p>
-<p>同时里面提到了</p>
-<p> Known code re-work:</p>
-<ul>
-<li>Plan to re-use Wei’s work, which communicates the poison value to the host.</li>
-<li>The nomenclatures used in virtio-balloon needs to be changed so that the code can easily be distinguished from Wei’s Free Page Hint code.</li>
-<li>Sorting based on zonenum, to avoid repetitive zone locks for the same zone.</li>
-</ul>
-<p>需要对virtio-balloon做一些修改来来保证代码能够和这部分Free Page Hint的代码保持区别。</p>
-<p>这么说感觉好像是Hint的代码和virtio-balloon是两套</p>
-<h2 id="Virtio-balloon-support-free-page-reporting"><a href="#Virtio-balloon-support-free-page-reporting" class="headerlink" title="Virtio-balloon: support free page reporting"></a>Virtio-balloon: support free page reporting</h2><p>基于上面查到的资料，又发现了另外一篇直接提到Virtio-balloon的改动 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/759413/">https://lwn.net/Articles/759413/</a></p>
-<p>里面新增的 VIRTIO_BALLOON_F_FREE_PAGE_HINT 是可以和 <a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.pdf">https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.pdf</a> virtio1.2的spec对应上的</p>
-<p>摘抄一下里面的描述</p>
-<blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Live migration needs to transfer the VM&#39;s memory from the source machine</span><br><span class="line">to the destination round by round. For the 1st round, all the VM&#39;s memory</span><br><span class="line">is transferred. From the 2nd round, only the pieces of memory that were</span><br><span class="line">written by the guest (after the 1st round) are transferred. One method</span><br><span class="line">that is popularly used by the hypervisor to track which part of memory is</span><br><span class="line">written is to write-protect all the guest memory.</span><br><span class="line"></span><br><span class="line">This feature enables the optimization by skipping the transfer of guest</span><br><span class="line">free pages during VM live migration. It is not concerned that the memory</span><br><span class="line">pages are used after they are given to the hypervisor as a hint of the</span><br><span class="line">free pages, because they will be tracked by the hypervisor and transferred</span><br><span class="line">in the subsequent round if they are used and written.</span><br></pre></td></tr></table></figure>
-</blockquote>
-<p>针对热迁移场景，会不停的copy memory。第一轮会复制所有内存，后续只需要复制guest写过的内存。</p>
-<p>因此hypervisor需要记录guest写过哪些内存，然后全都复制一遍。</p>
-<p>而这个功能是用来优化guest free page transfer的。即忽略这些已经被标记为free page的内容，如果后续这些page被使用了或者被写了，下一轮内存拷贝才考虑这些page。</p>
-<p>通过这段描述，可以知道这个优化需要提供一个机制，来提供free page hint，并以此为基础来优化live migration。</p>
-<h2 id="小插曲"><a href="#小插曲" class="headerlink" title="小插曲"></a>小插曲</h2><p>在准备看代码之前，发现了一段很有意思的内容</p>
-<blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">- mm&#x2F;get_from_free_page_list: The new implementation to get free page</span><br><span class="line">  hints based on the suggestions from Linus:</span><br><span class="line">  https:&#x2F;&#x2F;lkml.org&#x2F;lkml&#x2F;2018&#x2F;6&#x2F;11&#x2F;764</span><br><span class="line">  This avoids the complex call chain, and looks more prudent.</span><br></pre></td></tr></table></figure>
-</blockquote>
-<p>对获取 <code>get_from_free_page_list</code> 操作，linus回了很长的一段建议</p>
-<p>里面很有意思的是，是不是要加一个新的 GFP_NONE，来标记分配失败？</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Maybe it will help to have GFP_NONE which will make any allocation</span><br><span class="line">fail if attempted. Linus, would this address your comment?</span><br></pre></td></tr></table></figure>
-
-<p>而linus的回复是，如果不用这么复杂的会引起内存分配的调用，用一个简单的机制来避免这个问题发生感觉更好</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">So instead of having virtio_balloon_send_free_pages() call a really</span><br><span class="line">generic complex chain of functions that in _some_ cases can do memory</span><br><span class="line">allocation, why isn&#39;t there a short-circuited &quot;vitruque_add_datum()&quot;</span><br><span class="line">that is guaranteed to never do anything like that?</span><br></pre></td></tr></table></figure>
-
-<p>中间还有很长的一些简化代码的建议，里面有这么一句话，评价这部分代码太复杂并且太脆弱了</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">The whole sequence of events really looks &quot;this is too much</span><br><span class="line">complexity, and way too fragile&quot; to me at so many levels.</span><br></pre></td></tr></table></figure>
-
-<p>让我联想到目前ZStack里面一些功能的实现逻辑存在情况</p>
-<ol>
-<li>实现了机制B解决机制A的问题</li>
-<li>复用了，不熟悉的机制A，忽略了A本身存在的问题</li>
-</ol>
-<p>结合一个实际功能说一下这个问题，比如vm的kernel panic检测，有两个必要选项</p>
-<ol>
-<li>给vm增加一个pvpanic的xml配置</li>
-<li>虚拟机内部需要启用内核pvpanic模块</li>
-</ol>
-<p>因此这个功能实现需要guest和host相互配合才能判定是否可用</p>
-<p>基于这个前提，guest内部的逻辑需要提供传递guest内部是否支持pvpanic的信息，host上需要从配置中获取是否配置过pvpanic，因此实现这个逻辑的时候需要分别查询这两个信息。而查询host上的配置最终导致了一些控制面的bug。</p>
-<p>后来反思这个问题的时候，只从host配置获取的逻辑出发，但是忽略了运行时配置不会变更的前提，其实并没有必要增加一个多余的查询逻辑，反而导致这个问题依赖了已有的配置查询机制，最终引起了更复杂的现象。</p>
-<p>kernel的开源世界也会有人碰到这样的问题，所以整理好功能设计的方法论还是很重要的，至少能够指导怎么做能设计的更好，提升committer和coder的水平。</p>
-<p>反过来想想：</p>
-<ol>
-<li>guest tool在运行时返回的云主机所支持的特性，实际上总是和他的版本绑定的，只要获取过一次其实就不需要反复获取了。</li>
-<li>如果guest tool版本发生了变化，才需要重新获取这个信息</li>
-<li>提供主动更新guest tool特性的功能即可</li>
-</ol>
-<p>其实这样拆解这个问题，云主机其实本身就应该保存这些特性信息而不需要总是去获取，这样机制的设计可以简化很多。</p>
-<p>而之前的设计出发点并不是基于对整个功能的理解，而是类似新增 <code>GFP_NONE</code> 来解决问题的思路。</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/09/04/guest-free-page-hinting-notes-01/" data-id="cld1mhea8000cyuwbca2qgz2p" data-title="Guest Free Page Hinting notes 01" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/09/04/guest-free-page-hinting-notes-01/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/04/guest-free-page-hinting-notes-01/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-java-class-getname-and-getsimplename-get-me-confuse" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" class="article-date">
-  <time class="dt-published" datetime="2022-09-04T13:37:27.000Z" itemprop="datePublished">2022-09-04</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/languages/">languages</a>►<a class="article-category-link" href="/categories/languages/java/">java</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/">Java Class getName() vs getSimpleName()</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>Work with Java reflection and invoke getSimpleName() met <code>java.lang.NoClassDefFoundError</code></p>
-<p>Use getName() instead, the logic seems work well.</p>
-<p>Before compare these two methods’ difference go through the code quickly.</p>
-<h2 id="Class-getName"><a href="#Class-getName" class="headerlink" title="Class::getName()"></a>Class::getName()</h2><p>for getName()</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public String getName() &#123;</span><br><span class="line">    String name &#x3D; this.name;</span><br><span class="line">    if (name &#x3D;&#x3D; null)</span><br><span class="line">        this.name &#x3D; name &#x3D; getName0();</span><br><span class="line">    return name;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>and the getName0() is native method</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private native String getName0();</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="Class-getSimpleName"><a href="#Class-getSimpleName" class="headerlink" title="Class::getSimpleName()"></a>Class::getSimpleName()</h2><p>for getSimpleName()</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">public String getSimpleName() &#123;</span><br><span class="line">    if (isArray())</span><br><span class="line">        return getComponentType().getSimpleName()+&quot;[]&quot;;</span><br><span class="line"></span><br><span class="line">    String simpleName &#x3D; getSimpleBinaryName();</span><br><span class="line">    if (simpleName &#x3D;&#x3D; null) &#123; &#x2F;&#x2F; top level class</span><br><span class="line">        simpleName &#x3D; getName();</span><br><span class="line">        return simpleName.substring(simpleName.lastIndexOf(&quot;.&quot;)+1); &#x2F;&#x2F; strip the package name</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F; According to JLS3 &quot;Binary Compatibility&quot; (13.1) the binary</span><br><span class="line">    &#x2F;&#x2F; name of non-package classes (not top level) is the binary</span><br><span class="line">    &#x2F;&#x2F; name of the immediately enclosing class followed by a &#39;$&#39; followed by:</span><br><span class="line">    &#x2F;&#x2F; (for nested and inner classes): the simple name.</span><br><span class="line">    &#x2F;&#x2F; (for local classes): 1 or more digits followed by the simple name.</span><br><span class="line">    &#x2F;&#x2F; (for anonymous classes): 1 or more digits.</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; Since getSimpleBinaryName() will strip the binary name of</span><br><span class="line">    &#x2F;&#x2F; the immediatly enclosing class, we are now looking at a</span><br><span class="line">    &#x2F;&#x2F; string that matches the regular expression &quot;\$[0-9]*&quot;</span><br><span class="line">    &#x2F;&#x2F; followed by a simple name (considering the simple of an</span><br><span class="line">    &#x2F;&#x2F; anonymous class to be the empty string).</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; Remove leading &quot;\$[0-9]*&quot; from the name</span><br><span class="line">    int length &#x3D; simpleName.length();</span><br><span class="line">    if (length &lt; 1 || simpleName.charAt(0) !&#x3D; &#39;$&#39;)</span><br><span class="line">        throw new InternalError(&quot;Malformed class name&quot;);</span><br><span class="line">    int index &#x3D; 1;</span><br><span class="line">    while (index &lt; length &amp;&amp; isAsciiDigit(simpleName.charAt(index)))</span><br><span class="line">        index++;</span><br><span class="line">    &#x2F;&#x2F; Eventually, this is the empty string iff this is an anonymous class</span><br><span class="line">    return simpleName.substring(index);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>The main part is </p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">String simpleName &#x3D; getSimpleBinaryName();</span><br></pre></td></tr></table></figure>
-
-<p>And then get enclosingClass:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private String getSimpleBinaryName() &#123;</span><br><span class="line">    Class&lt;?&gt; enclosingClass &#x3D; getEnclosingClass();</span><br><span class="line">    if (enclosingClass &#x3D;&#x3D; null) &#x2F;&#x2F; top level class</span><br><span class="line">        return null;</span><br><span class="line">    &#x2F;&#x2F; Otherwise, strip the enclosing class&#39; name</span><br><span class="line">    try &#123;</span><br><span class="line">        return getName().substring(enclosingClass.getName().length());</span><br><span class="line">    &#125; catch (IndexOutOfBoundsException ex) &#123;</span><br><span class="line">        throw new InternalError(&quot;Malformed class name&quot;, ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>what is enclosingClass:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; There are five kinds of classes (or interfaces):</span><br><span class="line">&#x2F;&#x2F; a) Top level classes</span><br><span class="line">&#x2F;&#x2F; b) Nested classes (static member classes)</span><br><span class="line">&#x2F;&#x2F; c) Inner classes (non-static member classes)</span><br><span class="line">&#x2F;&#x2F; d) Local classes (named classes declared within a method)</span><br><span class="line">&#x2F;&#x2F; e) Anonymous classes</span><br></pre></td></tr></table></figure>
-
-<p>in my case it tend to be a) Top level classes, so next part of code goes to getDeclaringClass()</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; JVM Spec 4.8.6: A class must have an EnclosingMethod</span><br><span class="line">&#x2F;&#x2F; attribute if and only if it is a local class or an</span><br><span class="line">&#x2F;&#x2F; anonymous class.</span><br><span class="line">EnclosingMethodInfo enclosingInfo &#x3D; getEnclosingMethodInfo();</span><br><span class="line">Class&lt;?&gt; enclosingCandidate;</span><br><span class="line"></span><br><span class="line">if (enclosingInfo &#x3D;&#x3D; null) &#123;</span><br><span class="line">    &#x2F;&#x2F; This is a top level or a nested class or an inner class (a, b, or c)</span><br><span class="line">    enclosingCandidate &#x3D; getDeclaringClass();</span><br><span class="line">&#125; else &#123;</span><br><span class="line">    Class&lt;?&gt; enclosingClass &#x3D; enclosingInfo.getEnclosingClass();</span><br><span class="line">    &#x2F;&#x2F; This is a local class or an anonymous class (d or e)</span><br><span class="line">    if (enclosingClass &#x3D;&#x3D; this || enclosingClass &#x3D;&#x3D; null)</span><br><span class="line">        throw new InternalError(&quot;Malformed enclosing method information&quot;);</span><br><span class="line">    else</span><br><span class="line">        enclosingCandidate &#x3D; enclosingClass;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>and then getDeclaringClass0() will be used.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">@CallerSensitive</span><br><span class="line">public Class&lt;?&gt; getDeclaringClass() throws SecurityException &#123;</span><br><span class="line">    final Class&lt;?&gt; candidate &#x3D; getDeclaringClass0();</span><br><span class="line"></span><br><span class="line">    if (candidate !&#x3D; null)</span><br><span class="line">        candidate.checkPackageAccess(</span><br><span class="line">                ClassLoader.getClassLoader(Reflection.getCallerClass()), true);</span><br><span class="line">    return candidate;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>which is a native method:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private native Class&lt;?&gt; getDeclaringClass0();</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="Comparision"><a href="#Comparision" class="headerlink" title="Comparision"></a>Comparision</h2><p>From the code before this section, aboveously the getSimpleName() always call native method but getName() may use Class’s local variable directly. </p>
-<p>So see the local variable before we come to conclusion.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; cache the name to reduce the number of calls into the VM</span><br><span class="line">private transient String name;</span><br></pre></td></tr></table></figure>
-
-<p>the name used by getName() use a transient String as cache to reduce the number of calls into VM.</p>
-<p>And combine to getName()’s implement, the first time getName0() invoked, this name is set.</p>
-<p>And go for Java doc:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public String getSimpleName()</span><br></pre></td></tr></table></figure>
-
-<p>Returns the simple name of the underlying class as given in the source code. Returns an empty string if the underlying class is anonymous.</p>
-<p>The simple name of an array is the simple name of the component type with “[]” appended. In particular the simple name of an array whose component type is anonymous is “[]”.</p>
-<ul>
-<li><p><strong>Returns:</strong></p>
-<p>the simple name of the underlying class</p>
-</li>
-<li><p><strong>Since:</strong></p>
-<p>1.5</p>
-</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public String getName()</span><br></pre></td></tr></table></figure>
-
-<p>Returns the name of the entity (class, interface, array class, primitive type, or void) represented by this <code>Class</code> object, as a <code>String</code>.</p>
-<p>If this class object represents a reference type that is not an array type then the binary name of the class is returned, as specified by The Java™ Language Specification.</p>
-<p>If this class object represents a primitive type or void, then the name returned is a <code>String</code> equal to the Java language keyword corresponding to the primitive type or void.</p>
-<p>If this class object represents a class of arrays, then the internal form of the name consists of the name of the element type preceded by one or more ‘<code>[</code>‘ characters representing the depth of the array nesting. The encoding of element type names is as follows:</p>
-<blockquote>
-<table>
-<thead>
-<tr>
-<th>Element Type</th>
-<th></th>
-<th>Encoding</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>boolean</td>
-<td></td>
-<td>Z</td>
-</tr>
-<tr>
-<td>byte</td>
-<td></td>
-<td>B</td>
-</tr>
-<tr>
-<td>char</td>
-<td></td>
-<td>C</td>
-</tr>
-<tr>
-<td>class or interface</td>
-<td></td>
-<td>L<em>classname</em>;</td>
-</tr>
-<tr>
-<td>double</td>
-<td></td>
-<td>D</td>
-</tr>
-<tr>
-<td>float</td>
-<td></td>
-<td>F</td>
-</tr>
-<tr>
-<td>int</td>
-<td></td>
-<td>I</td>
-</tr>
-<tr>
-<td>long</td>
-<td></td>
-<td>J</td>
-</tr>
-<tr>
-<td>short</td>
-<td></td>
-<td>S</td>
-</tr>
-</tbody></table>
-</blockquote>
-<p>The class or interface name <em>classname</em> is the binary name of the class specified above.</p>
-<p>Examples:</p>
-<blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">String.class.getName()</span><br><span class="line">  returns &quot;java.lang.String&quot;</span><br><span class="line">byte.class.getName()</span><br><span class="line">  returns &quot;byte&quot;</span><br><span class="line">(new Object[3]).getClass().getName()</span><br><span class="line">  returns &quot;[Ljava.lang.Object;&quot;</span><br><span class="line">(new int[3][4][5][6][7][8][9]).getClass().getName()</span><br><span class="line">  returns &quot;[[[[[[[I&quot;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-</blockquote>
-<ul>
-<li><p><strong>Returns:</strong></p>
-<p>the name of the class or interface represented by this object.</p>
-</li>
-</ul>
-<p>and more details for the error:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">public class NoClassDefFoundError</span><br><span class="line">extends LinkageError</span><br></pre></td></tr></table></figure>
-
-<p>Thrown if the Java Virtual Machine or a <code>ClassLoader</code> instance tries to load in the definition of a class (as part of a normal method call or as part of creating a new instance using the <code>new</code> expression) and no definition of the class could be found.</p>
-<p>The searched-for class definition existed when the currently executing class was compiled, but the definition can no longer be found.</p>
-<p>So that means class found at compile time but not available at runtime <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/17973970/how-to-solve-java-lang-noclassdeffounderror">Refer this link</a></p>
-<p>Check for our configuration: </p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;xxx&lt;&#x2F;groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;xxx&lt;&#x2F;artifactId&gt;</span><br><span class="line">    &lt;version&gt;1.1.1&lt;&#x2F;version&gt;</span><br><span class="line">    &lt;scope&gt;system&lt;&#x2F;scope&gt;</span><br><span class="line">    &lt;systemPath&gt;$&#123;project.basedir&#125;&#x2F;ext-libs&#x2F;xxx&lt;&#x2F;systemPath&gt;</span><br><span class="line">&lt;&#x2F;dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<p>use a system scope.</p>
-<p>According to maven doc:</p>
-<p>There are 6 scopes:</p>
-<ul>
-<li><strong>compile</strong><br>This is the default scope, used if none is specified. Compile dependencies are available in all classpaths of a project. Furthermore, those dependencies are propagated to dependent projects.</li>
-<li><strong>provided</strong><br>This is much like <code>compile</code>, but indicates you expect the JDK or a container to provide the dependency at runtime. For example, when building a web application for the Java Enterprise Edition, you would set the dependency on the Servlet API and related Java EE APIs to scope <code>provided</code> because the web container provides those classes. A dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath. It is not transitive.</li>
-<li><strong>runtime</strong><br>This scope indicates that the dependency is not required for compilation, but is for execution. Maven includes a dependency with this scope in the runtime and test classpaths, but not the compile classpath.</li>
-<li><strong>test</strong><br>This scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases. This scope is not transitive. Typically this scope is used for test libraries such as JUnit and Mockito. It is also used for non-test libraries such as Apache Commons IO if those libraries are used in unit tests (src/test/java) but not in the model code (src/main/java).</li>
-<li><strong>system</strong><br>This scope is similar to <code>provided</code> except that you have to provide the JAR which contains it explicitly. The artifact is always available and is not looked up in a repository.</li>
-<li><strong>import</strong><br>This scope is only supported on a dependency of type <code>pom</code> in the <code>&lt;dependencyManagement&gt;</code> section. It indicates the dependency is to be replaced with the effective list of dependencies in the specified POM’s <code>&lt;dependencyManagement&gt;</code> section. Since they are replaced, dependencies with a scope of <code>import</code> do not actually participate in limiting the transitivity of a dependency.</li>
-</ul>
-<p>system most like provided but <code>a dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath</code></p>
-<p>so runtime getSimpleName() will met exception.</p>
-<h2 id="Class-loader"><a href="#Class-loader" class="headerlink" title="Class loader"></a>Class loader</h2><p>get back to the error call trace again:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.NoClassDefFoundError: xxxxx</span><br><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br></pre></td></tr></table></figure>
-
-<p>and another class not found exception:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.ClassNotFoundException: xxxxx</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:381) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br></pre></td></tr></table></figure>
-
-<p>when try to get simple name of class A extends B</p>
-<p>find A and try to define A but need to define B first, but B is not available at runtime so a exception raised.</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" data-id="cld1mheac000jyuwb7lxm4rbw" data-title="Java Class getName() vs getSimpleName()" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/" rel="tag">java</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -1323,7 +1221,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Categories</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
     </div>
   </div>
 
@@ -1333,7 +1231,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -1343,7 +1241,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.33px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 15px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/cpu/" style="font-size: 10px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 12.86px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 11.43px;">libvirt</a> <a href="/tags/linux/" style="font-size: 15.71px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -1352,7 +1250,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -1365,6 +1263,14 @@
       <ul>
         
           <li>
+            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/">Packed virtqueue: How to reduce overhead with virtio</a>
+          </li>
+        
+          <li>
             <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
           </li>
         
@@ -1374,14 +1280,6 @@
         
           <li>
             <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
-          </li>
-        
-          <li>
-            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
-          </li>
-        
-          <li>
-            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
           </li>
         
       </ul>

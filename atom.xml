@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-02-22T15:49:00.364Z</updated>
+  <updated>2023-03-01T12:54:51.228Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,72 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Cpu feature configuration code diving</title>
+    <link href="http://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/"/>
+    <id>http://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/</id>
+    <published>2023-03-01T12:48:22.000Z</published>
+    <updated>2023-03-01T12:54:51.228Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;If disable a feature in libvirt domain xml configuration, what will happen?&lt;/p&gt;
+&lt;h2 id=&quot;General-code-about-libvirt-cpu-conf&quot;&gt;&lt;a</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="libvirt" scheme="http://hanayo.cn/categories/virtualization/libvirt/"/>
+    
+    
+    <category term="kernel" scheme="http://hanayo.cn/tags/kernel/"/>
+    
+    <category term="libvirt" scheme="http://hanayo.cn/tags/libvirt/"/>
+    
+    <category term="cpu" scheme="http://hanayo.cn/tags/cpu/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Packed virtqueue: How to reduce overhead with virtio</title>
+    <link href="http://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/"/>
+    <id>http://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/</id>
+    <published>2023-02-23T15:13:20.000Z</published>
+    <updated>2023-02-23T15:15:29.577Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This is the final post of a three-post series, the previous posts are “&lt;a</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="translation" scheme="http://hanayo.cn/categories/virtualization/translation/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/categories/virtualization/translation/virtio/"/>
+    
+    
+    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
+    
+    <category term="architecture" scheme="http://hanayo.cn/tags/architecture/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+  </entry>
   
   <entry>
     <title>Virtqueues and virtio ring: How the data travels</title>
@@ -537,69 +603,6 @@
     <category term="software-arch" scheme="http://hanayo.cn/tags/software-arch/"/>
     
     <category term="system-design" scheme="http://hanayo.cn/tags/system-design/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Guest Free Page Hinting notes 01</title>
-    <link href="http://hanayo.cn/2022/09/04/guest-free-page-hinting-notes-01/"/>
-    <id>http://hanayo.cn/2022/09/04/guest-free-page-hinting-notes-01/</id>
-    <published>2022-09-04T13:41:09.000Z</published>
-    <updated>2022-09-28T01:19:10.349Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;基于virtio1.2的推送，在virtio-balloon设备下有一条新特性：free page hints&lt;/p&gt;
-&lt;p&gt;因为不太了解这个东西具体做了啥，查了一番资料&lt;/p&gt;
-&lt;h2 id=&quot;KVM-Guest-Free-Page-Hinting&quot;&gt;&lt;a</summary>
-        
-      
-    
-    
-    
-    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
-    
-    <category term="virtio-balloon" scheme="http://hanayo.cn/categories/virtualization/virtio-balloon/"/>
-    
-    
-    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
-    
-    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
-    
-    <category term="virtio-balloon" scheme="http://hanayo.cn/tags/virtio-balloon/"/>
-    
-    <category term="others" scheme="http://hanayo.cn/tags/others/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Java Class getName() vs getSimpleName()</title>
-    <link href="http://hanayo.cn/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/"/>
-    <id>http://hanayo.cn/2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/</id>
-    <published>2022-09-04T13:37:27.000Z</published>
-    <updated>2022-09-28T01:19:10.357Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;Work with Java reflection and invoke getSimpleName() met &lt;code&gt;java.lang.NoClassDefFoundError&lt;/code&gt;&lt;/p&gt;
-&lt;p&gt;Use getName() instead, the</summary>
-        
-      
-    
-    
-    
-    <category term="languages" scheme="http://hanayo.cn/categories/languages/"/>
-    
-    <category term="java" scheme="http://hanayo.cn/categories/languages/java/"/>
-    
-    
-    <category term="java" scheme="http://hanayo.cn/tags/java/"/>
     
   </entry>
   

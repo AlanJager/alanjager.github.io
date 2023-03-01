@@ -72,6 +72,856 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-cpu-feature-configuration-code-diving" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/03/01/cpu-feature-configuration-code-diving/" class="article-date">
+  <time class="dt-published" datetime="2023-03-01T12:48:22.000Z" itemprop="datePublished">2023-03-01</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/libvirt/">libvirt</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>If disable a feature in libvirt domain xml configuration, what will happen?</p>
+<h2 id="General-code-about-libvirt-cpu-conf"><a href="#General-code-about-libvirt-cpu-conf" class="headerlink" title="General code about libvirt cpu conf"></a>General code about libvirt cpu conf</h2><p>Read cpu_conf.c main entrance is <code>virCPUDefFormatBuf</code></p>
+<p>Libvirt have two types format:</p>
+<ul>
+<li><code>CUSTOM</code>: user define model and features of a cpu conf</li>
+<li><code>HOST_MODEL</code>: matches a most suitable feature list with host</li>
+</ul>
+<p>And while handle conf definition:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">formatModel = (def-&gt;mode == VIR_CPU_MODE_CUSTOM ||</span><br><span class="line">               def-&gt;mode == VIR_CPU_MODE_HOST_MODEL);</span><br><span class="line">formatFallback = (def-&gt;type == VIR_CPU_TYPE_GUEST &amp;&amp;</span><br><span class="line">                  (def-&gt;mode == VIR_CPU_MODE_HOST_MODEL ||</span><br><span class="line">                   (def-&gt;mode == VIR_CPU_MODE_CUSTOM &amp;&amp; def-&gt;model)));</span><br></pre></td></tr></table></figure>
+
+<p>see the enum:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    VIR_CPU_TYPE_HOST,</span><br><span class="line">    VIR_CPU_TYPE_GUEST,</span><br><span class="line">    VIR_CPU_TYPE_AUTO,</span><br><span class="line"></span><br><span class="line">    VIR_CPU_TYPE_LAST</span><br><span class="line">&#125; virCPUType;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>VIR_CPU_TYPE_AUTO</code> : detect the input xml to tell is guest or host cpu model definition</li>
+<li><code>VIR_CPU_TYPE_GUEST</code> : guest cpu model means the cpu conf define from domain xml</li>
+<li><code>VIR_CPU_TYPE_HOST</code> : host cpu model means the cpu conf load from host capabilities xml</li>
+</ul>
+<p>So the could focus on <code>formatFallback</code>. </p>
+<p>Verification is required, if you use a custom mode without a cpu model is not allowed, because custom means you need specify a collections of cpu features and custom features of the subset.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!def-&gt;model &amp;&amp; def-&gt;mode == VIR_CPU_MODE_CUSTOM &amp;&amp; def-&gt;nfeatures) &#123;</span><br><span class="line">    virReportError(VIR_ERR_INTERNAL_ERROR, <span class="string">&quot;%s&quot;</span>,</span><br><span class="line">                   _(<span class="string">&quot;Non-empty feature list specified without CPU model&quot;</span>));</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>while define model, need to get a fallback value for guest cpu</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ((formatModel &amp;&amp; def-&gt;model) || formatFallback) &#123;</span><br><span class="line">    virBufferAddLit(buf, <span class="string">&quot;&lt;model&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (formatFallback) &#123;</span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">char</span> *fallback;</span><br><span class="line"></span><br><span class="line">        fallback = virCPUFallbackTypeToString(def-&gt;fallback);</span><br><span class="line">        <span class="keyword">if</span> (!fallback) &#123;</span><br><span class="line">            virReportError(VIR_ERR_INTERNAL_ERROR,</span><br><span class="line">                           _(<span class="string">&quot;Unexpected CPU fallback value: %d&quot;</span>),</span><br><span class="line">                           def-&gt;fallback);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        virBufferAsprintf(buf, <span class="string">&quot; fallback=&#x27;%s&#x27;&quot;</span>, fallback);</span><br><span class="line">        <span class="keyword">if</span> (def-&gt;vendor_id)</span><br><span class="line">            virBufferEscapeString(buf, <span class="string">&quot; vendor_id=&#x27;%s&#x27;&quot;</span>, def-&gt;vendor_id);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (formatModel &amp;&amp; def-&gt;model) &#123;</span><br><span class="line">        virBufferEscapeString(buf, <span class="string">&quot;&gt;%s&lt;/model&gt;\n&quot;</span>, def-&gt;model);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        virBufferAddLit(buf, <span class="string">&quot;/&gt;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Fallback type:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    VIR_CPU_FALLBACK_ALLOW,</span><br><span class="line">    VIR_CPU_FALLBACK_FORBID,</span><br><span class="line"></span><br><span class="line">    VIR_CPU_FALLBACK_LAST</span><br><span class="line">&#125; virCPUFallback;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>VIR_CPU_FALLBACK_ALLOW</code> means just use the cpu capabilities from host capabilities xml</li>
+<li><code>VIR_CPU_FALLBACK_FORBID</code>means can stop guest from start with unsupported feature</li>
+</ul>
+<p>Also the topology can be defined:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (def-&gt;sockets &amp;&amp; def-&gt;cores &amp;&amp; def-&gt;threads) &#123;</span><br><span class="line">    virBufferAddLit(buf, <span class="string">&quot;&lt;topology&quot;</span>);</span><br><span class="line">    virBufferAsprintf(buf, <span class="string">&quot; sockets=&#x27;%u&#x27;&quot;</span>, def-&gt;sockets);</span><br><span class="line">    virBufferAsprintf(buf, <span class="string">&quot; cores=&#x27;%u&#x27;&quot;</span>, def-&gt;cores);</span><br><span class="line">    virBufferAsprintf(buf, <span class="string">&quot; threads=&#x27;%u&#x27;&quot;</span>, def-&gt;threads);</span><br><span class="line">    virBufferAddLit(buf, <span class="string">&quot;/&gt;\n&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>from xml too.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; def-&gt;nfeatures; i++) &#123;</span><br><span class="line">    virCPUFeatureDefPtr feature = def-&gt;features + i;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!feature-&gt;name) &#123;</span><br><span class="line">        virReportError(VIR_ERR_INTERNAL_ERROR, <span class="string">&quot;%s&quot;</span>,</span><br><span class="line">                       _(<span class="string">&quot;Missing CPU feature name&quot;</span>));</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (def-&gt;type == VIR_CPU_TYPE_GUEST) &#123;</span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">char</span> *policy;</span><br><span class="line"></span><br><span class="line">        policy = virCPUFeaturePolicyTypeToString(feature-&gt;policy);</span><br><span class="line">        <span class="keyword">if</span> (!policy) &#123;</span><br><span class="line">            virReportError(VIR_ERR_INTERNAL_ERROR,</span><br><span class="line">                           _(<span class="string">&quot;Unexpected CPU feature policy %d&quot;</span>),</span><br><span class="line">                           feature-&gt;policy);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        virBufferAsprintf(buf, <span class="string">&quot;&lt;feature policy=&#x27;%s&#x27; name=&#x27;%s&#x27;/&gt;\n&quot;</span>,</span><br><span class="line">                          policy, feature-&gt;name);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        virBufferAsprintf(buf, <span class="string">&quot;&lt;feature name=&#x27;%s&#x27;/&gt;\n&quot;</span>,</span><br><span class="line">                          feature-&gt;name);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Features will follow policies:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">VIR_ENUM_IMPL(virCPUFeaturePolicy, VIR_CPU_FEATURE_LAST,</span><br><span class="line">              <span class="string">&quot;force&quot;</span>,</span><br><span class="line">              <span class="string">&quot;require&quot;</span>,</span><br><span class="line">              <span class="string">&quot;optional&quot;</span>,</span><br><span class="line">              <span class="string">&quot;disable&quot;</span>,</span><br><span class="line">              <span class="string">&quot;forbid&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>Following part explains about those policies.</p>
+<p><strong>force</strong></p>
+<p>The virtual CPU will claim the feature is supported regardless of it being supported by host CPU.</p>
+<p><strong>require</strong></p>
+<p>Guest creation will fail unless the feature is supported by the host CPU or the hypervisor is able to emulate it.</p>
+<p><strong>optional</strong></p>
+<p>The feature will be supported by virtual CPU if and only if it is supported by host CPU.</p>
+<p><strong>disable</strong></p>
+<p>The feature will not be supported by virtual CPU.</p>
+<p><strong>forbid</strong></p>
+<p>Guest creation will fail if the feature is supported by host CPU.</p>
+<p><code>virCPUDefFormatBuf</code> is used by <code>capabilities.c</code> which collects host features from host capabilities xml. But now we need to check the code in <code>domain_capabilities.c</code></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> virCPUDef *virCPUDefPtr;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> _<span class="title">virCPUDef</span> &#123;</span></span><br><span class="line">    <span class="keyword">int</span> type;           <span class="comment">/* enum virCPUType */</span></span><br><span class="line">    <span class="keyword">int</span> mode;           <span class="comment">/* enum virCPUMode */</span></span><br><span class="line">    <span class="keyword">int</span> match;          <span class="comment">/* enum virCPUMatch */</span></span><br><span class="line">    virCPUCheck check;</span><br><span class="line">    virArch arch;</span><br><span class="line">    <span class="keyword">char</span> *model;</span><br><span class="line">    <span class="keyword">char</span> *vendor_id;    <span class="comment">/* vendor id returned by CPUID in the guest */</span></span><br><span class="line">    <span class="keyword">int</span> fallback;       <span class="comment">/* enum virCPUFallback */</span></span><br><span class="line">    <span class="keyword">char</span> *vendor;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> microcodeVersion;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> sockets;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> cores;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> threads;</span><br><span class="line">    <span class="keyword">size_t</span> nfeatures;</span><br><span class="line">    <span class="keyword">size_t</span> nfeatures_max;</span><br><span class="line">    virCPUFeatureDefPtr features;</span><br><span class="line">    virCPUCacheDefPtr cache;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>nfeatures will be set in _virCPUDef and supported features are parsed from domain xml:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Parses CPU definition XML from a node pointed to by @xpath. If @xpath is</span></span><br><span class="line"><span class="comment"> * NULL, the current node of @ctxt is used (i.e., it is a shortcut to &quot;.&quot;).</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Missing &lt;cpu&gt; element in the XML document is not considered an error unless</span></span><br><span class="line"><span class="comment"> * @xpath is NULL in which case the function expects it was provided with a</span></span><br><span class="line"><span class="comment"> * valid &lt;cpu&gt; element already. In other words, the function returns success</span></span><br><span class="line"><span class="comment"> * and sets @cpu to NULL if @xpath is not NULL and the node pointed to by</span></span><br><span class="line"><span class="comment"> * @xpath is not found.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Returns 0 on success, -1 on error.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">virCPUDefParseXML(xmlXPathContextPtr ctxt,</span><br><span class="line">                  <span class="keyword">const</span> <span class="keyword">char</span> *xpath,</span><br><span class="line">                  virCPUType type,</span><br><span class="line">                  virCPUDefPtr *cpu)</span><br></pre></td></tr></table></figure>
+
+<p>Finally, <code>qemu_command.c</code> would use those features to qemu commandline:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; cpu-&gt;nfeatures; i++) &#123;</span><br><span class="line">    <span class="keyword">if</span> (STREQ(<span class="string">&quot;rtm&quot;</span>, cpu-&gt;features[i].name))</span><br><span class="line">        rtm = <span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">if</span> (STREQ(<span class="string">&quot;hle&quot;</span>, cpu-&gt;features[i].name))</span><br><span class="line">        hle = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> ((virCPUFeaturePolicy) cpu-&gt;features[i].policy) &#123;</span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_FORCE:</span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_REQUIRE:</span><br><span class="line">        <span class="keyword">if</span> (virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION))</span><br><span class="line">            virBufferAsprintf(buf, <span class="string">&quot;,%s=on&quot;</span>, cpu-&gt;features[i].name);</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            virBufferAsprintf(buf, <span class="string">&quot;,+%s&quot;</span>, cpu-&gt;features[i].name);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_DISABLE:</span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_FORBID:</span><br><span class="line">        <span class="keyword">if</span> (virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION))</span><br><span class="line">            virBufferAsprintf(buf, <span class="string">&quot;,%s=off&quot;</span>, cpu-&gt;features[i].name);</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            virBufferAsprintf(buf, <span class="string">&quot;,-%s&quot;</span>, cpu-&gt;features[i].name);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_OPTIONAL:</span><br><span class="line">    <span class="keyword">case</span> VIR_CPU_FEATURE_LAST:</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>like <code>-cpu ... feature1=on,feature2=off</code> to make those features take effects.</p>
+<h2 id="Turn-to-qemu"><a href="#Turn-to-qemu" class="headerlink" title="Turn to qemu"></a>Turn to qemu</h2><p>Firstly, qemu will parse input <code>-cpu ....</code> string:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">const</span> <span class="keyword">char</span> *<span class="title">parse_cpu_model</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span> *cpu_model)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    ObjectClass *oc;</span><br><span class="line">    CPUClass *cc;</span><br><span class="line">    gchar **model_pieces;</span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *cpu_type;</span><br><span class="line"></span><br><span class="line">    model_pieces = g_strsplit(cpu_model, <span class="string">&quot;,&quot;</span>, <span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">    oc = cpu_class_by_name(CPU_RESOLVING_TYPE, model_pieces[<span class="number">0</span>]);</span><br><span class="line">    <span class="keyword">if</span> (oc == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        error_report(<span class="string">&quot;unable to find CPU model &#x27;%s&#x27;&quot;</span>, model_pieces[<span class="number">0</span>]);</span><br><span class="line">        g_strfreev(model_pieces);</span><br><span class="line">        <span class="built_in">exit</span>(EXIT_FAILURE);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    cpu_type = object_class_get_name(oc);</span><br><span class="line">    cc = CPU_CLASS(oc);</span><br><span class="line">    cc-&gt;parse_features(cpu_type, model_pieces[<span class="number">1</span>], &amp;error_fatal);</span><br><span class="line">    g_strfreev(model_pieces);</span><br><span class="line">    <span class="keyword">return</span> cpu_type;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>An object from <code>oc = cpu_class_by_name(CPU_RESOLVING_TYPE, model_pieces[0]);</code>will return a cpu object class which support parse features. See following code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">cpu_common_parse_features</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span> *<span class="keyword">typename</span>, <span class="keyword">char</span> *features,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      Error **errp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">char</span> *val;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">bool</span> cpu_globals_initialized;</span><br><span class="line">    <span class="comment">/* Single &quot;key=value&quot; string being parsed */</span></span><br><span class="line">    <span class="keyword">char</span> *featurestr = features ? strtok(features, <span class="string">&quot;,&quot;</span>) : <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* should be called only once, catch invalid users */</span></span><br><span class="line">    assert(!cpu_globals_initialized);</span><br><span class="line">    cpu_globals_initialized = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (featurestr) &#123;</span><br><span class="line">        val = <span class="built_in">strchr</span>(featurestr, <span class="string">&#x27;=&#x27;</span>);</span><br><span class="line">        <span class="keyword">if</span> (val) &#123;</span><br><span class="line">            GlobalProperty *prop = g_new0(typeof(*prop), <span class="number">1</span>);</span><br><span class="line">            *val = <span class="number">0</span>;</span><br><span class="line">            val++;</span><br><span class="line">            prop-&gt;driver = <span class="keyword">typename</span>;</span><br><span class="line">            prop-&gt;property = g_strdup(featurestr);</span><br><span class="line">            prop-&gt;value = g_strdup(val);</span><br><span class="line">            prop-&gt;errp = &amp;error_fatal;</span><br><span class="line">            qdev_prop_register_global(prop);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            error_setg(errp, <span class="string">&quot;Expected key=value format, found %s.&quot;</span>,</span><br><span class="line">                       featurestr);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        featurestr = strtok(<span class="literal">NULL</span>, <span class="string">&quot;,&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>key=value</code> format will be parse and store into qemu’s global property.</p>
+<p>From: <code>target/i386/cpu.c</code></p>
+<p>qemu defined <code>#define CPUID_EXT_HYPERVISOR  (1U &lt;&lt; 31)</code> for CPUID EXT to expose hypervisor information.</p>
+<p>Then x86 cpu will use those global properties to initialize vcpu:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Parse &quot;+feature,-feature,feature=foo&quot; CPU feature string</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">x86_cpu_parse_featurestr</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span> *<span class="keyword">typename</span>, <span class="keyword">char</span> *features,</span></span></span><br><span class="line"><span class="function"><span class="params">                                     Error **errp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">char</span> *featurestr; <span class="comment">/* Single &#x27;key=value&quot; string being parsed */</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">bool</span> cpu_globals_initialized;</span><br><span class="line">    <span class="keyword">bool</span> ambiguous = <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (cpu_globals_initialized) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    cpu_globals_initialized = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!features) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (featurestr = strtok(features, <span class="string">&quot;,&quot;</span>);</span><br><span class="line">         featurestr;</span><br><span class="line">         featurestr = strtok(<span class="literal">NULL</span>, <span class="string">&quot;,&quot;</span>)) &#123;</span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">char</span> *name;</span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">char</span> *val = <span class="literal">NULL</span>;</span><br><span class="line">        <span class="keyword">char</span> *eq = <span class="literal">NULL</span>;</span><br><span class="line">        <span class="keyword">char</span> num[<span class="number">32</span>];</span><br><span class="line">        GlobalProperty *prop;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Compatibility syntax: */</span></span><br><span class="line">        <span class="keyword">if</span> (featurestr[<span class="number">0</span>] == <span class="string">&#x27;+&#x27;</span>) &#123;</span><br><span class="line">            plus_features = g_list_append(plus_features,</span><br><span class="line">                                          g_strdup(featurestr + <span class="number">1</span>));</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (featurestr[<span class="number">0</span>] == <span class="string">&#x27;-&#x27;</span>) &#123;</span><br><span class="line">            minus_features = g_list_append(minus_features,</span><br><span class="line">                                           g_strdup(featurestr + <span class="number">1</span>));</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        eq = <span class="built_in">strchr</span>(featurestr, <span class="string">&#x27;=&#x27;</span>);</span><br><span class="line">        <span class="keyword">if</span> (eq) &#123;</span><br><span class="line">            *eq++ = <span class="number">0</span>;</span><br><span class="line">            val = eq;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            val = <span class="string">&quot;on&quot;</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        feat2prop(featurestr);</span><br><span class="line">        name = featurestr;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (g_list_find_custom(plus_features, name, compare_string)) &#123;</span><br><span class="line">            warn_report(<span class="string">&quot;Ambiguous CPU model string. &quot;</span></span><br><span class="line">                        <span class="string">&quot;Don&#x27;t mix both \&quot;+%s\&quot; and \&quot;%s=%s\&quot;&quot;</span>,</span><br><span class="line">                        name, name, val);</span><br><span class="line">            ambiguous = <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (g_list_find_custom(minus_features, name, compare_string)) &#123;</span><br><span class="line">            warn_report(<span class="string">&quot;Ambiguous CPU model string. &quot;</span></span><br><span class="line">                        <span class="string">&quot;Don&#x27;t mix both \&quot;-%s\&quot; and \&quot;%s=%s\&quot;&quot;</span>,</span><br><span class="line">                        name, name, val);</span><br><span class="line">            ambiguous = <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Special case: */</span></span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">strcmp</span>(name, <span class="string">&quot;tsc-freq&quot;</span>)) &#123;</span><br><span class="line">            <span class="keyword">int</span> ret;</span><br><span class="line">            <span class="keyword">uint64_t</span> tsc_freq;</span><br><span class="line"></span><br><span class="line">            ret = qemu_strtosz_metric(val, <span class="literal">NULL</span>, &amp;tsc_freq);</span><br><span class="line">            <span class="keyword">if</span> (ret &lt; <span class="number">0</span> || tsc_freq &gt; INT64_MAX) &#123;</span><br><span class="line">                error_setg(errp, <span class="string">&quot;bad numerical value %s&quot;</span>, val);</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="built_in">snprintf</span>(num, <span class="keyword">sizeof</span>(num), <span class="string">&quot;%&quot;</span> PRId64, tsc_freq);</span><br><span class="line">            val = num;</span><br><span class="line">            name = <span class="string">&quot;tsc-frequency&quot;</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        prop = g_new0(typeof(*prop), <span class="number">1</span>);</span><br><span class="line">        prop-&gt;driver = <span class="keyword">typename</span>;</span><br><span class="line">        prop-&gt;property = g_strdup(name);</span><br><span class="line">        prop-&gt;value = g_strdup(val);</span><br><span class="line">        prop-&gt;errp = &amp;error_fatal;</span><br><span class="line">        qdev_prop_register_global(prop);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (ambiguous) &#123;</span><br><span class="line">        warn_report(<span class="string">&quot;Compatibility of ambiguous CPU model &quot;</span></span><br><span class="line">                    <span class="string">&quot;strings won&#x27;t be kept on future QEMU versions&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>which is registered as <code>cc-&gt;parse_features = x86_cpu_parse_featurestr;</code>.</p>
+<p>features from qemu commandline will be put as global property for x86 cpu.</p>
+<p>And before start virtual machine, qemu will insure there is not unavailable or missing features:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">x86_cpu_get_unavailable_features</span><span class="params">(Object *obj, Visitor *v,</span></span></span><br><span class="line"><span class="function"><span class="params">                                             <span class="keyword">const</span> <span class="keyword">char</span> *name, <span class="keyword">void</span> *opaque,</span></span></span><br><span class="line"><span class="function"><span class="params">                                             Error **errp)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    X86CPU *xc = X86_CPU(obj);</span><br><span class="line">    strList *result = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    x86_cpu_list_feature_names(xc-&gt;filtered_features, &amp;result);</span><br><span class="line">    visit_type_strList(v, <span class="string">&quot;unavailable-features&quot;</span>, &amp;result, errp);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Check for missing features that may prevent the CPU class from</span></span><br><span class="line"><span class="comment"> * running using the current machine and accelerator.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">x86_cpu_class_check_missing_features</span><span class="params">(X86CPUClass *xcc,</span></span></span><br><span class="line"><span class="function"><span class="params">                                                 strList **missing_feats)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    X86CPU *xc;</span><br><span class="line">    Error *err = <span class="literal">NULL</span>;</span><br><span class="line">    strList **next = missing_feats;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (xcc-&gt;host_cpuid_required &amp;&amp; !accel_uses_host_cpuid()) &#123;</span><br><span class="line">        strList *<span class="keyword">new</span> = g_new0(strList, <span class="number">1</span>);</span><br><span class="line">        <span class="keyword">new</span>-&gt;value = g_strdup(<span class="string">&quot;kvm&quot;</span>);</span><br><span class="line">        *missing_feats = <span class="keyword">new</span>;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));</span><br><span class="line"></span><br><span class="line">    x86_cpu_expand_features(xc, &amp;err);</span><br><span class="line">    <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        <span class="comment">/* Errors at x86_cpu_expand_features should never happen,</span></span><br><span class="line"><span class="comment">         * but in case it does, just report the model as not</span></span><br><span class="line"><span class="comment">         * runnable at all using the &quot;type&quot; property.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        strList *<span class="keyword">new</span> = g_new0(strList, <span class="number">1</span>);</span><br><span class="line">        <span class="keyword">new</span>-&gt;value = g_strdup(<span class="string">&quot;type&quot;</span>);</span><br><span class="line">        *next = <span class="keyword">new</span>;</span><br><span class="line">        next = &amp;<span class="keyword">new</span>-&gt;next;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    x86_cpu_filter_features(xc, <span class="literal">false</span>);</span><br><span class="line"></span><br><span class="line">    x86_cpu_list_feature_names(xc-&gt;filtered_features, next);</span><br><span class="line"></span><br><span class="line">    object_unref(OBJECT(xc));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>while qemu init cpu:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">x86_cpu_realizefn</span><span class="params">(DeviceState *dev, Error **errp)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>features will be set to a CPU object:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!kvm_enabled() || !cpu-&gt;expose_kvm) &#123;</span><br><span class="line">    env-&gt;features[FEAT_KVM] = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>we could find “hypervisor” related cpu features defined by <code>FEAT_1_ECX</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[FEAT_1_ECX] = &#123;</span><br><span class="line">    .type = CPUID_FEATURE_WORD,</span><br><span class="line">    .feat_names = &#123;</span><br><span class="line">        <span class="string">&quot;pni&quot;</span> <span class="comment">/* Intel,AMD sse3 */</span>, <span class="string">&quot;pclmulqdq&quot;</span>, <span class="string">&quot;dtes64&quot;</span>, <span class="string">&quot;monitor&quot;</span>,</span><br><span class="line">        <span class="string">&quot;ds-cpl&quot;</span>, <span class="string">&quot;vmx&quot;</span>, <span class="string">&quot;smx&quot;</span>, <span class="string">&quot;est&quot;</span>,</span><br><span class="line">        <span class="string">&quot;tm2&quot;</span>, <span class="string">&quot;ssse3&quot;</span>, <span class="string">&quot;cid&quot;</span>, <span class="literal">NULL</span>,</span><br><span class="line">        <span class="string">&quot;fma&quot;</span>, <span class="string">&quot;cx16&quot;</span>, <span class="string">&quot;xtpr&quot;</span>, <span class="string">&quot;pdcm&quot;</span>,</span><br><span class="line">        <span class="literal">NULL</span>, <span class="string">&quot;pcid&quot;</span>, <span class="string">&quot;dca&quot;</span>, <span class="string">&quot;sse4.1&quot;</span>,</span><br><span class="line">        <span class="string">&quot;sse4.2&quot;</span>, <span class="string">&quot;x2apic&quot;</span>, <span class="string">&quot;movbe&quot;</span>, <span class="string">&quot;popcnt&quot;</span>,</span><br><span class="line">        <span class="string">&quot;tsc-deadline&quot;</span>, <span class="string">&quot;aes&quot;</span>, <span class="string">&quot;xsave&quot;</span>, <span class="string">&quot;osxsave&quot;</span>,</span><br><span class="line">        <span class="string">&quot;avx&quot;</span>, <span class="string">&quot;f16c&quot;</span>, <span class="string">&quot;rdrand&quot;</span>, <span class="string">&quot;hypervisor&quot;</span>,</span><br><span class="line">    &#125;,</span><br><span class="line">    .cpuid = &#123; .eax = <span class="number">1</span>, .reg = R_ECX, &#125;,</span><br><span class="line">    .tcg_features = TCG_EXT_FEATURES,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>then cpu will read those features with key words:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Finishes initialization of CPUID data, filters CPU feature</span></span><br><span class="line"><span class="comment"> * words based on host availability of each feature.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Returns: 0 if all flags are supported by the host, non-zero otherwise.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">x86_cpu_filter_features</span><span class="params">(X86CPU *cpu, <span class="keyword">bool</span> verbose)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CPUX86State *env = &amp;cpu-&gt;env;</span><br><span class="line">    FeatureWord w;</span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *prefix = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (verbose) &#123;</span><br><span class="line">        prefix = accel_uses_host_cpuid()</span><br><span class="line">                 ? <span class="string">&quot;host doesn&#x27;t support requested feature&quot;</span></span><br><span class="line">                 : <span class="string">&quot;TCG doesn&#x27;t support requested feature&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (w = <span class="number">0</span>; w &lt; FEATURE_WORDS; w++) &#123;</span><br><span class="line">        <span class="keyword">uint64_t</span> host_feat =</span><br><span class="line">            x86_cpu_get_supported_feature_word(w, <span class="literal">false</span>);</span><br><span class="line">        <span class="keyword">uint64_t</span> requested_features = env-&gt;features[w];</span><br><span class="line">        <span class="keyword">uint64_t</span> unavailable_features = requested_features &amp; ~host_feat;</span><br><span class="line">        mark_unavailable_features(cpu, w, unavailable_features, prefix);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ((env-&gt;features[FEAT_7_0_EBX] &amp; CPUID_7_0_EBX_INTEL_PT) &amp;&amp;</span><br><span class="line">        kvm_enabled()) &#123;</span><br><span class="line">        KVMState *s = CPU(cpu)-&gt;kvm_state;</span><br><span class="line">        <span class="keyword">uint32_t</span> eax_0 = kvm_arch_get_supported_cpuid(s, <span class="number">0x14</span>, <span class="number">0</span>, R_EAX);</span><br><span class="line">        <span class="keyword">uint32_t</span> ebx_0 = kvm_arch_get_supported_cpuid(s, <span class="number">0x14</span>, <span class="number">0</span>, R_EBX);</span><br><span class="line">        <span class="keyword">uint32_t</span> ecx_0 = kvm_arch_get_supported_cpuid(s, <span class="number">0x14</span>, <span class="number">0</span>, R_ECX);</span><br><span class="line">        <span class="keyword">uint32_t</span> eax_1 = kvm_arch_get_supported_cpuid(s, <span class="number">0x14</span>, <span class="number">1</span>, R_EAX);</span><br><span class="line">        <span class="keyword">uint32_t</span> ebx_1 = kvm_arch_get_supported_cpuid(s, <span class="number">0x14</span>, <span class="number">1</span>, R_EBX);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!eax_0 ||</span><br><span class="line">           ((ebx_0 &amp; INTEL_PT_MINIMAL_EBX) != INTEL_PT_MINIMAL_EBX) ||</span><br><span class="line">           ((ecx_0 &amp; INTEL_PT_MINIMAL_ECX) != INTEL_PT_MINIMAL_ECX) ||</span><br><span class="line">           ((eax_1 &amp; INTEL_PT_MTC_BITMAP) != INTEL_PT_MTC_BITMAP) ||</span><br><span class="line">           ((eax_1 &amp; INTEL_PT_ADDR_RANGES_NUM_MASK) &lt;</span><br><span class="line">                                           INTEL_PT_ADDR_RANGES_NUM) ||</span><br><span class="line">           ((ebx_1 &amp; (INTEL_PT_PSB_BITMAP | INTEL_PT_CYCLE_BITMAP)) !=</span><br><span class="line">                (INTEL_PT_PSB_BITMAP | INTEL_PT_CYCLE_BITMAP)) ||</span><br><span class="line">           (ecx_0 &amp; INTEL_PT_IP_LIP)) &#123;</span><br><span class="line">            <span class="comment">/*</span></span><br><span class="line"><span class="comment">             * Processor Trace capabilities aren&#x27;t configurable, so if the</span></span><br><span class="line"><span class="comment">             * host can&#x27;t emulate the capabilities we report on</span></span><br><span class="line"><span class="comment">             * cpu_x86_cpuid(), intel-pt can&#x27;t be enabled on the current host.</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">            mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT, prefix);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Mainly the features is set by:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (w = <span class="number">0</span>; w &lt; FEATURE_WORDS; w++) &#123;</span><br><span class="line">    <span class="keyword">uint64_t</span> host_feat =</span><br><span class="line">        x86_cpu_get_supported_feature_word(w, <span class="literal">false</span>);</span><br><span class="line">    <span class="keyword">uint64_t</span> requested_features = env-&gt;features[w];</span><br><span class="line">    <span class="keyword">uint64_t</span> unavailable_features = requested_features &amp; ~host_feat;</span><br><span class="line">    mark_unavailable_features(cpu, w, unavailable_features, prefix);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>this part and supported feature keeps 0 because </p>
+<p><code>requested_features &amp; ~host_feat</code> host unavialable features would be <code>~</code> at first.</p>
+<p>We can dump those configurations from qemu vcpu to check is usage. </p>
+<h2 id="How-kernel-use-it"><a href="#How-kernel-use-it" class="headerlink" title="How kernel use it"></a>How kernel use it</h2><p>Then we move to linux kernel check about those features usages.</p>
+<p><code>#define X86_FEATURE_HYPERVISOR  (4*32+31) /* Running on a hypervisor */</code></p>
+<p>kernel use <code>X86_FEATURE_HYPERVISOR</code> means if running on hypervisor.</p>
+<h2 id="Hand-on-test"><a href="#Hand-on-test" class="headerlink" title="Hand on test"></a>Hand on test</h2><p>Now try to run a guest detecting hypervisor and figure out how to bypass the detection by virtualization level configs.</p>
+<h3 id="Linux"><a href="#Linux" class="headerlink" title="Linux"></a>Linux</h3><p><a target="_blank" rel="noopener" href="http://www.etallen.com/cpuid.html">http://www.etallen.com/cpuid.html</a> use a cpuid tool to dump cpu id of a guest to check our configuration.</p>
+<p>By run <code>cpuid</code> to dump features, we can see following output with our expected values:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">feature information (1/ecx):</span><br><span class="line">   PNI/SSE3: Prescott New Instructions     = true</span><br><span class="line">   PCLMULDQ instruction                    = true</span><br><span class="line">   DTES64: 64-bit debug store              = false</span><br><span class="line">   MONITOR/MWAIT                           = false</span><br><span class="line">   CPL-qualified debug store               = false</span><br><span class="line">   VMX: virtual machine extensions         = true</span><br><span class="line">   SMX: safer mode extensions              = false</span><br><span class="line">   Enhanced Intel SpeedStep Technology     = false</span><br><span class="line">   TM2: thermal monitor 2                  = false</span><br><span class="line">   SSSE3 extensions                        = true</span><br><span class="line">   context ID: adaptive or shared L1 data  = false</span><br><span class="line">   SDBG: IA32_DEBUG_INTERFACE              = false</span><br><span class="line">   FMA instruction                         = true</span><br><span class="line">   CMPXCHG16B instruction                  = true</span><br><span class="line">   xTPR disable                            = false</span><br><span class="line">   PDCM: perfmon and debug                 = false</span><br><span class="line">   PCID: process context identifiers       = true</span><br><span class="line">   DCA: direct cache access                = false</span><br><span class="line">   SSE4.1 extensions                       = true</span><br><span class="line">   SSE4.2 extensions                       = true</span><br><span class="line">   x2APIC: extended xAPIC support          = true</span><br><span class="line">   MOVBE instruction                       = true</span><br><span class="line">   POPCNT instruction                      = true</span><br><span class="line">   time stamp counter deadline             = true</span><br><span class="line">   AES instruction                         = true</span><br><span class="line">   XSAVE/XSTOR states                      = true</span><br><span class="line">   OS-enabled XSAVE/XSTOR                  = true</span><br><span class="line">   AVX: advanced vector extensions         = true</span><br><span class="line">   F16C half-precision convert instruction = true</span><br><span class="line">   RDRAND instruction                      = true</span><br><span class="line">   hypervisor guest status                 = true</span><br></pre></td></tr></table></figure>
+
+<p>the <code>hypervisor guest status                 = true</code> matches with linux kernel’s definition.</p>
+<p>While with hypervisor feature disabled the output changed to:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">feature <span class="title">information</span> <span class="params">(<span class="number">1</span>/edx)</span>:</span></span><br><span class="line"><span class="function">   x87 FPU on chip                        </span>= <span class="literal">true</span></span><br><span class="line">   VME: <span class="keyword">virtual</span><span class="number">-8086</span> mode enhancement     = <span class="literal">true</span></span><br><span class="line">   DE: debugging extensions               = <span class="literal">true</span></span><br><span class="line">   PSE: page size extensions              = <span class="literal">true</span></span><br><span class="line">   TSC: time stamp counter                = <span class="literal">true</span></span><br><span class="line">   RDMSR <span class="keyword">and</span> WRMSR support                = <span class="literal">true</span></span><br><span class="line">   PAE: physical address extensions       = <span class="literal">true</span></span><br><span class="line">   MCE: machine check exception           = <span class="literal">true</span></span><br><span class="line">   CMPXCHG8B inst.                        = <span class="literal">true</span></span><br><span class="line">   APIC on chip                           = <span class="literal">true</span></span><br><span class="line">   SYSENTER <span class="keyword">and</span> SYSEXIT                   = <span class="literal">true</span></span><br><span class="line">   MTRR: memory type range registers      = <span class="literal">true</span></span><br><span class="line">   PTE global bit                         = <span class="literal">true</span></span><br><span class="line">   MCA: machine check architecture        = <span class="literal">true</span></span><br><span class="line">   CMOV: conditional move/compare instr   = <span class="literal">true</span></span><br><span class="line">   PAT: page attribute table              = <span class="literal">true</span></span><br><span class="line">   PSE<span class="number">-36</span>: page size extension            = <span class="literal">true</span></span><br><span class="line">   PSN: processor serial number           = <span class="literal">false</span></span><br><span class="line">   CLFLUSH instruction                    = <span class="literal">true</span></span><br><span class="line">   DS: debug store                        = <span class="literal">false</span></span><br><span class="line">   ACPI: thermal monitor <span class="keyword">and</span> clock ctrl   = <span class="literal">false</span></span><br><span class="line">   MMX Technology                         = <span class="literal">true</span></span><br><span class="line">   FXSAVE/FXRSTOR                         = <span class="literal">true</span></span><br><span class="line">   SSE extensions                         = <span class="literal">true</span></span><br><span class="line">   SSE2 extensions                        = <span class="literal">true</span></span><br><span class="line">   SS: self snoop                         = <span class="literal">true</span></span><br><span class="line">   hyper-threading / multi-core supported = <span class="literal">true</span></span><br><span class="line">   TM: therm. monitor                     = <span class="literal">false</span></span><br><span class="line">   IA64                                   = <span class="literal">false</span></span><br><span class="line">   PBE: pending <span class="keyword">break</span> event               = <span class="literal">false</span></span><br><span class="line">feature information (<span class="number">1</span>/ecx):</span><br><span class="line">   PNI/SSE3: Prescott New Instructions     = <span class="literal">true</span></span><br><span class="line">   PCLMULDQ instruction                    = <span class="literal">true</span></span><br><span class="line">   DTES64: <span class="number">64</span>-bit debug store              = <span class="literal">false</span></span><br><span class="line">   MONITOR/MWAIT                           = <span class="literal">false</span></span><br><span class="line">   CPL-qualified debug store               = <span class="literal">false</span></span><br><span class="line">   VMX: <span class="keyword">virtual</span> machine extensions         = <span class="literal">true</span></span><br><span class="line">   SMX: safer mode extensions              = <span class="literal">false</span></span><br><span class="line">   Enhanced Intel SpeedStep Technology     = <span class="literal">false</span></span><br><span class="line">   TM2: thermal monitor <span class="number">2</span>                  = <span class="literal">false</span></span><br><span class="line">   SSSE3 extensions                        = <span class="literal">true</span></span><br><span class="line">   context ID: adaptive <span class="keyword">or</span> shared L1 data  = <span class="literal">false</span></span><br><span class="line">   SDBG: IA32_DEBUG_INTERFACE              = <span class="literal">false</span></span><br><span class="line">   FMA instruction                         = <span class="literal">true</span></span><br><span class="line">   CMPXCHG16B instruction                  = <span class="literal">true</span></span><br><span class="line">   xTPR disable                            = <span class="literal">false</span></span><br><span class="line">   PDCM: perfmon <span class="keyword">and</span> debug                 = <span class="literal">false</span></span><br><span class="line">   PCID: process context identifiers       = <span class="literal">true</span></span><br><span class="line">   DCA: direct cache access                = <span class="literal">false</span></span><br><span class="line">   SSE4<span class="number">.1</span> extensions                       = <span class="literal">true</span></span><br><span class="line">   SSE4<span class="number">.2</span> extensions                       = <span class="literal">true</span></span><br><span class="line">   x2APIC: extended xAPIC support          = <span class="literal">true</span></span><br><span class="line">   MOVBE instruction                       = <span class="literal">true</span></span><br><span class="line">   POPCNT instruction                      = <span class="literal">true</span></span><br><span class="line">   time stamp counter deadline             = <span class="literal">true</span></span><br><span class="line">   AES instruction                         = <span class="literal">true</span></span><br><span class="line">   XSAVE/XSTOR states                      = <span class="literal">true</span></span><br><span class="line">   OS-enabled XSAVE/XSTOR                  = <span class="literal">true</span></span><br><span class="line">   AVX: advanced <span class="built_in">vector</span> extensions         = <span class="literal">true</span></span><br><span class="line">   F16C half-precision convert instruction = <span class="literal">true</span></span><br><span class="line">   RDRAND instruction                      = <span class="literal">true</span></span><br><span class="line">   hypervisor guest status                 = <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<p>the <code>hypervisor guest status                 = false</code> value changed as expected.</p>
+<h4 id="Linux-drawbacks"><a href="#Linux-drawbacks" class="headerlink" title="Linux drawbacks"></a>Linux drawbacks</h4><p>Read the usage about <code>X86_FEATURE_HYPERVISOR</code> in linux kernel. Some drawbacks can be found in kernel code directly.</p>
+<p>From <code>qspintlock.h</code> :    </p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * RHEL7 specific:</span></span><br><span class="line"><span class="comment"> * To provide backward compatibility with pre-7.4 kernel modules that</span></span><br><span class="line"><span class="comment"> * inlines the ticket spinlock unlock code. The virt_spin_lock() function</span></span><br><span class="line"><span class="comment"> * will have to recognize both a lock value of 0 or _Q_UNLOCKED_VAL as</span></span><br><span class="line"><span class="comment"> * being in an unlocked state.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">bool</span> <span class="title">virt_spin_lock</span><span class="params">(struct qspinlock *lock)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">int</span> lockval;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (!static_cpu_has(X86_FEATURE_HYPERVISOR))</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Slow spin lock will not be detected.</p>
+<p>From <code>paravirt-spinlocks.c</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> __init <span class="title">queued_enable_pv_ticketlock</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">if</span> (!static_cpu_has(X86_FEATURE_HYPERVISOR) ||</span><br><span class="line">	   (pv_lock_ops.queued_spin_lock_slowpath !=</span><br><span class="line">	    native_queued_spin_lock_slowpath))</span><br><span class="line">		static_key_slow_inc(&amp;paravirt_ticketlocks_enabled);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>From <code>tsc.c</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Don&#x27;t enable ART in a VM, non-stop TSC required,</span></span><br><span class="line"><span class="comment"> * and the TSC counter resets must not occur asynchronously.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">if</span> (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||</span><br><span class="line">    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||</span><br><span class="line">    art_to_tsc_denominator &lt; ART_MIN_DENOMINATOR ||</span><br><span class="line">    tsc_async_resets)</span><br><span class="line">	<span class="keyword">return</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Always run timer will be started which actually should not be enabled.</p>
+<p>From <code>apic.c</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER) ||</span><br><span class="line">    boot_cpu_has(X86_FEATURE_HYPERVISOR))</span><br><span class="line">	<span class="keyword">return</span>;</span><br></pre></td></tr></table></figure>
+
+<p>From <code>mshyperv.c</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!boot_cpu_has(X86_FEATURE_HYPERVISOR))</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Can not detect if run on hyperv.</p>
+<p>From <code>radeon_device</code> :</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * radeon_device_is_virtual - check if we are running is a virtual environment</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Check if the asic has been passed through to a VM (all asics).</span></span><br><span class="line"><span class="comment"> * Used at driver startup.</span></span><br><span class="line"><span class="comment"> * Returns true if virtual or false if not.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">bool</span> <span class="title">radeon_device_is_virtual</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_X86</span></span><br><span class="line">	<span class="keyword">return</span> boot_cpu_has(X86_FEATURE_HYPERVISOR);</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Radeon gpu will not detect it is running as guest.</p>
+<p>For kernel it may failed to detect that it is running over hypervisor. So related performance improvement changed won’t be applied so there will be a performance drop for those guests.</p>
+<p>So does the userspace application also can not do specific things without knowing it is running in virtual machine.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/" data-id="clepog9dl0000fdwb444cfiz4" data-title="Cpu feature configuration code diving" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/03/01/cpu-feature-configuration-code-diving/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/03/01/cpu-feature-configuration-code-diving/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-packed-virtqueue-how-to-reduce-overhead-with-virtio" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/" class="article-date">
+  <time class="dt-published" datetime="2023-02-23T15:13:20.000Z" itemprop="datePublished">2023-02-23</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/">Packed virtqueue: How to reduce overhead with virtio</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>This is the final post of a three-post series, the previous posts are “<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtio-devices-and-drivers-overview-headjack-and-phone">Virtio devices and drivers overview: The headjack and the phone</a>,” and “<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtqueues-and-virtio-ring-how-data-travels">Virtqueues and virtio ring: How the data travels</a>.”</p>
+</blockquote>
+<p> 这是三篇系列文章的最后一篇，之前的文章是”<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtio-devices-and-drivers-overview-headjack-and-phone">Virtio设备和驱动概述：头戴式耳机和手机</a>“，以及”<a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/virtqueues-and-virtio-ring-how-data-travels">Virtqueues和virtio环：数据如何传输</a>“。</p>
+<h2 id="Split-virtqueue-issues-Too-much-spinning-around"><a href="#Split-virtqueue-issues-Too-much-spinning-around" class="headerlink" title="Split virtqueue issues: Too much spinning around"></a>Split virtqueue issues: Too much spinning around</h2><blockquote>
+<p>While the split virtqueue shines because of the simplicity of its design, it has a fundamental problem: The avail-used buffer cycle needs to use memory in a very sparse way. This puts pressure on the CPU cache utilization, and in the case of hardware means several PCI transactions for each descriptor.</p>
+</blockquote>
+<p>虽然split virtqueue因其设计的简单性而大放异彩，但它有一个基本问题：可用的缓冲区环需要以一种非常稀疏的方式使用内存。这给CPU的缓存利用率带来了压力，在硬件的情况下，意味着每个描述符都要有几个PCI事务。</p>
+<blockquote>
+<p>Packed virtqueue amends it by merging the three rings in just one location in virtual environment guest memory. While this may seem complicated at first glance, it’s a natural step after the split version if we realize that the device can discard and overwrite the data it already has read from the driver, and the same happens the other way around.</p>
+</blockquote>
+<p>Packed virtqueue对其进行了修正，将三个环合并在虚拟环境guest内存的一个位置。虽然这乍看起来很复杂，但如果我们意识到设备可以丢弃和覆盖它已经从驱动中读取的数据，那么这就是分裂版本之后的一个自然步骤，反之亦然。</p>
+<h3 id="Supplying-descriptors-to-the-device-How-to-fill-device-todo-list"><a href="#Supplying-descriptors-to-the-device-How-to-fill-device-todo-list" class="headerlink" title="Supplying descriptors to the device: How to fill device todo-list"></a>Supplying descriptors to the device: How to fill device todo-list</h3><blockquote>
+<p>After initialization in the same process as described in Virtio device initialization: feature bits, and after the agreement on RING_PACKED feature flag, the driver and the device starts with a shared blank canvas of descriptors with an agreed length (up to 215 entries) in a agreed guest’s memory location. The layout of these descriptors is:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">virtq_desc</span> &#123;</span> </span><br><span class="line">        le64 addr;</span><br><span class="line">        le32 len;</span><br><span class="line">        le16 id;</span><br><span class="line">        le16 flags;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Memory layout of a packed virtqueue descriptor</strong></p>
+</blockquote>
+<p>在Virtio设备初始化：特征位中描述的相同过程中进行初始化后，在就RING_PACKED特征标志达成一致后，驱动程序和设备开始在商定的客体内存位置上共享一个空白的描述符，其长度是商定的（最多215条）。这些描述符的布局是：。</p>
+<blockquote>
+<p>This time, the id field is not an index for the device to look for the buffer: it is an opaque value for it, only has meaning for the driver.</p>
+<p>The driver also maintains an internal single-bit ring wrap counter initialized to 1. The driver will flip its value every time it makes available the last descriptor in the ring.</p>
+<p>As with split descriptors, the first step is to write the different fields: address, length, id and flags. However, packed descriptors take into account two new flags: <code>AVAIL(0x7)</code> and <code>USED(0x15)</code>. To mark a descriptor as available, the driver makes the <code>AVAIL(0x7)</code> flag the same as its internal wrap counter, and the used flag the inverse. While just a binary flag avail/used would be easier to implement, it would prevent useful optimizations we will describe later.</p>
+</blockquote>
+<p>这一次，id字段不是设备寻找缓冲区的索引：它是一个不透明的值，只对驱动有意义。</p>
+<p>驱动程序还维护一个内部的单比特环形缠绕计数器，初始化为1，每次提供环形的最后一个描述符时，驱动程序都会翻转其值。</p>
+<p>与分割描述符一样，第一步是写入不同的字段：地址、长度、ID和标志。然而，打包描述符考虑到了两个新的标志。AVAIL(0x7)和USED(0x15)。为了将一个描述符标记为可用，驱动程序使AVAIL(0x7)标志与它的内部包装计数器相同，而使用的标志则是相反的。虽然只有一个二进制标志AVA/USED会更容易实现，但它会妨碍我们后面要描述的有用的优化。</p>
+<blockquote>
+<p>As an example, if the driver allocates a write buffer with <code>0x1000</code> bytes on position <code>0x80000000</code> in the step 1 in the diagram, and makes it the first available descriptor setting <code>AVAIL(0x7)</code> flag the same as internal wrap counter (set) in step 2. The descriptor table would look like this:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+<tr>
+<td>→</td>
+<td>…</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Descriptor table after add the first buffer</strong></p>
+</blockquote>
+<p>举个例子，如果驱动程序在图中的第1步中在<code>0x80000000</code>位置分配了一个<code>0x1000</code>字节的写缓冲区，并使其成为第一个可用的描述符，在第2步中设置<code>AVAIL(0x7)</code>标志与内部包络计数相同（设置）。描述符表将看起来像这样。</p>
+<blockquote>
+<p>Note that the avail and used idx columns are in the table just for guidance, they don’t exist in the descriptor table: Each side should have its internal counter to know which position needs to poll or write next, and also the device must track the driver’s wrap counter. Lastly, as with used virtqueue, the driver notifies the device if the latter has notifications enabled (step 3 in the diagram).</p>
+</blockquote>
+<p>注意，表中的avail和used idx列只是为了指导，它们在描述符表中并不存在。每一方都应该有自己的内部计数器，以知道下一步需要轮询或写入哪个位置，同时设备也必须跟踪驱动的wrap计数器。最后，和使用的virtqueue一样，如果设备启用了通知功能，驱动程序就会通知设备（图中第3步）。</p>
+<blockquote>
+<p>And the usual diagram of the updates. Note the lack of the avail and used ring, as only the descriptor table is needed now.</p>
+</blockquote>
+<p>还有通常的更新图。请注意，由于现在只需要描述符表，所以缺少可用和已用环。</p>
+<img src="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/2020-07-15-vdpa-1.png" class="">
+
+<p><strong>Diagram: Driver makes available a descriptor using a packed queue</strong></p>
+<h3 id="Returning-used-descriptors-How-the-device-fills-the-“done”-list"><a href="#Returning-used-descriptors-How-the-device-fills-the-“done”-list" class="headerlink" title="Returning used descriptors: How the device fills the “done” list"></a>Returning used descriptors: How the device fills the “done” list</h3><blockquote>
+<p>As the driver, the device maintains an internal single-bit ring wrap counter initialized to 1, and knows that the driver also has its internal ring wrap counter set. When the latter first searches for the first descriptor the driver has made available, it polls the first entry of the ring, looking for the avail flag equal to the driver internal wrap flag (set in this case).</p>
+</blockquote>
+<p>作为驱动程序，设备维护着一个初始化为1的内部单比特环形缠绕计数器，并且知道驱动程序也设置了其内部环形缠绕计数器。当后者第一次搜索驱动器提供的第一个描述符时，它就会轮询环的第一个条目，寻找等于驱动器内部包络标志的可用标志（在这种情况下是设置的）。</p>
+<blockquote>
+<p>As with a used ring, the length of the written data is returned in the “length” entry (if any), and the id of the used descriptor. At last, the device will make the avail (A) and used (U) flag the same as the device’s internal wrap counter.</p>
+<p>Following the example, the device will let the descriptor table as figure 6. The device will know that the buffer has been returned because the used flag matches the available flag, and with the device internal wrap counter at the moment it wrote the descriptor. The returned address is not important: only the ID.</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A|U</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td>…</td>
+<td></td>
+<td></td>
+<td></td>
+<td>←</td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Descriptor table after add the first buffer</strong></p>
+</blockquote>
+<p>与已用环一样，写入数据的长度会在 “length “条目中返回（如果有的话），以及已用描述符的id。最后，设备将使可用(A)和已用(U)标志与设备的内部缠绕计数器相同。</p>
+<p>按照这个例子，设备将让描述符表如图6所示。设备将知道缓冲区已经被返回，因为使用的标志与可用的标志相匹配，并且在写描述符的时候与设备内部的wrap计数器相匹配。返回的地址并不重要：只有ID。</p>
+<img src="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/2020-07-15-vdpa-2.png" class="">
+
+<p><strong>Diagram: Device marks a descriptor as used using a packed queue</strong></p>
+<h3 id="Wrapping-the-descriptor-ring-How-the-lanes-keep-separated"><a href="#Wrapping-the-descriptor-ring-How-the-lanes-keep-separated" class="headerlink" title="Wrapping the descriptor ring: How the lanes keep separated?"></a>Wrapping the descriptor ring: How the lanes keep separated?</h3><blockquote>
+<p>When the driver fills the complete descriptor table, it wraps and changes its internal Driver Ring Wrap. So, in the second round, the available descriptions will have the avail and used flags clear, so the device will have to poll looking for this condition once it wraps reading descriptors. Let’s see a full example of the different situations.</p>
+</blockquote>
+<p>当驱动程序填满了完整的描述符表，它就会包裹并改变其内部的驱动程序环形包裹。所以，在第二轮中，可用的描述符将有avail和used标志被清除，所以设备一旦包裹读取描述符，就必须轮询寻找这个条件。让我们来看看不同情况的完整例子。</p>
+<blockquote>
+<p>If we have a descriptor table with only two entries, the Driver Ring Wrap Counter is set, and it fills the descriptor table making available two buffers at the beginning of the operation, driver will reverse its internal wrap counter, so it will be clear (0). We have the next table:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>→</td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Full two-entries descriptor table</strong></p>
+</blockquote>
+<p>如果我们有一个只有两个条目的描述符表，驱动环形缠绕计数器被设置，它填满描述符表，在操作开始时腾出两个缓冲区，驱动将扭转其内部缠绕计数器，所以它将是clear（0）。我们有下一个表。</p>
+<blockquote>
+<p>After that, the device realizes that has both descriptors with id #0 and #1 available: it knows that the driver had its wrap counter set when it wrote them, the avail flag is set on them, and the used one is clear on both. If device uses the descriptor with id #1, we have the Figure 8 descriptor table. The buffer #0 still belongs to the device!</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>→</td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A|U</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Using first buffer out of order</strong></p>
+</blockquote>
+<p>之后，设备意识到有两个ID为#0和#1的描述符是可用的：它知道驱动程序在写它们的时候设置了wrap计数器，它们的avail标志被设置，而且这两个描述符的used标志都是清零的。如果设备使用id为#1的描述符，我们就有了图8的描述符表。缓冲区#0仍然属于设备!</p>
+<blockquote>
+<p>Now the driver realize the buffer #1 has been used, since avail and used flags are the same (set) and match the device’s internal wrap counter at the moment it wrote it. If device now uses the buffer id #0, it will make the table look like this:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>→</td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A|U</td>
+<td>←</td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A|U</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Using second buffer out of order</strong></p>
+</blockquote>
+<p>现在驱动程序意识到1号缓冲区已经被使用了，因为avail和used标志是一样的（设置），并且与设备的内部wrap计数器在写的时候是一致的。如果设备现在使用缓冲区ID #0，它将使表看起来像这样。</p>
+<blockquote>
+<p>But there is a more interesting case: Starting from the “first buffer out of order” situation, the driver makes available the buffer #1 again. In that case, the descriptor table goes directly from the “first buffer” to the next figure, “Full two-entries descriptor table.”</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|(!A)|U</td>
+<td>←</td>
+</tr>
+<tr>
+<td>→</td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Full two-entries descriptor table</strong></p>
+</blockquote>
+<p>但还有一种更有趣的情况。从 “第一个缓冲区失灵 “的情况开始，驱动程序再次提供了1号缓冲区。在这种情况下，描述符表直接从 “第一个缓冲区 “进入下一个图，”完整的两行描述符表”。</p>
+<h3 id="Chained-descriptors-No-more-jumps"><a href="#Chained-descriptors-No-more-jumps" class="headerlink" title="Chained descriptors: No more jumps"></a>Chained descriptors: No more jumps</h3><blockquote>
+<p>Chained descriptors work likewise: no need for the next field in the head (or subsequent) descriptor in the chain to search subsequent ones, since the latter always occupies the next position. However, while in the split used ring you only need to return as used the id of the head of the chain, in packed you only need to return the tail id.</p>
+</blockquote>
+<p>链式描述符的工作原理也是如此：不需要在链中的头部（或后续）描述符的下一个字段来搜索后续的描述符，因为后者总是占据着下一个位置。然而，在分割使用的环中，你只需要返回链头的id作为使用，而在打包中你只需要返回尾部的id。</p>
+<blockquote>
+<p>Back to the used ring, every time we use chained descriptors, we make the used idx lag regarding the avail idx. More than one descriptor mark as available to the device, but we only send one as used to the driver. While this is not a problem in the split ring, this would cause descriptor entry exhaustion in the packed version.</p>
+</blockquote>
+<p>回到已用环，每次我们使用链式描述符时，都会使已用idx滞后于可用idx。一个以上的描述符被标记为设备可用，但我们只把一个描述符作为已使用的描述符发送给驱动。虽然这在分割环中不是一个问题，但在打包版本中会导致描述符条目耗尽。</p>
+<blockquote>
+<p>The straightforward solution is to make the device mark as used every descriptor in the chain. However, this can be expensive, since we are modifying a shared area of memory, and could cause cache bounces.</p>
+<p>However, the driver already knows the chain, so it can skip all the chain with only the last id. This is why we need to compare the used/avail pair with the driver/device Wrap Counter: after a jump, we wouldn’t know if the next descriptor has been made available in this driver’s round or in the next if we only have a binary available/used flag.</p>
+</blockquote>
+<p>直接的解决方案是让设备将链上的每个描述符都标记为已使用。然而，这可能是昂贵的，因为我们正在修改内存的共享区域，并可能导致缓存跳出。</p>
+<p>然而，驱动程序已经知道了链，所以它可以跳过所有的链，只保留最后一个ID。这就是为什么我们需要将已用/可用对与驱动/设备的Wrap Counter进行比较：在跳转之后，如果我们只有一个二进制的可用/已用标志，我们就不知道下一个描述符是在这个驱动的回合中还是在下一个回合中被提供的。</p>
+<blockquote>
+<p>For example, in a four entries ring, the driver makes available the chain of three descriptors:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x82000000</td>
+<td>0x1000</td>
+<td>2</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Three chained descriptors available</strong></p>
+</blockquote>
+<p>例如，在一个四项环中，驱动器提供了三个描述符的链。</p>
+<blockquote>
+<p>After that, the device discovers the chain (polling position 0) and marks it as used, overwriting only the position 0. It skips completely the positions 1 and 2. When the driver polls for used, it will skip them too, knowing that the chain was 3 descriptors long:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>2</td>
+<td>W|A|U</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x82000000</td>
+<td>0x1000</td>
+<td>2</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td>←</td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Using the descriptor chain</strong></p>
+</blockquote>
+<p>之后，设备会发现这个链（轮询位置0），并将其标记为已用，只覆盖位置0，完全跳过位置1和2。当驱动轮询已使用时，它也会跳过这些位置，因为它知道该链有3个描述符长。</p>
+<blockquote>
+<p>Now the driver produces another two descriptor long chain, and it has to take into account the wrapping:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|(!A)|U</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x82000000</td>
+<td>0x1000</td>
+<td>2</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Make available another descriptor chain</strong></p>
+</blockquote>
+<p>现在，驱动程序又产生了一个两根描述符的长链，它必须考虑到包装的问题。</p>
+<blockquote>
+<p>And the device marks it as used, so only the first descriptor in the chain (4th in the table) needs to be updated.</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|(!A)|U</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>1</td>
+<td>W|A</td>
+<td>←</td>
+</tr>
+<tr>
+<td></td>
+<td>0x82000000</td>
+<td>0x1000</td>
+<td>2</td>
+<td>W|A</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>0</td>
+<td>W|A|U</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Using another descriptor chain</strong></p>
+<p>Although the next descriptor (2nd) seems like available, since the avail flag is different from the used one, the device knows that it is not because of knowing the internal Driver Wrap Counter: The right flag combination is avail clear, used set.</p>
+</blockquote>
+<p>而设备将其标记为已使用，所以只有链中的第一个描述符（表中的第四个）需要更新。</p>
+<p>尽管下一个描述符（第2个）看起来是可用的，但由于avail标志与used标志不同，设备知道它不是，因为知道内部的Driver Wrap Counter。正确的标志组合是avail clear，used set。</p>
+<h3 id="Indirect-descriptors-When-chains-are-not-enough"><a href="#Indirect-descriptors-When-chains-are-not-enough" class="headerlink" title="Indirect descriptors: When chains are not enough"></a>Indirect descriptors: When chains are not enough</h3><blockquote>
+<p>Indirect descriptors work like in the split case. First, the driver allocates a table of indirect descriptors each with the same layout as the regular packed descriptors anywhere in memory. After that, it sets each descriptor in this indirect table to the buffer it wants to make available for the driver (steps 1-2), and inserts a descriptor in the virtqueue with the flag <code>VIRTQ_DESC_F_INDIRECT (0x4)</code> set (step 3). The descriptor’s address and length correspond to the indirect table’s ones.</p>
+</blockquote>
+<p>间接描述符的工作方式与分割情况类似。首先，驱动程序分配一个间接描述符表，每个描述符的布局与内存中任何地方的常规打包描述符相同。之后，它将这个间接表中的每个描述符设置为它想为驱动提供的缓冲区（步骤1-2），并在virtqueue中插入一个设置了标志VIRTQ_DESC_F_INDIRECT（0x4）的描述符（步骤3）。该描述符的地址和长度对应于间接表的那些。</p>
+<blockquote>
+<p>In packed layout buffers must come in order in the indirect table, and the ID field is completely ignored. Also, the only valid flag for them is <code>VIRTQ_DESC_F_WRITE</code>, others are reserved and ignored by the device. As usual, the driver will notify the device if the conditions for the notification are met (step 4).</p>
+</blockquote>
+<p>在打包布局中，缓冲区必须按顺序出现在间接表中，ID字段完全被忽略。另外，它们唯一有效的标志是VIRTQ_DESC_F_WRITE，其他的是保留的，被设备忽略。像往常一样，如果通知的条件得到满足，驱动程序将通知设备（步骤4）。</p>
+<img src="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/2020-07-15-vdpa-3.png" class="">
+
+<p><strong>Diagram: Driver makes available a descriptor using a packed queue</strong></p>
+<p>For example, the driver would need to allocate this 48 bytes table for a 3 descriptors indirect table:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>0x1000</td>
+<td>…</td>
+<td>W</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x81000000</td>
+<td>0x1000</td>
+<td>…</td>
+<td>W</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>0x82000000</td>
+<td>0x1000</td>
+<td>…</td>
+<td>W</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Three descriptor long indirect packed table</strong></p>
+<p>And if it introduces the indirect table the first in the descriptor table, assuming it is allocated in <code>0x83000000</code> address:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>48</td>
+<td>0</td>
+<td>A|I</td>
+<td>←</td>
+</tr>
+<tr>
+<td>→</td>
+<td>…</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Drivers makes an indirect table available</strong></p>
+<p>After indirect buffer consumption, the device needs to return the indirect buffer id (0 in the example) in its used descriptor. The table looks like the return of the first buffer, except for the indirect (I) flag set:</p>
+<table>
+<thead>
+<tr>
+<th>Avail idx</th>
+<th>Address</th>
+<th>Length</th>
+<th>ID</th>
+<th>Flags</th>
+<th>Used idx</th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>0x80000000</td>
+<td>48</td>
+<td>0</td>
+<td>A|U|I</td>
+<td></td>
+</tr>
+<tr>
+<td>→</td>
+<td>…</td>
+<td></td>
+<td></td>
+<td></td>
+<td>←</td>
+</tr>
+</tbody></table>
+<p><strong>Figure: Device makes an indirect table used</strong></p>
+<p>After that, the device cannot access the memory table anymore unless the driver makes it available again, so the latter can free or reuse it.</p>
+<h3 id="Notifications-how-to-manage-interruptions"><a href="#Notifications-how-to-manage-interruptions" class="headerlink" title="Notifications: how to manage interruptions?"></a>Notifications: how to manage interruptions?</h3><blockquote>
+<p>Like in the used queue, each side of the communication maintains two identical structures used for controlling notifications between the device and the driver. The driver’s one is read-only by the device, and the device’s one is read-only by the driver.</p>
+<p>The struct layout is:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">struct pvirtq_event_suppress &#123; </span><br><span class="line">        le16 desc;</span><br><span class="line">        le16 flags; </span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Listing: Event suppression struct notification</strong></p>
+</blockquote>
+<p>就像在用过的队列中，通信的每一方都维护着两个相同的结构，用于控制设备和驱动之间的通知。驱动程序的那个结构是设备只读的，而设备的那个结构是驱动程序只读的。</p>
+<blockquote>
+<p>The member flags can take the values:</p>
+<ul>
+<li>0: Notifications are enabled</li>
+<li>1: Notifications are disabled</li>
+<li>2: Notifications are enabled for a specific descriptor, specified from the desc member.</li>
+</ul>
+<p>If flags value is 2, the other side will notify until the wrap counter matches the most significant bit of desc and the descriptor placed in the position desc discarding that bit is made used/available. For this mode to work, <code>VIRTIO_F_RING_EVENT_IDX</code> flag needs to be negotiated in Virtio device initialization: feature bits.</p>
+<p>None of these mechanisms are 100% reliable, since the other side could have sent the notification already when we set the values, so expect it even when disable.</p>
+<p>Note that, since the descriptor ring size is not being forced to be a power of two (comparing with the split version), the notification structure can fit in the same page as the descriptor table. This can be advantageous for some implementations.</p>
+</blockquote>
+<p>成员标志可以采取以下值。</p>
+<ul>
+<li>0: 通知被启用</li>
+<li>1: 通知被禁用</li>
+<li>2: 对一个特定的描述符启用通知，由desc成员指定。</li>
+</ul>
+<p>如果标志值为2，另一方将进行通知，直到wrap计数器与desc的最重要的位相匹配，并且放置在desc位置的描述符放弃该位而被使用/可用。为了使这种模式工作，VIRTIO_F_RING_EVENT_IDX标志需要在Virtio设备初始化中协商：特征位。</p>
+<p>这些机制都不是100%可靠的，因为当我们设置这些值时，对方可能已经发送了通知，所以即使在禁用的情况下也要期待它。</p>
+<p>请注意，由于描述符环的大小没有被强制为2的幂（与分裂版本相比），通知结构可以与描述符表放在同一页面中。这对某些实现来说是有利的。</p>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><blockquote>
+<p>In this series we have taken you through the different virtio data plane layouts and its virtqueues implementations. They are the means for virtio devices and virtio drivers to exchange information.</p>
+<p>We start by covering the simpler and less optimized split virtqueue layout. This layout is relatively easy to implement and to debug thus it’s a good entry point for learning the virtio dataplane basics.</p>
+<p>We then moved on to the packed virtqueue layout specified in virtio 1.1 which allows requests exchange using a more compact descriptor representation. This avoids all the overhead of scattering the data through memory, avoiding cache contention and reducing the PCI transactions in case of actual hardware.</p>
+</blockquote>
+<p>在这个系列中，我们已经带你了解了不同的virtio数据平面布局及其virtqueues的实现。它们是virtio设备和virtio驱动交换信息的手段。</p>
+<p>我们首先介绍了更简单、更不优化的分离式virtqueue布局。这种布局相对容易实现和调试，因此它是学习virtio数据平面基础知识的一个很好的切入点。</p>
+<p>然后，我们转向virtio 1.1中规定的打包式virtqueue布局，它允许使用更紧凑的描述符来交换请求。这避免了在内存中分散数据的所有开销，避免了缓存争用，并在实际硬件的情况下减少了PCI事务。</p>
+<blockquote>
+<p>We also covered a number of optimizations on top of both ring layouts which depends on the communication/device type or how each part is implemented. Mainly, they are oriented to reduce the communication overhead, both in notifications and in memory transactions. Virtio offers a simple protocol to communicate what features and optimizations support each side, so they can agree on how the data is going to be exchanged and is highly future-proof.</p>
+</blockquote>
+<p>我们还在这两个环状布局的基础上进行了一些优化，这取决于通信/设备类型或每个部分的实现方式。主要的是，它们的方向是减少通信开销，包括通知和内存事务。Virtio提供了一个简单的协议来沟通每一方支持哪些功能和优化，所以他们可以就数据的交换方式达成一致，并且是高度面向未来的。</p>
+<blockquote>
+<p>This series covered the essence of the virtio data plane and provided you with the tool to analyze and develop your own virtio device and drivers. It should be noted that this series summarizes the relevant sections from the virtio spec thus you should refer to the spec for additional information and see it as the source of truth.</p>
+<p>In the next posts we will return to vDPA including the kernel framework, hands on blogs and vDPA in Kubernetes.</p>
+</blockquote>
+<p>这个系列涵盖了virtio数据平面的本质，并为你提供了分析和开发自己的virtio设备和驱动的工具。应该注意的是，这个系列总结了virtio规范中的相关部分，因此你应该参考规范以获得更多信息，并将其视为真理的来源。</p>
+<p>在接下来的文章中，我们将回到vDPA，包括内核框架、实践博客和Kubernetes中的vDPA。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/" data-id="cleh8xpaf0000urwb2g162srp" data-title="Packed virtqueue: How to reduce overhead with virtio" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-virtqueues-and-virtio-ring-how-the-data-travels" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" class="article-date">
@@ -1379,219 +2229,6 @@
 
 
   
-    <article id="post-windows-2003-vmware-v2v-hands-on" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/" class="article-date">
-  <time class="dt-published" datetime="2022-10-27T07:27:12.000Z" itemprop="datePublished">2022-10-27</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/v2v/">v2v</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/10/27/windows-2003-vmware-v2v-hands-on/">Windows 2003 vmware v2v hands-on</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet following blue screen issue:</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/image-2022-10-09-21-15-41-292.png" class="">
-
-<p>with code 0x0000007B.</p>
-<p>So I write a hands-on blog to help fix this issue.</p>
-<p>When search for this error on vmware kb or MSDN, we can find out that, wrong driver is the main reason cause this problem.</p>
-<p>Usually, it’s recommanded to do following check for the v2v vm:</p>
-<ol>
-<li>Confirm the vm running well on original host, if its already error check configuration first.</li>
-<li>Check if virt-v2v failed to install virtio driver to guest during virt-v2v convert.</li>
-<li>Check kvm configuration, that root disk use ide to keep compitable.</li>
-<li>Check if windows disabled driver installatin by its group policy.</li>
-</ol>
-<p>Besides those issues, if you migrate a windows 2003 with cd-rom you will also met this blue screen issue. Due to windows will change device order after v2v and root disk not work as expected.</p>
-<p>So I write this practical blog to resolve device changed issue on windows 2003 v2v.</p>
-<ol>
-<li><p>Uninstall vmware guest tools and drivers (avoid failed to install driver issue)</p>
-</li>
-<li><p>Change the disk controller to ide and reboot guest</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.33.png" class="">
-</li>
-<li><p>Attach MergeIde.iso to guest</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.43.png" class="">
-<p>the iso contains a .reg and a .bat file. Run the .reg first and run the .bat. The device will be recorded and prepare for hypervisor change.</p>
-</li>
-<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.14.29.png" class="">
-<p>export ovf template or use virt-v2v to export the vm the kvm.</p>
-</li>
-<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.10.01.png" class="">
-<p>check the vm started without blue screen.</p>
-</li>
-</ol>
-<p>For windows, it seems that with cd-rom or disk order changed guest, after hypervisor migration, windows can not identify the original order of thoes devices due to hardware change. So record the device seems a easy solution for v2v case.</p>
-<p>Note: this solution is also useful for Windows XP v2v</p>
-<p>Download MergeIDE.iso from: <a target="_blank" rel="noopener" href="https://www.virtualbox.org/wiki/Migrate_Windows">https://www.virtualbox.org/wiki/Migrate_Windows</a></p>
-<p>Refer to Microsoft commands: <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting">https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/10/27/windows-2003-vmware-v2v-hands-on/" data-id="cld1mheb6001lyuwb9nbs97t5" data-title="Windows 2003 vmware v2v hands-on" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/27/windows-2003-vmware-v2v-hands-on/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-plugable-architecture-design-and-thoughts-about-implementation" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" class="article-date">
-  <time class="dt-published" datetime="2022-10-20T16:45:32.000Z" itemprop="datePublished">2022-10-21</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/">Plugable module architecture design and thoughts about its implementation</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>Software’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on customizing features for some commercial reasons which pushed us to think about how to get rid of customizing feature efforts and focus   on core function to earn more technical advantages.</p>
-<p>Generallly, customizing features is harmful when compared to normal features (but maybe it can get commercial benifits so do not take this as absolute     rule), because more customers use normal features.</p>
-<p>But because some integration requests already designed which not only require maintainance but also need development for new integration. For example, a feature for security is desing to use third-part machine to do encryption，but when customer use the feature, they all use different machine which caused lots of development cost for us to do the integrations.</p>
-<p>In these cases, a plugable architecture is required to cut down the cost and this is the reason to write this blog to record related design and make it a repeatable practice.</p>
-<h2 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements"></a>Requirements</h2><p>For existing systems which need to support multi types of resources, typically use a register way to connect the management layer and application layers. And the application layers use a couple of standard interfaces to keep consistency and seperate implementation from mechanism.</p>
-<p>So for the aim of delveloping a plugable module architecture if we still follows the pattern, easily we will be distrubed by the change of core codes from the mechanism. For example, if the core changes the mechanism as a result, application should change all of the interfaces as expected, so development is required which is not satisfied with out target.</p>
-<p>Just after that small think, list all requirements before starting design. Following points are the aim of this architecture:</p>
-<ul>
-<li>Low development efforts or configuration as a service.</li>
-<li>No core code dependency. Any changes to mechanism should be avoid.</li>
-<li>Security. Plugin module should not cause any security issue.</li>
-</ul>
-<p>Base on those points, the architecture should be changed to expose its mechanism by interfaces.</p>
-<p>For example</p>
-<ol>
-<li>read plugin configuration and verify it</li>
-<li>generate code proxy according to the configuration</li>
-<li>limited db access controled by the code proxy</li>
-<li>Invokations can be verified by unit test to check the plugin can work as expected</li>
-<li>change the configuration the refresh it could update the code proxy</li>
-<li>plugin configurations use a specified syntax</li>
-<li>if code proxy support runtime refresh can be configured</li>
-</ol>
-<p>From writing configurations, functional features can be easily supported.</p>
-<p>If any requests need data structure support, a configuration map shoud be support for more customize and in this way we can easily create a http client to support some modules.</p>
-<p>But if customize feature use any third-part libs, only configuration is not enough to support.</p>
-<p>For code level, maybe open source interfaces is still needed.</p>
-<p>We should offer read only data structure and functional interfaces but should not involve core codes of Java which in most cases, are aspectj support, spring containers and so on. Only pure java should be used for all plugin modules.</p>
-<p>In next section, we will raise examples of two module, one is not suitable for plugable module and other one is suitable for plugable.</p>
-<h2 id="Login-module"><a href="#Login-module" class="headerlink" title="Login module"></a>Login module</h2><p>Multiple login methods should be supported because many standard third-part authentication is already exists for example, CAS, oauth2, ldap and so on.</p>
-<p>If you already have a customized system for authentication, I seems diffcult to integrate another system with existing one. Because the authentication actually need to transfer sensitive information to do authenticate but which is not safe enough to expose those data for plugin exactly.</p>
-<p>From the usage of CAS, oauth2 we can see a generally authentication service just redirect authentication to itself and returns a authentication result and finally redirect to the right page. So sensitive information do not transferred but use a token to verify client’s response instead. </p>
-<p>For ldap, just access its database directly to verify if the user is exists and finish authentication. Because ldap just integrated with ZStack so also no data transferred but ldap module itself need to care about the security issue which already resolve by third-part libs.</p>
-<p>So when we tries to support plugin for login, password or any key liked information need to be exposed which is quite unsafe and have potential security risks. Compared to ldap verification, password is used directly and also faces the same problem.</p>
-<p>For login module integration, two ways are recommended. One is using open-source authentication like CAS or oauth2. Another is integrating ZStack API to use account/user directly.</p>
-<p>Following figure shows the flows of login module</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure1.png" class="">
-
-<ul>
-<li>Support plugable system, main auth or additinal auth should be exposed</li>
-<li>Sensitive information go through the whole flow</li>
-<li>CAS and oauth2 use their own authentication which is not related the current architecture</li>
-</ul>
-<h2 id="Alarm-Event-system"><a href="#Alarm-Event-system" class="headerlink" title="Alarm/Event system"></a>Alarm/Event system</h2><p>For alarm event system, only expose monitor messages which seems more suitable to be developed as a plugable system.</p>
-<p>When have lots of endpoint support, some use stantard libs like dingtalk and microsoft teams, offers api for message sending. But when sms system require integration, this became diffcult due to the lack of stantard apis.</p>
-<p>So a plugable system can be powerful to reduce development efforts.</p>
-<p>For example, sms systems all have their own apis the usages, so the interation of api is the first step. But actually the business scenarios are not only limited on send message. Maybe message distribution strategy is required, and message format is required.</p>
-<p>So seperate those parts as followings:</p>
-<ul>
-<li>Send sms message</li>
-<li>Distribution strategy</li>
-<li>Message format</li>
-<li>….</li>
-</ul>
-<p>When design plugable system, the most important thing is that we should seperate mechanism requirements and strategy requirements. </p>
-<p>For message format, actually, all kinds of message required this feature and can be noted as general feature and mechanism and we can also call it customize message format. The format change do not influence how the message send or comsumed.</p>
-<p>Distribution strategy, from the name, we can known that no specific rules or format could be announced because the strategy always changes from one the another.</p>
-<p>Send sms message. also the integration part but the message with a format is what we can offered and only how to send the message should be defined and which is I think can be seperated from the system.</p>
-<p>And more informations maybe, endpoint type, status and those ZStack defined fields also need to be involved in the plugable system so we get a architecture like following:</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure2.png" class="">
-
-<p>A plugable endpoint in designed to manage endpoint plugins and plugin should obey following rules: </p>
-<ul>
-<li>Offer endpoint type</li>
-<li>Implement interface to send message</li>
-<li>Unit test for endpoint plugin</li>
-</ul>
-<p>And the design of plugable endpoint may like following:</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure3.png" class="">
-
-<p>So plugable endpoint should define a interface require type and send() method’s implementation for the usage. Take the interface to a seperate open source package and publish to maven repository, its easy for develop and easy to use. By reflections, endpoint could be initialized from jar so just add jar to your dependency directory is ok.</p>
-<p>To develop a plugin for new sns endpoint no need to known the logic or usage of orignal application system but developer could focus on the send method itself.</p>
-<p>On the other hand, application level should extend orignal CURD api to suitable for those plugin definition and keep compitable with other endpoints.</p>
-<h2 id="TODO"><a href="#TODO" class="headerlink" title="TODO"></a>TODO</h2><ul>
-<li>Database access is not limited which should add limited on database service itself.</li>
-<li>Rules for all kind of plugins so that plugins can be managed together and distribution can keep consistency</li>
-<li>More examples</li>
-<li>For exsiting modules, try to refactor the plugin types to get rid of module dependency</li>
-</ul>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" data-id="cld1mheas0011yuwbeb60edrj" data-title="Plugable module architecture design and thoughts about its implementation" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -1607,7 +2244,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Categories</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/Python/">Python</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
     </div>
   </div>
 
@@ -1617,7 +2254,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -1627,7 +2264,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 13.33px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/TDP/" style="font-size: 11.67px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.33px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 13.33px;">java</a> <a href="/tags/kernel/" style="font-size: 11.67px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 10px;">libvirt</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 13.33px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 13.33px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 18.33px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 15px;">virt</a> <a href="/tags/virtio/" style="font-size: 15px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 18.33px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 18.33px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/cpu/" style="font-size: 10px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 12.86px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 11.43px;">libvirt</a> <a href="/tags/linux/" style="font-size: 15.71px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -1636,7 +2273,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -1649,6 +2286,14 @@
       <ul>
         
           <li>
+            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/">Packed virtqueue: How to reduce overhead with virtio</a>
+          </li>
+        
+          <li>
             <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
           </li>
         
@@ -1658,14 +2303,6 @@
         
           <li>
             <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
-          </li>
-        
-          <li>
-            <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
-          </li>
-        
-          <li>
-            <a href="/2022/12/15/nessus-on-centos-7/">Nessus on centos 7</a>
           </li>
         
       </ul>

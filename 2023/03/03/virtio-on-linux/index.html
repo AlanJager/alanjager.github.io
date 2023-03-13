@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Virtio on Linux | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Introduction Virtio is an open standard that defines a protocol for communication between drivers and devices of different types, see Chapter 5 (“Device Types”) of the virtio spec ([1]). Originally de">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Virtio on Linux">
+<meta property="og:url" content="http://hanayo.cn/2023/03/03/virtio-on-linux/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Introduction Virtio is an open standard that defines a protocol for communication between drivers and devices of different types, see Chapter 5 (“Device Types”) of the virtio spec ([1]). Originally de">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-03-03T14:38:09.000Z">
+<meta property="article:modified_time" content="2023-03-03T14:38:10.667Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="virtio">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-virtio-on-linux" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/03/03/virtio-on-linux/" class="article-date">
+  <time class="dt-published" datetime="2023-03-03T14:38:09.000Z" itemprop="datePublished">2023-03-03</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Virtio on Linux
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><blockquote>
+<p>Virtio is an open standard that defines a protocol for communication between drivers and devices of different types, see Chapter 5 (“Device Types”) of the virtio spec ([<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#id2">1]</a>). Originally developed as a standard for paravirtualized devices implemented by a hypervisor, it can be used to interface any compliant device (real or emulated) with a driver.</p>
+</blockquote>
+<p>Virtio是一个开放的标准，它定义了驱动程序和不同类型的设备之间的通信协议，见virtio规范（[<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#id2">1]</a>）的第五章（”设备类型”）。它最初是作为由管理程序实现的准虚拟化设备的标准而开发的，但它可以用来将任何符合要求的设备（真实的或模拟的）与驱动程序连接。</p>
+<blockquote>
+<p>For illustrative purposes, this document will focus on the common case of a Linux kernel running in a virtual machine and using paravirtualized devices provided by the hypervisor, which exposes them as virtio devices via standard mechanisms such as PCI.</p>
+</blockquote>
+<p>为了说明问题，本文将重点讨论Linux内核在虚拟机中运行并使用由管理程序提供的准虚拟化设备的常见情况，管理程序通过标准机制（如PCI）将它们暴露为virtio设备。</p>
+<h2 id="Device-Driver-communication-virtqueues"><a href="#Device-Driver-communication-virtqueues" class="headerlink" title="Device - Driver communication: virtqueues"></a>Device - Driver communication: virtqueues</h2><blockquote>
+<p>Although the virtio devices are really an abstraction layer in the hypervisor, they’re exposed to the guest as if they are physical devices using a specific transport method – PCI, MMIO or CCW – that is orthogonal to the device itself. The virtio spec defines these transport methods in detail, including device discovery, capabilities and interrupt handling.</p>
+</blockquote>
+<p>尽管virtio设备实际上是管理程序中的一个抽象层，但它们被暴露给客户，就像它们是使用特定的传输方法–PCI、MMIO或CCW–的物理设备一样，这与设备本身是正交的。virtio规范详细定义了这些传输方法，包括设备发现、能力和中断处理。</p>
+<blockquote>
+<p>The communication between the driver in the guest OS and the device in the hypervisor is done through shared memory (that’s what makes virtio devices so efficient) using specialized data structures called virtqueues, which are actually ring buffers <a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#f1">1</a> of buffer descriptors similar to the ones used in a network device:</p>
+</blockquote>
+<p>客户操作系统中的驱动程序和管理程序中的设备之间的通信是通过共享内存完成的（这就是virtio设备如此高效的原因），使用称为virtqueues的专门数据结构，这实际上是类似于网络设备中使用的缓冲区描述符的环形缓冲区<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#f1">1</a>。</p>
+<p>struct <strong>vring_desc</strong></p>
+<p>Virtio ring descriptors, 16 bytes long. These can chain together via <strong>next</strong>.</p>
+<p><strong>Definition</strong>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">struct vring_desc &#123;</span><br><span class="line">    __virtio64 addr;</span><br><span class="line">    __virtio32 len;</span><br><span class="line">    __virtio16 flags;</span><br><span class="line">    __virtio16 next;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Members</strong></p>
+<ul>
+<li><p><code>addr</code></p>
+<p>buffer address (guest-physical)</p>
+</li>
+<li><p><code>len</code></p>
+<p>buffer length</p>
+</li>
+<li><p><code>flags</code></p>
+<p>descriptor flags</p>
+</li>
+<li><p><code>next</code></p>
+<p>index of the next descriptor in the chain, if the VRING_DESC_F_NEXT flag is set. We chain unused descriptors via this, too.</p>
+</li>
+</ul>
+<blockquote>
+<p>All the buffers the descriptors point to are allocated by the guest and used by the host either for reading or for writing but not for both.</p>
+<p>Refer to Chapter 2.5 (“Virtqueues”) of the virtio spec ([<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#id2">1]</a>) for the reference definitions of virtqueues and “Virtqueues and virtio ring: How the data travels” blog post ([<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#id3">2]</a>) for an illustrated overview of how the host device and the guest driver communicate.</p>
+</blockquote>
+<p>描述符指向的所有缓冲区都是由guest分配的，并由host用于读取或写入，但不能同时使用。</p>
+<p>请参考virtio规范（[1]）的第2.5章（”虚拟队列”），了解虚拟队列的参考定义和 “虚拟队列和virtio环。数据是如何传输的 “博文（[2]），以图文并茂的方式概述了主机设备和客户驱动的通信方式。</p>
+<p>The <code>vring_virtqueue</code> struct models a virtqueue, including the ring buffers and management data. Embedded in this struct is the <a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#c.virtqueue"><code>virtqueue</code></a> struct, which is the data structure that’s ultimately used by virtio drivers:</p>
+<p>struct <strong>virtqueue</strong></p>
+<p>a queue to register buffers for sending or receiving.</p>
+<p><strong>Definition</strong>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">struct virtqueue &#123;</span><br><span class="line">    struct list_head list;</span><br><span class="line">    void (*callback)(struct virtqueue *vq);</span><br><span class="line">    const char *name;</span><br><span class="line">    struct virtio_device *vdev;</span><br><span class="line">    unsigned int index;</span><br><span class="line">    unsigned int num_free;</span><br><span class="line">    unsigned int num_max;</span><br><span class="line">    void *priv;</span><br><span class="line">    bool reset;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Members</strong></p>
+<ul>
+<li><p><code>list</code></p>
+<p>the chain of virtqueues for this device</p>
+</li>
+<li><p><code>callback</code></p>
+<p>the function to call when buffers are consumed (can be NULL).</p>
+</li>
+<li><p><code>name</code></p>
+<p>the name of this virtqueue (mainly for debugging)</p>
+</li>
+<li><p><code>vdev</code></p>
+<p>the virtio device this queue was created for.</p>
+</li>
+<li><p><code>index</code></p>
+<p>the zero-based ordinal number for this queue.</p>
+</li>
+<li><p><code>num_free</code></p>
+<p>number of elements we expect to be able to fit.</p>
+</li>
+<li><p><code>num_max</code></p>
+<p>the maximum number of elements supported by the device.</p>
+</li>
+<li><p><code>priv</code></p>
+<p>a pointer for the virtqueue implementation to use.</p>
+</li>
+<li><p><code>reset</code></p>
+<p>vq is in reset state or not.</p>
+</li>
+</ul>
+<p><strong>Description</strong></p>
+<blockquote>
+<p> A note on <strong>num_free</strong>: with indirect buffers, each buffer needs one element in the queue, otherwise a buffer will need one element per sg element.</p>
+<p>The callback function pointed by this struct is triggered when the device has consumed the buffers provided by the driver. More specifically, the trigger will be an interrupt issued by the hypervisor (see <a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#c.vring_interrupt"><code>vring_interrupt()</code></a>). Interrupt request handlers are registered for a virtqueue during the virtqueue setup process (transport-specific).</p>
+</blockquote>
+<p>关于<strong>num_free</strong>的说明：对于间接缓冲区，每个缓冲区需要队列中的一个元素，否则一个缓冲区将需要每个sg元素的一个元素。</p>
+<p>当设备消耗完驱动提供的缓冲区时，这个结构所指向的回调函数会被触发。更具体地说，触发器将是由管理程序发出的中断（见<a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#c.vring_interrupt"><code>vring_interrupt()</code></a>）。中断请求处理程序是在虚拟队列设置过程中为虚拟队列注册的（特定于传输）。</p>
+<p>irqreturn_t <strong>vring_interrupt</strong>(int irq, void *_vq)</p>
+<p>notify a virtqueue on an interrupt</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><p><code>int irq</code></p>
+<p>the IRQ number (ignored)</p>
+</li>
+<li><p><code>void *_vq</code></p>
+<p>the <a target="_blank" rel="noopener" href="https://docs.kernel.org/next/driver-api/virtio/virtio.html#c.virtqueue"><code>struct virtqueue</code></a> to notify</p>
+</li>
+</ul>
+<p><strong>Description</strong></p>
+<p>Calls the callback function of <strong>_vq</strong> to process the virtqueue notification.</p>
+<h2 id="Device-discovery-and-probing"><a href="#Device-discovery-and-probing" class="headerlink" title="Device discovery and probing"></a>Device discovery and probing</h2><blockquote>
+<p>In the kernel, the virtio core contains the virtio bus driver and transport-specific drivers like virtio-pci and virtio-mmio. Then there are individual virtio drivers for specific device types that are registered to the virtio bus driver.</p>
+</blockquote>
+<p>在内核中，virtio核心包含virtio总线驱动和特定的传输驱动，如virtio-pci和virtio-mmio。然后，还有针对特定设备类型的单独的virtio驱动程序，它们被注册到virtio总线驱动程序上。</p>
+<blockquote>
+<p>How a virtio device is found and configured by the kernel depends on how the hypervisor defines it. Taking the QEMU virtio-console device as an example. When using PCI as a transport method, the device will present itself on the PCI bus with vendor 0x1af4 (Red Hat, Inc.) and device id 0x1003 (virtio console), as defined in the spec, so the kernel will detect it as it would do with any other PCI device.</p>
+</blockquote>
+<p>内核如何发现和配置virtio设备，取决于管理程序如何定义它。以QEMU virtio-console设备为例。当使用PCI作为传输方式时，该设备将在PCI总线上以供应商0x1af4（Red Hat, Inc.）和设备ID 0x1003（virtio console）的形式出现，正如规范中所定义的那样，所以内核会像检测其他PCI设备那样检测它。</p>
+<blockquote>
+<p>During the PCI enumeration process, if a device is found to match the virtio-pci driver (according to the virtio-pci device table, any PCI device with vendor id = 0x1af4):</p>
+</blockquote>
+<p>在PCI枚举过程中，如果发现一个设备与virtio-pci驱动相匹配（根据virtio-pci设备表，任何PCI设备的厂商ID=0x1af4）。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">pci_device_id</span> <span class="title">virtio_pci_id_table</span>[] =</span> &#123;</span><br><span class="line">        &#123; PCI_DEVICE(PCI_VENDOR_ID_REDHAT_QUMRANET, PCI_ANY_ID) &#125;,</span><br><span class="line">        &#123; <span class="number">0</span> &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>then the virtio-pci driver is probed and, if the probing goes well, the device is registered to the virtio bus:</p>
+</blockquote>
+<p>然后对virtio-pci驱动进行探测，如果探测顺利，该设备就被注册到virtio总线上。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">virtio_pci_probe</span><span class="params">(struct pci_dev *pci_dev,</span></span></span><br><span class="line"><span class="function"><span class="params">                            <span class="keyword">const</span> struct pci_device_id *id)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (force_legacy) &#123;</span><br><span class="line">                rc = virtio_pci_legacy_probe(vp_dev);</span><br><span class="line">                <span class="comment">/* Also try modern mode if we can&#x27;t map BAR0 (no IO space). */</span></span><br><span class="line">                <span class="keyword">if</span> (rc == -ENODEV || rc == -ENOMEM)</span><br><span class="line">                        rc = virtio_pci_modern_probe(vp_dev);</span><br><span class="line">                <span class="keyword">if</span> (rc)</span><br><span class="line">                        <span class="keyword">goto</span> err_probe;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                rc = virtio_pci_modern_probe(vp_dev);</span><br><span class="line">                <span class="keyword">if</span> (rc == -ENODEV)</span><br><span class="line">                        rc = virtio_pci_legacy_probe(vp_dev);</span><br><span class="line">                <span class="keyword">if</span> (rc)</span><br><span class="line">                        <span class="keyword">goto</span> err_probe;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        rc = register_virtio_device(&amp;vp_dev-&gt;vdev);</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>When the device is registered to the virtio bus the kernel will look for a driver in the bus that can handle the device and call that driver’s probe method.</p>
+<p>At this point, the virtqueues will be allocated and configured by calling the appropriate virtio_find helper function, such as virtio_find_single_vq() or virtio_find_vqs(), which will end up calling a transport-specific find_vqs method.</p>
+</blockquote>
+<p>当设备被注册到virtio总线上时，内核将在总线上寻找一个可以处理该设备的驱动程序，并调用该驱动程序的探测方法。</p>
+<p>此时，将通过调用适当的virtio_find辅助函数，如virtio_find_single_vq()或virtio_find_vqs()来分配和配置virtqueues，最终会调用一个特定于传输的find_vqs方法。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/03/03/virtio-on-linux/" data-id="clesn3uub00004xwb5f94h8vb" data-title="Virtio on Linux" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/03/03/virtio-on-linux/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/03/03/virtio-on-linux/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2023/03/09/cpu-features-about-kvm-hidden/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Cpu features about kvm hidden
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2023/03/01/cpu-feature-configuration-code-diving/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Cpu feature configuration code diving</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
+          </li>
+        
+          <li>
+            <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/">Packed virtqueue: How to reduce overhead with virtio</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

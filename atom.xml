@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-03-01T12:54:51.228Z</updated>
+  <updated>2023-03-13T14:44:02.510Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,106 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>KVM虚拟化性能分析</title>
+    <link href="http://hanayo.cn/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/"/>
+    <id>http://hanayo.cn/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/</id>
+    <published>2023-03-13T14:36:38.000Z</published>
+    <updated>2023-03-13T14:44:02.510Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;KVM虚拟化是一种常用的虚拟化技术，它可以将一台物理服务器划分为多个虚拟机，从而提高服务器的利用率和灵活性。然而，由于虚拟化带来的额外开销，KVM虚拟化的性能问题是一个常见的挑战。为了解决这些问题，我们需要使用一些性能诊断工具来分析和优化KVM虚拟化的性能。&lt;/p&gt;
+&lt;p&gt;</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="kvm" scheme="http://hanayo.cn/categories/virtualization/kvm/"/>
+    
+    
+    <category term="kvm" scheme="http://hanayo.cn/tags/kvm/"/>
+    
+    <category term="sysstat" scheme="http://hanayo.cn/tags/sysstat/"/>
+    
+    <category term="virt-top" scheme="http://hanayo.cn/tags/virt-top/"/>
+    
+    <category term="performance" scheme="http://hanayo.cn/tags/performance/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Cpu features about kvm hidden</title>
+    <link href="http://hanayo.cn/2023/03/09/cpu-features-about-kvm-hidden/"/>
+    <id>http://hanayo.cn/2023/03/09/cpu-features-about-kvm-hidden/</id>
+    <published>2023-03-09T13:48:22.000Z</published>
+    <updated>2023-03-13T14:42:01.595Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;[TOC]&lt;/p&gt;
+&lt;h2 id=&quot;What-kvm-hidden-did-to-qemu&quot;&gt;&lt;a href=&quot;#What-kvm-hidden-did-to-qemu&quot; class=&quot;headerlink&quot; title=&quot;What kvm hidden did to</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="kvm" scheme="http://hanayo.cn/categories/virtualization/kvm/"/>
+    
+    
+    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
+    
+    <category term="kernel" scheme="http://hanayo.cn/tags/kernel/"/>
+    
+    <category term="libvirt" scheme="http://hanayo.cn/tags/libvirt/"/>
+    
+    <category term="cpu" scheme="http://hanayo.cn/tags/cpu/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Virtio on Linux</title>
+    <link href="http://hanayo.cn/2023/03/03/virtio-on-linux/"/>
+    <id>http://hanayo.cn/2023/03/03/virtio-on-linux/</id>
+    <published>2023-03-03T14:38:09.000Z</published>
+    <updated>2023-03-03T14:38:10.667Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;blockquote&gt;
+&lt;p&gt;Virtio is an</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="translation" scheme="http://hanayo.cn/categories/virtualization/translation/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/categories/virtualization/translation/virtio/"/>
+    
+    
+    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+  </entry>
   
   <entry>
     <title>Cpu feature configuration code diving</title>
@@ -524,85 +624,6 @@
     <category term="TDP" scheme="http://hanayo.cn/tags/TDP/"/>
     
     <category term="paper-reading" scheme="http://hanayo.cn/tags/paper-reading/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Some thought about software engineer interview</title>
-    <link href="http://hanayo.cn/2022/09/23/some-thought-about-software-engineer-interview/"/>
-    <id>http://hanayo.cn/2022/09/23/some-thought-about-software-engineer-interview/</id>
-    <published>2022-09-23T07:40:26.000Z</published>
-    <updated>2022-09-28T01:19:10.381Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;I can’t stop thinking about how to interview a suitable software engineer for my team, because a graduate is fired only after joining my</summary>
-        
-      
-    
-    
-    
-    <category term="management" scheme="http://hanayo.cn/categories/management/"/>
-    
-    
-    <category term="interview" scheme="http://hanayo.cn/tags/interview/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Build internal maven repositories</title>
-    <link href="http://hanayo.cn/2022/09/22/build-internal-maven-repos/"/>
-    <id>http://hanayo.cn/2022/09/22/build-internal-maven-repos/</id>
-    <published>2022-09-22T05:58:26.000Z</published>
-    <updated>2022-09-28T01:19:10.339Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;h1 id=&quot;Build-internal-maven-repositories&quot;&gt;&lt;a href=&quot;#Build-internal-maven-repositories&quot; class=&quot;headerlink&quot; title=&quot;Build internal maven</summary>
-        
-      
-    
-    
-    
-    <category term="project-related-works" scheme="http://hanayo.cn/categories/project-related-works/"/>
-    
-    
-    <category term="maven" scheme="http://hanayo.cn/tags/maven/"/>
-    
-    <category term="nexus" scheme="http://hanayo.cn/tags/nexus/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Shared timeout implements under multi-thread context model</title>
-    <link href="http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/"/>
-    <id>http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/</id>
-    <published>2022-09-20T05:38:16.000Z</published>
-    <updated>2022-09-28T01:19:10.379Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we</summary>
-        
-      
-    
-    
-    
-    <category term="arch-notes" scheme="http://hanayo.cn/categories/arch-notes/"/>
-    
-    
-    <category term="software-arch" scheme="http://hanayo.cn/tags/software-arch/"/>
-    
-    <category term="system-design" scheme="http://hanayo.cn/tags/system-design/"/>
     
   </entry>
   

@@ -72,6 +72,479 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-linux-memory-management-1" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/06/04/linux-memory-management-1/" class="article-date">
+  <time class="dt-published" datetime="2022-06-04T15:22:23.000Z" itemprop="datePublished">2022-06-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/linux/">linux</a>►<a class="article-category-link" href="/categories/linux/memory-management/">memory management</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/06/04/linux-memory-management-1/">Linux memory management(1)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="CPU-aceess-memory"><a href="#CPU-aceess-memory" class="headerlink" title="CPU aceess memory"></a>CPU aceess memory</h2><p>CPU core -&gt; MMU(TLBs, Table Walk Unit) -&gt; Caches -&gt; Memory(Translation tables)</p>
+<p>CPU VA -&gt; MMU find PTE(Pysical table entry) -&gt; TLB -&gt; L1 cache -&gt; L2 cache -&gt; L3 cache</p>
+<p>note: pretend a architecture with TLB between CPU and L1 cache.</p>
+<p>TLB is a some cache form VA-to-PA translaction and formed by PTE blocks.</p>
+<p>if TLB miss, CPU find PA from L1 and so on until PA is find and then put the PTE into TLB.</p>
+<h3 id="what-is-TLB"><a href="#what-is-TLB" class="headerlink" title="what is TLB?"></a>what is TLB?</h3><p>TLB definition from wiki: A translation lookaside buffer (TLB) is a memory cache that is used to reduce the time taken to access a user memory location. It is a part of the chip’s memory-management unit (MMU). The TLB stores the recent translations of virtual memory to physical memory and can be called an address-translation cache. A TLB may reside between the CPU and the CPU cache, between CPU cache and the main memory or between the different levels of the multi-level cache. The majority of desktop, laptop, and server processors include one or more TLBs in the memory-management hardware, and it is nearly always present in any processor that utilizes paged or segmented virtual memory.</p>
+<p>note: </p>
+<ol>
+<li><p>TLB stores recent translations that means not all address translation entry is stored in TLB, take care about cache miss.</p>
+</li>
+<li><p>TLB may reside between the CPU and the CPU cache, between the CPU cache and primary storage memory, or between levels of a multi-level cache. </p>
+</li>
+<li><p>virtual addressing met cache miss or physical addressing, CPU always uses TLB to find and store it into cache.</p>
+</li>
+<li><p>cache strategy LRU or FIFO</p>
+</li>
+<li><p>The CPU has to access main memory for an instruction-cache miss, data-cache miss, or TLB miss, but compare to others the third case TLB miss is too expensive.</p>
+</li>
+<li><p>freqently TLB misses occur degrading performance, because each newly cached page displacing one that will soon be used again. Where the TLB acting as a cache for the memory management unit (MMU) which translates virtual addresses to physical addresses is too small for the working set of pages. TLB thrashing can occur even if instruction cache or data cache thrashing are not occurring, because these are cached in different sizes. Instructions and data are cached in small blocks (cache lines), not entire pages, but address lookup is done at the page level. Thus even if the code and data working sets fit into cache, if the working sets are fragmented across many pages, the virtual address working set may not fit into TLB, causing TLB thrashing.</p>
+</li>
+</ol>
+<h3 id="TLB-miss-handling"><a href="#TLB-miss-handling" class="headerlink" title="TLB-miss handling"></a>TLB-miss handling</h3><p>Two schemes for handling TLB misses are commonly found in modern architectures:</p>
+<ul>
+<li>With hardware TLB management, the CPU automatically walks the page tables . On x86 for example, use CR3 register to walks page tables if entry exists, bring back to TLB and TLB tries and access will hit. Or raise a page fault exception which need to be handled by operation system and load correct physical address to TLB(page swap in/out). CPU change do not cause loss of compatibility for the programs.</li>
+<li>With software-managed TLBs, a TLB miss generates a TLB miss exception, and operating system code is responsible for walking the page tables and performing the translation in software. The operating system then loads the translation into the TLB and restarts the program from the instruction that caused the TLB miss. As with hardware TLB management, if the OS finds no valid translation in the page tables, a page fault has occurred, and the OS must handle it accordingly. Instruction sets of CPUs that have software-managed TLBs have instructions that allow loading entries into any slot in the TLB. The format of the TLB entry is defined as a part of the instruction set architecture (ISA).</li>
+</ul>
+<p>note:</p>
+<ol>
+<li>hardware TLB management TLB handling the lifecycle of TLB entries. </li>
+<li>hardware TLB management throws page fault that OS must handling and OS should bring the missing table entry of physical address into TLB cache. And than the program resume.</li>
+<li>hardware TLB management maintain TLB enties is invisible to software. </li>
+<li>hardware TLB management can change from CPU to CPU, but without causing compatibility for the programs. In other words, CPU should obey the rules of TLB management so there is always any page fault exception require OS to handle</li>
+<li>software TLB management throws TLB miss exception and OS owns the responsibility to walk page tables and translation in software. Then OS loads TLB table and restart programs (attention! not resume but restart).</li>
+<li>compare hardware and software TLB management, according to 2 CPU finds TLB and throw page fault exception when hardware, but in sofware situation, the CPU’s instruction sets should have instruction to load TLB to anywhere and TLB entry can be used directly by CPU instruction</li>
+</ol>
+<p>In most cases, hardware TLB management is used. But according to wiki, some of the architectures using software TLB management.</p>
+<h2 id="Typical-TLB"><a href="#Typical-TLB" class="headerlink" title="Typical TLB"></a>Typical TLB</h2><p>These are typical performance levels of a TLB:</p>
+<ul>
+<li>Size: 12 bits – 4,096 entries</li>
+<li>Hit time: 0.5 – 1 clock cycle</li>
+<li>Miss penalty: 10 – 100 clock cycles</li>
+<li>Miss rate: 0.01 – 1% (20–40% for sparse/graph applications)</li>
+</ul>
+<p>The average effective memory cycle rate is defined as <code>m + (1-p)h + pm</code> cycles, where <code>m</code> is the number of cycles required for a memory read, <code>p</code> is the miss rate, and <code>h</code> is the hit time in cycles. If a TLB hit takes 1 clock cycle, a miss takes 30 clock cycles, a memory read takes 30 clock cycles, and the miss rate is 1%, the effective memory cycle rate is an average of 30 + 0.99 * 1 + 0.01 * 30 (31.29 clock cycles per memory access)</p>
+<p>note: research more of TLB performance</p>
+<p>use perf test TLB miss</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">perf stat -e dTLB-loads,dTLB-load-misses,iTLB-loads,iTLB-load-misses -p $PID</span><br></pre></td></tr></table></figure>
+
+<p>if a high TLB missing rate exists in your OS, try to use huge page to decrease the table entries in TLB which will cut down the miss rate. But some application is not siutable for huge page and more details need to be change before use this solution.</p>
+<h2 id="Address-space-switch"><a href="#Address-space-switch" class="headerlink" title="Address-space switch"></a>Address-space switch</h2><p>After process context switches, some TLB entries’ virtual address to physical address mapping is invalid. In order to clean thoes invalid entires, some strategies is required. </p>
+<ol>
+<li>flush all entries after process context change</li>
+<li>mark the entries with its process so the process context change do not matter</li>
+<li>some architecture use a sinlge address space operating system, all process use the same virtual-to-pysical mapping</li>
+<li>some CPU have a process register and hardware uses TLB entries only the current process ID matches</li>
+</ol>
+<p>note:<br>flushing TLB is an important security mechanism for memory isolation. Memory isolation is especially critical during switches between the privileged operating system kernel process and the user processes – as was highlighted by the Meltdown security vulnerability[2]. Mitigation strategies such as kernel page-table isolation (KPTI) rely heavily on performance-impacting TLB flushes and benefit greatly from hardware-enabled selective TLB entry management such as PCID.</p>
+<h2 id="Virtualization-and-x86-TLB"><a href="#Virtualization-and-x86-TLB" class="headerlink" title="Virtualization and x86 TLB"></a>Virtualization and x86 TLB</h2><p>With the advent of virtualization for server consolidation, a lot of effort has gone into making the x86 architecture easier to virtualize and to ensure better performance of virtual machines on x86 hardware</p>
+<p>EPT required.</p>
+<h2 id="reference"><a href="#reference" class="headerlink" title="reference"></a>reference</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Translation_lookaside_buffer">https://en.wikipedia.org/wiki/Translation_lookaside_buffer</a></li>
+<li><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)">https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)</a></li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/06/04/linux-memory-management-1/" data-id="cld1mheam000syuwb5pb3co5q" data-title="Linux memory management(1)" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/06/04/linux-memory-management-1/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/06/04/linux-memory-management-1/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-Hands-on-vhost-user-A-warm-welcome-to-DPDK" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" class="article-date">
+  <time class="dt-published" datetime="2022-04-14T07:33:37.000Z" itemprop="datePublished">2022-04-14</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/">Hands on vhost-user: A warm welcome to DPDK</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能。</p>
+<h1 id="Setting-up"><a href="#Setting-up" class="headerlink" title="Setting up"></a>Setting up</h1><p>对于乐意使用DPDK但不希望配置和安装相关软件的，我们提供了一个ansible playbooks在github的repo里，自动化了所有步骤，我们就基于这个配置开始吧。</p>
+<h1 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements:"></a>Requirements:</h1><ul>
+<li>一台运行了Linux发行版的电脑。本文使用Centos 7，不过不同的Linux发行版之间命令的差别也不会特别大，特别是Red Hat Enterprise Linux 7</li>
+<li>一个有sudo权限的用户</li>
+<li>home目录下有大于25GB的空闲空间</li>
+<li>至少8GB的RAM</li>
+</ul>
+<p>首先我们先安装我们需要的包</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install qemu-kvm libvirt-daemon-qemu libvirt-daemon-kvm libvirt virt-install libguestfs-tools-c kernel-tools dpdk dpdk-tools</span><br></pre></td></tr></table></figure>
+
+<h1 id="Creating-a-VM"><a href="#Creating-a-VM" class="headerlink" title="Creating a VM"></a>Creating a VM</h1><p>首先从下面的网站下载一个最新的Centos-Cloud-Base镜像</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo wget -O &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2 http:&#x2F;&#x2F;cloud.centos.org&#x2F;centos&#x2F;7&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2</span><br></pre></td></tr></table></figure>
+
+<p>这个下载的是一个预安装的Centos7，用来在OpenStack环境运行的。因为我们不使用OpenStack，所以我们需要清理一下这个虚拟机。不过首先我们需要做一个镜像的copy。以此保证我们之后能重复使用这个镜像。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo qemu-img create -f qcow2 -b  &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;CentOS-7-x86_64-GenericCloud.qcow2  &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2 20G</span><br></pre></td></tr></table></figure>
+
+<p>通过下面的配置我们可以允许非特权用户使用libvirt命令（推荐）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export LIBVIRT_DEFAULT_URI&#x3D;&quot;qemu:&#x2F;&#x2F;&#x2F;system&quot;</span><br></pre></td></tr></table></figure>
+
+<p>然后使用清理命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo virt-sysprep --root-password password:changeme --uninstall cloud-init --selinux-relabel -a &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2 --network --install &quot;dpdk,dpdk-tools,pciutils&quot;</span><br></pre></td></tr></table></figure>
+
+<p>这个命令回挂载文件系统并自动应用一些基础配置，然后这个镜像就可以用来启动虚拟机了</p>
+<p>我们需要一个网络来连接我们的虚拟机，Libvirt处理网络的方式类似管理虚拟机，你可以通过XML文件定义网络并且通过命令行控制它的启动和停止。</p>
+<p>举个例子，我们将使用一个叫做’default’的网络libvirt自带的方便网络。用下面的命令定义’default’网络，启动并检查网络运行状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# virsh net-define &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line">Network default defined from &#x2F;usr&#x2F;share&#x2F;libvirt&#x2F;networks&#x2F;default.xml</span><br><span class="line"></span><br><span class="line">[root@10-0-117-158 ~]# virsh net-start default</span><br><span class="line">Network default started</span><br><span class="line"></span><br><span class="line">[root@10-0-117-158 ~]# virsh net-list</span><br><span class="line"> Name      State    Autostart   Persistent</span><br><span class="line">--------------------------------------------</span><br><span class="line"> default   active   no          yes</span><br></pre></td></tr></table></figure>
+
+<p>最后我们使用virt-install来创建虚拟机。这个命令行工具包含了一系列常用的操作系统配置定义。然后我们可以基于这个基本定义做一些改动：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">virt-install --import  --name vhuser-test1 --ram&#x3D;4096 --vcpus&#x3D;3 \</span><br><span class="line">--nographics --accelerate \</span><br><span class="line">       --network network:default,model&#x3D;virtio --mac 02:ca:fe:fa:ce:aa \</span><br><span class="line">      --debug --wait 0 --console pty \</span><br><span class="line">      --disk &#x2F;var&#x2F;lib&#x2F;libvirt&#x2F;images&#x2F;vhuser-test1.qcow2,bus&#x3D;virtio --os-variant centos7.0</span><br></pre></td></tr></table></figure>
+
+<p>这些参数分别制定了。vCPUs的数量，RAM的大小，磁盘的路径，以及虚拟机要连接的网络。</p>
+<p>出了通过我们指定的这些参数定义VM之外，virt-install会把虚拟机同时创建出来，所以我们应该可以看到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# virsh list</span><br><span class="line"> Id   Name           State</span><br><span class="line">------------------------------</span><br><span class="line"> 7    vhuser-test1   running</span><br></pre></td></tr></table></figure>
+
+<p>很好，虚拟机已经运行了。接下来我们先把虚拟机停下来然后做一些额外的配置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh shutdown vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<h1 id="Preparing-the-host"><a href="#Preparing-the-host" class="headerlink" title="Preparing the host"></a>Preparing the host</h1><p>DPDK对内存缓存的分配和管理做了优化。在Linux上这个需要使用hugepage的支持，所以必须要在kernel上打开。使用的page大小通常需要大于4K，以此通过使用更少的page数量，以及更少的TLB来提升性能。在翻译虚拟地址到物理地址的时候会产生这些查询。为了在启动时分配hugepage，我们需要在bootloader配置里加上kernel参数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo grubby --args&#x3D;&quot;default_hugepagesz&#x3D;1G hugepagesz&#x3D;1G hugepages&#x3D;6 iommu&#x3D;pt intel_iommu&#x3D;on&quot; --update-kernel &#x2F;boot&#x2F;vmlinuz-3.10.0-957.27.2.el7.x86_64</span><br></pre></td></tr></table></figure>
+
+<p>当然我们来解释一下这些参数做了什么：</p>
+<p><code>default_hugepagesz=1G</code> 默认创建出来的hugepages默认是1GB</p>
+<p><code>hugepagesz=1G</code> 启动过程中创建出来的hugepage大小也是1GB</p>
+<p><code>hugepages=6</code> 最开始启动的时候创建6个大小为1GB的hugepage，这个在重启之后可以在/proc/meminfo里看到</p>
+<p>注意，补充说明hugepages的设置增加了两个IOMMU相关的参数 <code>iommu=pt intel_iommu=on</code> 这个会初始化Intel VT-d以及IOMMU Pass-Through模式，在Linux用户态处理IO的时候需要用到他们。因此我们修改了kernel参数，现在刚好可以做一下重启。</p>
+<p>等到重启完成之后，我们可以通过命令行查看对应的参数已经生效了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@10-0-117-158 ~]# cat &#x2F;proc&#x2F;cmdline</span><br><span class="line">BOOT_IMAGE&#x3D;&#x2F;vmlinuz-3.10.0-957.27.2.el7.x86_64 root&#x3D;&#x2F;dev&#x2F;mapper&#x2F;zstack-root ro noibrs noibpb nopti nospectre_v2 nospectre_v1 l1tf&#x3D;off nospec_store_bypass_disable no_stf_barrier mds&#x3D;off mitigations&#x3D;off crashkernel&#x3D;auto rd.lvm.lv&#x3D;zstack&#x2F;root rd.lvm.lv&#x3D;zstack&#x2F;swap rhgb quiet LANG&#x3D;en_US.UTF-8 default_hugepagesz&#x3D;1G hugepagesz&#x3D;1G hugepages&#x3D;6 iommu&#x3D;pt intel_iommu&#x3D;on</span><br></pre></td></tr></table></figure>
+
+<h1 id="Prepare-the-guest"><a href="#Prepare-the-guest" class="headerlink" title="Prepare the guest"></a>Prepare the guest</h1><p>virt-install命令通过libvirt创建并启动了一个虚拟机。为了将基于DPDK的vswitch TestPMD连接到QEMU，我们需要增加如下的定义到XML的device部分：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh edit vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<p>在<code>&lt;device&gt;</code>部分增加</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;interface type&#x3D;&#39;vhostuser&#39;&gt;</span><br><span class="line">  &lt;mac address&#x3D;&#39;56:48:4f:53:54:01&#39;&#x2F;&gt;</span><br><span class="line">  &lt;source type&#x3D;&#39;unix&#39; path&#x3D;&#39;&#x2F;tmp&#x2F;vhost-user1&#39; mode&#x3D;&#39;client&#39;&#x2F;&gt;</span><br><span class="line">  &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">  &lt;driver name&#x3D;&#39;vhost&#39; rx_queue_size&#x3D;&#39;256&#39; &#x2F;&gt;</span><br><span class="line">&lt;&#x2F;interface&gt;</span><br><span class="line">&lt;interface type&#x3D;&#39;vhostuser&#39;&gt;</span><br><span class="line">  &lt;mac address&#x3D;&#39;56:48:4f:53:54:02&#39;&#x2F;&gt;</span><br><span class="line">  &lt;source type&#x3D;&#39;unix&#39; path&#x3D;&#39;&#x2F;tmp&#x2F;vhost-user2&#39; mode&#x3D;&#39;client&#39;&#x2F;&gt;</span><br><span class="line">  &lt;model type&#x3D;&#39;virtio&#39;&#x2F;&gt;</span><br><span class="line">  &lt;driver name&#x3D;&#39;vhost&#39; rx_queue_size&#x3D;&#39;256&#39; &#x2F;&gt;</span><br><span class="line">&lt;&#x2F;interface&gt;</span><br></pre></td></tr></table></figure>
+
+<p>另一个和vhost-net不同的guest配置就是hugepages。因此我们需要给guest增加如下定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;memoryBacking&gt;</span><br><span class="line">  &lt;hugepages&gt;</span><br><span class="line">    &lt;page size&#x3D;&#39;1048576&#39; unit&#x3D;&#39;KiB&#39; nodeset&#x3D;&#39;0&#39;&#x2F;&gt;</span><br><span class="line">  &lt;&#x2F;hugepages&gt;</span><br><span class="line">  &lt;locked&#x2F;&gt;</span><br><span class="line">&lt;&#x2F;memoryBacking&gt;</span><br><span class="line"> &lt;numatune&gt;</span><br><span class="line">  &lt;memory mode&#x3D;&#39;strict&#39; nodeset&#x3D;&#39;0&#39;&#x2F;&gt;</span><br><span class="line">&lt;&#x2F;numatune&gt;</span><br></pre></td></tr></table></figure>
+
+<p>这样就有内存了，然后再修改guest里的配置，这是非常重要的配置，没有的话就没办法收发数据包了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"> &lt;cpu mode&#x3D;&#39;host-passthrough&#39; check&#x3D;&#39;none&#39;&gt;</span><br><span class="line">  &lt;topology sockets&#x3D;&#39;1&#39; cores&#x3D;&#39;3&#39; threads&#x3D;&#39;1&#39;&#x2F;&gt;</span><br><span class="line">  &lt;numa&gt;</span><br><span class="line">    &lt;cell id&#x3D;&#39;0&#39; cpus&#x3D;&#39;0-2&#39; memory&#x3D;&#39;3145728&#39; unit&#x3D;&#39;KiB&#39; memAccess&#x3D;&#39;shared&#39;&#x2F;&gt;</span><br><span class="line">  &lt;&#x2F;numa&gt;</span><br><span class="line">&lt;&#x2F;cpu&gt;</span><br></pre></td></tr></table></figure>
+
+<p>然后我们需要启动我们的guest。因为我们配置了让虚拟机连接到vhost-user的UNIX sockets，因此我们需要确保guest启动的时候这些sockets时可用的。这是通过启动testpmd实现的，这个操作会创建我们需要的sockets。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo testpmd -l 0,2,3,4,5 --socket-mem&#x3D;1024 -n 4 \</span><br><span class="line">    --vdev &#39;net_vhost0,iface&#x3D;&#x2F;tmp&#x2F;vhost-user1&#39; \</span><br><span class="line">    --vdev &#39;net_vhost1,iface&#x3D;&#x2F;tmp&#x2F;vhost-user2&#39; -- \</span><br><span class="line">    --portmask&#x3D;f -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --nb-cores&#x3D;4 --forward-mode&#x3D;io</span><br></pre></td></tr></table></figure>
+
+<p>最后，这个实验需要连接到vhost-user unix sockets，因此启动QEMU的时候需要用root。所以在<code>/etc/libvirt/qemu.conf</code> 中设置 <code>user=root</code>。 这是因为我们呢的特殊验证场景需要这样配置，生产环境通常不建议这样配置。实际上读者需要在本文演示结束之后把 <code>user=root</code> 这个配置去掉。</p>
+<p>现在我们可以通过命令启动虚拟机了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start vhuser-test1.</span><br></pre></td></tr></table></figure>
+
+<p>通过root登陆之后，我们要做的第一件事就是绑定virtio设备到vfio-pci驱动。为了能够完成这个操作，我们需要加载一些内核模块</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# modprobe  vfio enable_unsafe_noiommu_mode&#x3D;1</span><br><span class="line">[   90.462919] VFIO - User Level meta-driver version: 0.3</span><br><span class="line">[root@localhost ~]# cat &#x2F;sys&#x2F;module&#x2F;vfio&#x2F;parameters&#x2F;enable_unsafe_noiommu_mode</span><br><span class="line">Y</span><br><span class="line">[root@localhost ~]# modprobe vfio-pci</span><br></pre></td></tr></table></figure>
+
+<p>然后找出virtio-net设备的PCI地址：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# dpdk-devbind --status net</span><br><span class="line"></span><br><span class="line">Network devices using kernel driver</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">0000:00:02.0 &#39;Virtio network device 1000&#39; if&#x3D;eth0 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci *Active*</span><br><span class="line">0000:00:08.0 &#39;Virtio network device 1000&#39; if&#x3D;eth1 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci</span><br><span class="line">0000:00:09.0 &#39;Virtio network device 1000&#39; if&#x3D;eth2 drv&#x3D;virtio-pci unused&#x3D;virtio_pci,vfio-pci</span><br><span class="line"></span><br><span class="line">No &#39;Crypto&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Eventdev&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Mempool&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">No &#39;Compress&#39; devices detected</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>在dpdk-devbind的输出中找到virtio-devices的部分，并且没有被标记Active状态的。我们可以用这些设备来进行实验。注意：地址可能是不一样的。当我们首次启动这些设备的时候将会自动绑定到virtio-pci驱动，因为我们需要和非kernel的驱动一起使用，首先就是要将这些设备和virtio-pci设备解绑，然后再绑定到vfio-pci驱动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# dpdk-devbind -b vfio-pci 0000:00:08.0 0000:00:09.0</span><br><span class="line">[  360.862724] iommu: Adding device 0000:00:08.0 to group 0</span><br><span class="line">[  360.871147] vfio-pci 0000:00:08.0: Adding kernel taint for vfio-noiommu group on device</span><br><span class="line">[  360.951240] iommu: Adding device 0000:00:09.0 to group 1</span><br><span class="line">[  360.960126] vfio-pci 0000:00:09.0: Adding kernel taint for vfio-noiommu group on device</span><br></pre></td></tr></table></figure>
+
+<h1 id="Generating-traffic"><a href="#Generating-traffic" class="headerlink" title="Generating traffic"></a>Generating traffic</h1><p>我们已经安装并配置好所有东西了，接下来就是运行网络负载了。首先在host上我们需要启动testpmd实例作为虚拟交换机。然后设置它转发所有在net_vhost0收到的数据包到net_vhost1。testpmd需要在虚拟机启动之前启动，因为它会尝试连接到由QEMU创建的属于vhost-user设备初始化出来的unix sockets。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">testpmd -l 0,2,3,4,5 --socket-mem&#x3D;1024 -n 4 \</span><br><span class="line">    --vdev &#39;net_vhost0,iface&#x3D;&#x2F;tmp&#x2F;vhost-user1&#39; \</span><br><span class="line">    --vdev &#39;net_vhost1,iface&#x3D;&#x2F;tmp&#x2F;vhost-user2&#39; -- \</span><br><span class="line">    --portmask&#x3D;f -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --nb-cores&#x3D;4 --forward-mode&#x3D;io</span><br></pre></td></tr></table></figure>
+
+<p>然后我们来启动之前准备好的虚拟机：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh start vhuser-test1</span><br></pre></td></tr></table></figure>
+
+<p>注意这时候我们能够在testpmd看到vhost-user收到的数据包了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Port 1: link state change event</span><br><span class="line">VHOST_CONFIG: vring base idx:0 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line">VHOST_CONFIG: vring base idx:1 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line"></span><br><span class="line">Port 0: link state change event</span><br><span class="line">VHOST_CONFIG: vring base idx:0 file:0</span><br><span class="line">VHOST_CONFIG: read message VHOST_USER_GET_VRING_BASE</span><br><span class="line">VHOST_CONFIG: vring base idx:1 file:0</span><br></pre></td></tr></table></figure>
+
+<p>当guest启动之后我们就能够启动testpmd了。testpmd会初始化端口以及DPDK实现的virtio-net驱动。另外还有virtio特性的协商以及其他一些通用功能的协商也都在这一步发生了。</p>
+<p>在我们启动testpmd之前，需要确认vfio内核模块已经加载并绑定了virtio-net设备到vfio-pci驱动：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dpdk-devbind -b vfio-pci 0000:00:08.0 0000:00:09.0</span><br></pre></td></tr></table></figure>
+
+<p>然后可以启动testpmd：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">testpmd -l 0,1,2 --socket-mem 1024 -n 4 \</span><br><span class="line">    --proc-type auto --file-prefix pg -- \</span><br><span class="line">    --portmask&#x3D;3 --forward-mode&#x3D;macswap --port-topology&#x3D;chained \</span><br><span class="line">    --disable-rss -i --rxq&#x3D;1 --txq&#x3D;1 \</span><br><span class="line">    --rxd&#x3D;256 --txd&#x3D;256 --nb-cores&#x3D;2 --auto-start</span><br></pre></td></tr></table></figure>
+
+<p>现在我们可以检查testpmd处理了多少数据包了，我们可以通过输入命令 <code>show port stats all</code> 来看对应（RX/TX）方向的信息，比如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">testpmd&gt; show port stats all</span><br><span class="line"></span><br><span class="line">  ######################## NIC statistics for port 0  ########################</span><br><span class="line">  RX-packets: 75525952   RX-missed: 0          RX-bytes:  4833660928</span><br><span class="line">  RX-errors: 0</span><br><span class="line">  RX-nombuf:  0         </span><br><span class="line">  TX-packets: 75525984   TX-errors: 0          TX-bytes:  4833662976</span><br><span class="line"></span><br><span class="line">  Throughput (since last show)</span><br><span class="line">  Rx-pps:      4684120</span><br><span class="line">  Tx-pps:      4684120</span><br><span class="line">  #########################################################################</span><br><span class="line"></span><br><span class="line">  ######################## NIC statistics for port 1  ########################</span><br><span class="line">  RX-packets: 75525984   RX-missed: 0          RX-bytes:  4833662976</span><br><span class="line">  RX-errors: 0</span><br><span class="line">  RX-nombuf:  0         </span><br><span class="line">  TX-packets: 75526016   TX-errors: 0          TX-bytes:  4833665024</span><br><span class="line"></span><br><span class="line">  Throughput (since last show)</span><br><span class="line">  Rx-pps:      4681229</span><br><span class="line">  Tx-pps:      4681229</span><br><span class="line"></span><br><span class="line">  #########################################################################</span><br></pre></td></tr></table></figure>
+
+<p>testpmd有不同的转发模式，这个例子里面我们用的是macswap，此模式会交换目标和源头的mac地址。另外的转发模式，比如’io’则不会处理包，所以会给出更高深职很不现实的数据。另外一个转发模式就是’noisy’，可以模拟调整包的缓存/内存的查找。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" data-id="cld1mhea00006yuwb46p57oqf" data-title="Hands on vhost-user: A warm welcome to DPDK" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-A-journey-to-the-vhost-users-realm" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/02/09/A-journey-to-the-vhost-users-realm/" class="article-date">
+  <time class="dt-published" datetime="2022-02-09T07:30:26.000Z" itemprop="datePublished">2022-02-09</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/02/09/A-journey-to-the-vhost-users-realm/">A journey to the vhost-users realm</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>这篇文章是基于上一篇 <a href="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/" title="HOWTO">HOWTO</a> 的一篇深入介绍以使用DPDK达成高性能用户态网络功能的vhost-user/virtio-pmd架构。本文主要是供对这个架构的更多实质性实现有兴趣的研发/架构师，并将会提供一个便于理解的时间博客来探索这些概念。</p>
+<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>之前的deep dive文章里，我们展示了将网络处理逻辑从qemu移动到kernel driver并通过vhost-net协议后带来的好处。这篇文章里，我们将会更深一步展示一下如何通过使用DPDK把host和guest的数据面从kernel移动到用户态之后获取更好的网络性能。为了实现这个我们需要看一下这个新的vhost-user库的实现。</p>
+<p>在这篇文章的结尾，你应该对vhost-user/virtio-pmd架构有一个更深的理解，同时能够了解它系统重大性能提升背后的原因。</p>
+<h2 id="DPDK-and-its-benefits"><a href="#DPDK-and-its-benefits" class="headerlink" title="DPDK and its benefits"></a>DPDK and its benefits</h2><p>你可能已经听过DPDK了。这个用户态快速法宝处理库是很多网络功能虚拟化应用的核心（NFV，Network Function Virtualization），通过这个库他们可以实现一个完整的用户态应用，而跳过内核的网络协议栈.</p>
+<p>DPDK是一组用户态的库，能够使一个用户创建一个优化过的高性能包处理应用。它带来了很多优势，让他在开发人员之中特别受欢迎。下面是列举一部分优势：</p>
+<ul>
+<li>Processor affinity  DPDK可以把每一个不同的线程pin到一个特定的逻辑核心上来满足并行最大化</li>
+<li>Huge pages DPDK有数层内存管理（比如Mempool library或者是Mbuf libraty）。然而实际上所有的内存都mmap在hugetlbfs里面分配的。使用2MB或者是甚至1GB的页，DPDK减少了cache missi以及TLB的查询</li>
+<li>Lockless ring buffers DPDK包处理是基于Ring library的，它提供了一个高效无锁的ring queueu支持爆发式的入队出队操作。</li>
+<li>Poll Mode Driver 为了避免中断开销，DPDK提供了一个Poll Mode Driver（PMD）抽象</li>
+<li>VFIO支持 VFIO（Virtual Function I/O）提供了一个用户态驱动开发框架，允许用户态应用直接通过I/O空间映射到应用内存的方式直接访问硬件设备。</li>
+</ul>
+<p>附带在这些特性之后的还有另外两个DPDK支持的技术，提供给我们一套极大提升网络应用性能的工具：</p>
+<ul>
+<li>Vhost-user库 用户态库，实现了vhost协议</li>
+<li>Virtio-PMD 基于DPDK的PMD抽象构建，virtio-pmd驱动实现了virtio标准，同时允许通过一个标准和有效的方式使用虚拟硬件。</li>
+</ul>
+<h2 id="DPDK-and-OVS-A-perfect-combination"><a href="#DPDK-and-OVS-A-perfect-combination" class="headerlink" title="DPDK and OVS: A perfect combination"></a>DPDK and OVS: A perfect combination</h2><p>一个关于DPDK提升性能的好例子就是Open VSwitch。这是一个功能丰富，多层的，分布式虚拟路由器，被广泛作为虚拟化环境以及SDN应用的主要网络层应用。</p>
+<p>经典的OVS被划分为一个高效的基于内核的数据路径（fastpath）组合上一个flow table和一个比较慢的用户态数据路径（slowpath）处理不匹配任何flow（fastpath中已有的）的包。通过集成OVS和DPDK，fastpath也移动到了用户态，减少了kernel切换到用户态的交互，提升了最大性能。结果上对比原生的OVS，OVS+DPDK会有～10x的性能提升。</p>
+<p>所以我们如何结合OVS-DPDK的这些特性和性能到一个virtio架构中去呢？接下来将一个一个介绍相关的组件。</p>
+<h2 id="Vhost-user-library-in-DPDK"><a href="#Vhost-user-library-in-DPDK" class="headerlink" title="Vhost-user library in DPDK"></a>Vhost-user library in DPDK</h2><p>vhost协议是一组消息和机制，被设计用于将virtio数据处理路径从qemu卸载出来（the primary，主要是要卸载包处理）到一个外部元素（the handler，配置virtio rings以及实际的包处理）。最相关的机制是：</p>
+<ul>
+<li>一组消息允许primary发送virtqueue内存的布局，并且配置到handler</li>
+<li>一堆eventft类的文件描述符，允许guest不通过primary直接发送和接受handler的消息：Available Buffer Notification (从guest发送到handler同志有buffers可以被处理了）和 the Used Buffer Notification (从handler发送到guest说明buffers的处理解释了）</li>
+</ul>
+<p>之前的virtio-networking文章我们描述了一个具体的vhost协议的实现（vhost-net内核模块）以及如何允许qemu把网络处理卸载到host-kernel上。然后我们介绍的vhost-user库，这个库是基于DPDK构建的，是一个vhost协议的用户态实现，允许qemu把virtio设备的包处理卸载到任意DPDK应用（比如Open vSwitch）。</p>
+<p>vhost-user库和vhost-net kernel模块主要的不同是通信channel。vhost-net kernel驱动实现了是通过ioctls，而vhost-user库则是通过定义消息结构然后通过unix socket发送的。</p>
+<p>DPDK应用可以被配置到提供unix socket（server模式）并且qemu可以连接上去（client模式）。然而，反过来也是可以的，这样就可以允许在不重启vm的情况下重启DPDK了。</p>
+<p>在这个socket上，所有请求都被primary（这里是QEMU）初始化，其中一些请求要求返回的，比如GET_FEATURES请求或者其他设置了REPLY_ACK的请求。</p>
+<p>在这个场景下，vhost-net kernel模块和vhost-user的库允许primary通过以下重要步骤配置数据面卸载</p>
+<ol>
+<li>Feature negotiation（特性协商）：virtio特性和vhost-user-specific特性通过类似的方式协商，首先primary会获取handler的特性bitmask然后设置一个它支持的子集</li>
+<li>Memory region configuration（内存域配置）：master设置内存域的分布，然后handler就可以mmap()这些内存了</li>
+<li>Vring configuration：primary会设置virtqueue的数量，并且设置他们在memory region内的地址。注意：vhost-user支持multiqueue所以设置更多的queue能用来改善性能。</li>
+<li>Kick and Call file descriptors sending：通常irqfd和ioeventfd机制生效。详细内容可以回顾【】。更多关于virtio queue的机制可以看virtio数据面的文章</li>
+</ol>
+<p>总结一下这些机制，DPDK应用能够通过和guest共享内存处理包并且直接发送和接受guest的通知而不经过qemu。</p>
+<p>最后一个把所有东西整合到一起的就是QEMU的virtio device模型，它有两个主要任务：</p>
+<ul>
+<li>模拟virtio设备，在guest里面展示的i一个特定的PCI端口，并且可以被guest查询和完整配置。同时他会把ioeventfd映射到模拟设备的内存映射I/O空间，同时把irqfd映射到Global System Interrupt（GSI）。结果就是，guest对这些东西时没有感知的，通知和中断都会被转发到vhost-user库而没有qemu参与。</li>
+<li>替换实际的virtio数据路径实现，这个设备作为vhost-user协议的master来卸载处理逻辑到vhost-user库的DPDK进程里</li>
+<li>处理来自virtqueue的请求，并翻译成vhost-user的请求转发到slave。</li>
+</ul>
+<p>下面的图展示了vhost-user-library作为DPDK应用的一部分的和QEMU交互以及guest使用virtio-device-model和virtio-pci设备：</p>
+<img src="/2022/02/09/A-journey-to-the-vhost-users-realm/2019-09-24-virtio-networking-fig1.png" class="">
+
+<p>对这个图有一些需要提的点</p>
+<ul>
+<li>virtio memory region是guest初始化的</li>
+<li>能正确相应的virtio驱动通过定义在virtio规范的标准配置PCI BARs和virtio device接口交互是正常的</li>
+<li>virtio-device-model（qemu内）使用vhost-user协议配置vhost-user库，同时配置irqfd和ioeventfd的文件描述符</li>
+<li>virtio memory region是guest分配并映射到vhost-user库的（可以是DPDK应用）</li>
+<li>结果是DPDK应用能够直接读写包到guest内存，并通过ioeventfd和irqfd机制直接通知guest</li>
+</ul>
+<h2 id="Userland-Networking-in-the-guest"><a href="#Userland-Networking-in-the-guest" class="headerlink" title="Userland Networking in the guest"></a>Userland Networking in the guest</h2><p>我们已经介绍了DPDK vhost-user实现，允许我们从host内核（vhost-net）卸载数据路径处理逻辑到专门的DPDK用户态应用（比如open vSwitch）因此动态改进了网络的性能。现在，我们将继续了解如何对guest做一样的改动来运行一个高性能网络应用（比如NFV服务）到guest的用户态来替换virtio-net内核模块。</p>
+<p>为了能够直接在设备上运行用户态网络应用，我们需要三个组件：</p>
+<ol>
+<li>VFIO：VFIO是一个用户态驱动开发框架，允许用户态应用直接和设备交互（跳过kernel）</li>
+<li>Virtio-pmd驱动：是一个DPDK驱动，基于Poll Mode Driver抽象构建，实现了virtio协议</li>
+<li>IOMMU驱动：IOMMU驱动管理了虚拟IOMMU（I/O Memory Management Unit），一个可以对DMA-capable设备执行地址映射的模拟设备</li>
+</ol>
+<p>接下来我们一个一个的描述他们的细节吧。</p>
+<h2 id="VFIO"><a href="#VFIO" class="headerlink" title="VFIO"></a>VFIO</h2><p>VFIO是Virtual Function I/O的缩写。然而，Alex Williamson，vfio-pci kernel驱动的maintainer建议叫它 “Versatile Framework for userspace I/O”，这是一个更加准确的名字。VFIO是一个构建用户态驱动的基础框架，它提供了：</p>
+<ul>
+<li>映射设备配置和I/O memory regions到用户内存</li>
+<li>DMA和驱动的重新映射以及基于IOMMU groups的隔离。后面我们会深入介绍IOMMU以及它是如何工作的，目前假设它允许创建映射到物理内存的虚拟I/O内存空间（类似普通MMU映射到non-IO虚拟内存），所以当一个设备想要DMA到虚拟I/O地址，IOMMU将重新映射该地址并可能应用隔离和其他安全策略</li>
+<li>Eventfd和irqfd 基础信号机制支持用户态的信号和中断</li>
+</ul>
+<p>引用内核文档：“如果你想在VFIO之前写一个驱动，你要么必须经历完整的开发周期才能成为合适的上游驱动，要么在代码树之外维护，要么使用没有IOMMU保护概念的UIO框架，限制中断支持并需要root权限才能访问诸如PCI配置空间之类的东西。”</p>
+<p>VFIO暴露了用户友好的API，用于创建character设备（在 /dev/vfio/）支持ioctl通过device descriptor来描述设备、I/O regions 和 他们的读/写/mmap offsets，同时提供机制来描述和注册中断通知。</p>
+<h2 id="Virtio-pmd"><a href="#Virtio-pmd" class="headerlink" title="Virtio-pmd"></a>Virtio-pmd</h2><p>DPDK提供了一个叫做Poll Mode Driver (PMD)的驱动抽象。这个东西作用在设备驱动和用户应用之间。提供了一系列高灵活性的东西给用户应用，同时保证了拓展性。比如给新设备实现驱动的能力。</p>
+<p>它提供的一些更有用的特性如下：</p>
+<ul>
+<li>一组API允许特定的驱动实现驱动标准包括接收和发送方法。</li>
+<li>每个端口和每个队列硬件的卸载支持静态和动态配置</li>
+<li>一个用于数据的可拓展API可用，允许驱动定义自己的驱动标准的数据，同时应用可以调查回溯这些数据</li>
+</ul>
+<p>virtio Poll Mode Driver（virtio-pmd）是众多使用PMD API的一个驱动之一，为使用DPDK编写的应用程序提供对virtio设备的快速无锁访问，使用virtio的virtqueues提供数据包接收和传输的基本功能。</p>
+<p>除了这些PMD的特性之外，virtio-pmd驱动的实现还支持：</p>
+<ul>
+<li>接收时每个数据包可灵活合并缓冲区和发送时每个数据包的分散缓冲区</li>
+<li>组播和混杂模式</li>
+<li>MAC/vlan过滤</li>
+</ul>
+<p>结果就是一个高性能的用户态virtio驱动允许DPDK应用完整的使用virtio标准接口。</p>
+<h2 id="Introducing-the-IOMMU"><a href="#Introducing-the-IOMMU" class="headerlink" title="Introducing the IOMMU"></a>Introducing the IOMMU</h2><p>IOMMU可以说基本上等于I/O空间（设备通过DMA直接访问内存）的MMU。它位于主存和设备之间，创建一个virtual I/O空间给每个设备，提供一个机制，动态映射虚拟内存到无力设备。因此当一个驱动配置了设备的DMA（比如一个网卡），并且配置了虚拟地址，当设备尝试访问虚拟地址的时候，这些虚拟地址就被IOMMU重新映射了。</p>
+<p>它提供了很多优势比如：</p>
+<ul>
+<li>可以分配大段相邻虚拟内存，而不需要相邻物理内存</li>
+<li>一些设备不支持足够长的访问物理内存的地址，IOMMU解决了这个问题</li>
+<li>保护内存，避免DMA攻击通过恶意构造错误的设备并执行访问了并不是分配给设备的内存空间。设备只能看到虚拟地址并且运行操作系统独占的IOMMU映射。</li>
+<li>一些架构里支持中断重映射，允许中断隔离和迁移</li>
+</ul>
+<img src="/2022/02/09/A-journey-to-the-vhost-users-realm/2019-09-24-virtio-networking-fig2.png" class="">
+
+<p>通常情况下，所有东西都是有代价的，IOMMU的缺点是：</p>
+<ul>
+<li>因为要做page translation，所以性能下降</li>
+<li>如果增加page translation表会消耗物理内存</li>
+</ul>
+<p>vIOMMU - IOMMU for the guest</p>
+<p>当然，如果有一个物理IOMMU（比如intel VT-d和AMD-VI）qemu里也是会存在虚拟IOMMU的。QEMU的vIOMMU有以下特征：</p>
+<ul>
+<li>它翻译guest I/O虚拟地址（IOVA）到guest物理地址（GPA），并且能够通过QEMU的内存管理系统翻译成QEMU的host虚拟地址（HVA）</li>
+<li>设备隔离执行</li>
+<li>实现了I/O TLB API，因此映射可以在qemu外部查询</li>
+</ul>
+<p>因此为了获取一个虚拟设备和虚拟IOMMU协作：</p>
+<ol>
+<li>使用一个可用API在vIOMMU创建一个必要的IOVA映射，目前API是：<br> a. 内核驱动的内核DMA API<br> b. 用户态驱动的VFIO </li>
+<li>用虚拟I/O地址配置设备的DMA</li>
+</ol>
+<h2 id="vIOMMU-and-DPDK-integration"><a href="#vIOMMU-and-DPDK-integration" class="headerlink" title="vIOMMU and DPDK integration"></a>vIOMMU and DPDK integration</h2><p>当一个QEMU模拟的设备尝试DMA到guest的virtio I/O空间，会使用到vIOMMU TLB来查询对应的页的映射并且执行一个安全的DMA访问。问题是如果实际的DMA被卸载到外部进程比如一个使用vhost-user库的DPDK应用？</p>
+<p>当vhost-user库尝试直接访问这些共享内存，它需要把所有地址（I/O虚拟地址）到它自己的地址。因此这个需要让QEMU的vIOMMU来提供Device TLB API。Vhost-user库（或者说是vhost-kernel驱动）使用PCIe’s Address Translation Services标准消息集合来向QEMU请求一个页地址的翻译，通过一个次级的通信channel（另一个unix socket）这个channel会在配置IOMMU的时候创建。</p>
+<p>总的来说，这里一共有三次地址翻译需要被处理：</p>
+<ol>
+<li>Qemu的vIOMMU翻译I/O虚拟地址到Guest物理地址</li>
+<li>Qemu的内存管理翻译Guest物理地址到Host虚拟地址（在qemu进程的地址空间内的Host虚拟地址）</li>
+<li>Vhost-user库翻译Qemu的Host虚拟地址到Vhost-user的Host虚拟地址。通常情况下，当vhost-user库映射qemu内存地址的时候，很简单就是把QEMU的Host虚拟地址翻译到mmap返回的地址即可</li>
+</ol>
+<p>显然，这些地址翻译存在潜在的性能影响，特别是使用的是动态映射。然而，静态的大页分配（也是DPDK实际上做的）可以最小化这些性能损失。</p>
+<p>下面的图优化了之前的vhost-user架构，来包含IOMMU的组件：</p>
+<img src="/2022/02/09/A-journey-to-the-vhost-users-realm/2019-09-24-virtio-networking-fig3.png" class="">
+
+<p>关于这个相当复杂的图表要提几点：</p>
+<ul>
+<li>Guest物理内存空间是从Guest视角当作物理内存空间的，但显然这是QEMU进程的虚拟地址。当virtqueue memory region被分配的时候，实际上是在Guest的物理内存空间里</li>
+<li>当I/O虚拟地址分配给包含virtqueue的内存范围，和Guest物理地址相关联的一个条目就会被增加到vIOMMU的TLB table里</li>
+<li>另一方面，qemu的内存管理系统是能够知道guest的物理内存空间的和它自己的内存空间是在一起的。因此qemu的内存管理系统是可以翻译guest物理地址到QEMU（host）虚拟地址的</li>
+<li>当vhost-user库尝试去访问未被翻译过的IOVA的时候，它会通过secondary unix socket发送一个IOTLB miss的消息</li>
+<li>IOTLB API收到这个请求后就会开始查找这个地址，首先是把IOVA翻译成GPA然后GPA翻译成HVA。然后发送这个翻译好的结果到master的unix socket也就是vhost-user库。</li>
+<li>最后，vhost-user库需要做最后一次翻译，因为qemu的内存被映射到了自己的内存空间里，所以需要把QEMU的HVA翻译到自己的HVA来访问共享内存</li>
+</ul>
+<h2 id="Putting-everything-together"><a href="#Putting-everything-together" class="headerlink" title="Putting everything together"></a>Putting everything together</h2><p>这个文章涵盖了大量的组件，包括DPDK，virtio-pmd，VFIO，IOMMU等等</p>
+<p>下面的图展示了把这些组件整合之后实现的vhost-user/virtio-pmd架构：</p>
+
+
+<p>对这个图标要提一点：</p>
+<ul>
+<li>把这个图和上一个图相比，增加了通过硬件IOMMU，VFIO以及特定vendor的PMD驱动，连接OVS-DPDK应用到物理网卡的组件。现在就不会有疑惑了，因为访问硬件的方式和guest是一样的。</li>
+</ul>
+<h2 id="An-example-flow"><a href="#An-example-flow" class="headerlink" title="An example flow"></a>An example flow</h2>
+
+<h2 id="Control-Plane"><a href="#Control-Plane" class="headerlink" title="Control Plane"></a>Control Plane</h2><p>这是设置控制面必要的步骤</p>
+<ol>
+<li>当host上的DPDK应用（OVS）启动，会创建一个socket（server模式）和qemu处理virtio相关的协商逻辑</li>
+<li>当qemu启动，它会连接到main socket，然后如果检测到VHOST_USER_PROTOCOL_F_SLAVE_REQ如果vhost-user提供了这个特性，qemu就会创建一个second socket并且把这个socket发送到vhost-user来连接并发送IOTLB同步消息</li>
+<li>当QEMU &lt;-&gt; vhost-library的协商结束，两个sockets在他们之间是共享的。一个是virtio配置，另外一个是iotlb消息交换用的</li>
+<li>guest启动然后vfio驱动就和PCI设备绑定了。这个驱动能够提供访问iommu groups（iommu group主要取决于硬件拓扑）</li>
+<li>当DPDK在guest里启动的时候有以下步骤<br> a. 初始化PCI-vfio设备，同时映射PCI配置空间到用户内存<br> b. 分配virtqueue<br> c. 使用vfio，DMA映射virtqueue内存空间，这样通过IOMMU内核驱动dma映射到vIOMMU设备<br> d. 然后，virto特性协商就开始了。本场景里，使用的virtqueue的地址是IOVA（在I/O虚拟内存空间）。映射eventfd和irqfd也完成了，因此中断和通知就被直接路由在guest和vhost-user库之间，而没有QEMU参与<br> e. 最后，DPDK应用分配一个大片的连续内存作为网络buffer。这部分映射也通过VFIO和IOMMU驱动添加到vIOMMU</li>
+</ol>
+<p>到此，配置完成并且数据面（virtqueues和notification机制）已经可以使用了。</p>
+<h2 id="Data-Plane"><a href="#Data-Plane" class="headerlink" title="Data Plane"></a>Data Plane</h2><p>为了发送数据包，会有以下步骤：</p>
+<ol>
+<li>guest里的DPDK应用命令virtio-pmd发包。首先会写buffers然后把一致性描述符增加到可用描述符ring里</li>
+<li>vhost-user PMD在host端会polling这个virtioqueue，所以他立刻会检测到新的描述符可用并开始处理</li>
+<li>对每一个描述符，vhost-user PMD都会map他们的buffer（这一步就是地址翻译，翻译IOVA到HVA）。很少情况下会有buffer内存在一个没被映射到vhost-user IOTLB的页，如果出现miss的情况，会发送一个请求给QEMU，而实际上DPDK应用在guest里会分配静态大页，保证IOTLB请求会被最小限度的发送到QEMU。</li>
+<li>这个vhost-user PMD会把这个buffers拷贝到mbufs（也就是DPDK应用使用的message buffers）</li>
+<li>这些描述符会被添加到使用过的描述符ring。这些会立刻被guest里的DPDK应用发现，因为guest里的DPDK应用会不断polling virtqueue</li>
+<li>然后这些mbufs就被host的DPDK应用消费了</li>
+</ol>
+<h2 id="Summary-and-conclusions"><a href="#Summary-and-conclusions" class="headerlink" title="Summary and conclusions"></a>Summary and conclusions</h2><p>DPDK是一个很有前途的技术，因为他提供工了极大提升用户态性能的能力。不仅这个技术本身，和OVS结合，能够满足灵活高效的现代虚拟环境的要求，也在NFV部署中扮演着一个重要的角色。</p>
+<p>为了充分利用这个技术，数据中心交换数据路径以及在guest中启用NFV应用，有必要在host和guest之间安全的创建一个有效的数据路径。这也就是virtio-net技术起到的作用。</p>
+<p>vhost-user提供了一个可靠并且安全的机制来卸载网络处理逻辑到基于DPDK的应用里。它和vIOMMU集成，并提供隔离和内存保护，同时将libvirt从处理数据包的繁重工作下解放出来。</p>
+<p>在guest里，符合virtio标准DPDK（virtio-pmd）利用有效的内存管理和高性能的DPDK Poll Mode driver使得在guest里创建也能创建快速数据路径。</p>
+<p>如果你想要学习更多关于virtio技术，vhost-user以及DPDK请不要错过下一篇文章。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/02/09/A-journey-to-the-vhost-users-realm/" data-id="cld1mhec8005wyuwbfprq2cun" data-title="A journey to the vhost-users realm" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/02/09/A-journey-to-the-vhost-users-realm/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/02/09/A-journey-to-the-vhost-users-realm/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-How-vhost-user-came-into-being-Virtio-networking-and-DPDK" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/" class="article-date">
@@ -776,7 +1249,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -786,7 +1259,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/cpu/" style="font-size: 10px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 12.86px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 11.43px;">libvirt</a> <a href="/tags/linux/" style="font-size: 15.71px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 10px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -808,23 +1281,23 @@
       <ul>
         
           <li>
+            <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
+          </li>
+        
+          <li>
             <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
           </li>
         
           <li>
             <a href="/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/">Packed virtqueue: How to reduce overhead with virtio</a>
-          </li>
-        
-          <li>
-            <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/">Virtqueues and virtio ring: How the data travels</a>
-          </li>
-        
-          <li>
-            <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/">Virtio devices and drivers overview: The headjack and the phone</a>
-          </li>
-        
-          <li>
-            <a href="/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/">Windows install virtio then reboot met BSOD</a>
           </li>
         
       </ul>

@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-03-13T14:44:02.510Z</updated>
+  <updated>2023-04-13T16:14:00.290Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,35 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Qemu Colo Details</title>
+    <link href="http://hanayo.cn/2023/04/13/qemu-colo-details/"/>
+    <id>http://hanayo.cn/2023/04/13/qemu-colo-details/</id>
+    <published>2023-04-13T15:49:38.000Z</published>
+    <updated>2023-04-13T16:14:00.290Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;qemu-quorum-block-filter&quot;&gt;&lt;a href=&quot;#qemu-quorum-block-filter&quot; class=&quot;headerlink&quot; title=&quot;qemu quorum block filter&quot;&gt;&lt;/a&gt;qemu quorum</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    
+    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
+    
+    <category term="ft" scheme="http://hanayo.cn/tags/ft/"/>
+    
+    <category term="colo" scheme="http://hanayo.cn/tags/colo/"/>
+    
+  </entry>
   
   <entry>
     <title>KVM虚拟化性能分析</title>
@@ -588,42 +617,6 @@
     
     
     
-    
-  </entry>
-  
-  <entry>
-    <title>A Simplified TDP with Large Tables</title>
-    <link href="http://hanayo.cn/2022/09/27/a-simplified-TDP-with-large-tables/"/>
-    <id>http://hanayo.cn/2022/09/27/a-simplified-TDP-with-large-tables/</id>
-    <published>2022-09-27T13:34:44.000Z</published>
-    <updated>2022-09-28T01:19:10.316Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;blockquote&gt;
-&lt;p&gt;Abstract. Among the performance bottlenecks for the virtual machine, memory comes next to the I/O as the second major</summary>
-        
-      
-    
-    
-    
-    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/categories/virtualization/kvm/"/>
-    
-    
-    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
-    
-    <category term="virt" scheme="http://hanayo.cn/tags/virt/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/tags/kvm/"/>
-    
-    <category term="TDP" scheme="http://hanayo.cn/tags/TDP/"/>
-    
-    <category term="paper-reading" scheme="http://hanayo.cn/tags/paper-reading/"/>
     
   </entry>
   

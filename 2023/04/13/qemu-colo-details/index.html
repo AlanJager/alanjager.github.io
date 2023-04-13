@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Qemu Colo Details | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="qemu quorum block filterBased on the code design of blkverify.c and blkmirror.c, the main purpose is to mirror write requests to all the qcow images hanging in the quorum, and the read operation is to">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qemu Colo Details">
+<meta property="og:url" content="http://hanayo.cn/2023/04/13/qemu-colo-details/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="qemu quorum block filterBased on the code design of blkverify.c and blkmirror.c, the main purpose is to mirror write requests to all the qcow images hanging in the quorum, and the read operation is to">
+<meta property="og:locale">
+<meta property="og:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig1.png">
+<meta property="og:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig2.png">
+<meta property="og:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig3.png">
+<meta property="og:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig4.png">
+<meta property="og:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig5.png">
+<meta property="article:published_time" content="2023-04-13T15:49:38.000Z">
+<meta property="article:modified_time" content="2023-04-13T16:14:00.290Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="ft">
+<meta property="article:tag" content="colo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hanayo.cn/2023/04/13/qemu-colo-details/fig1.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-qemu-colo-details" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/04/13/qemu-colo-details/" class="article-date">
+  <time class="dt-published" datetime="2023-04-13T15:49:38.000Z" itemprop="datePublished">2023-04-13</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Qemu Colo Details
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="qemu-quorum-block-filter"><a href="#qemu-quorum-block-filter" class="headerlink" title="qemu quorum block filter"></a>qemu quorum block filter</h2><p>Based on the code design of blkverify.c and blkmirror.c, the main purpose is to mirror write requests to all the qcow images hanging in the quorum, and the read operation is to check whether the number of occurrences of the qiov version meets the value set by the threshold through the parameters set by the threshold. Then it returns the &gt; value of the result with the highest number of occurrences, if the number of occurrences i is less than the threshold then it returns the quourm exception and the read operation returns -EIO.</p>
+<p>The main use of this feature is for people who use NFS devices affected by bitflip errors.</p>
+<p>If you set the read-pattern to FIFO and set the threshold to 1, you can construct a read-only first disk scenario.</p>
+<h2 id="block-replication"><a href="#block-replication" class="headerlink" title="block-replication"></a>block-replication</h2><p>The micro checkpoint and COLO mentioned in the introduction to the QEMU FT solution will continuously create checkpoints, and the state of the pvm and svm will be the same at the moment the checkpoint is completed. But it will not be consistent until the next checkpoint.</p>
+<p>To ensure consistency, the SVM changes need to be cached and discarded at the next checkpoint. To reduce the stress of network transfers between checkpoints, changes on the PVM disk are synchronized asynchronously to the SVM node.</p>
+<p>For example, the first time VM1 does a checkpoint, it is recorded as state C1, then VM2’s state is also C1, at this time VM2’s disk changes start to cache, VM1’s changes are written to VM2’s node through this mechanism, if an error occurs at this time how should it be handled?</p>
+<p>Suppose we discuss the simplest case of VM1 hanging, then because the next checkpoint has not yet been executed, VM2 continues to run the state of C1 for a period of time and the disk changes are cached, at this time it is only necessary to flush the cached data to VM2’s disk single point to continue to run or wait for FT reconstruction, which is the reason for the need to do SVM disk changes caching (here the data (including two copies, one is to restore to VM2 last checkpoint cache, the other is to VM2 in C1 after the cache of changes)</p>
+<p>The following is the structure of block-replication:</p>
+<img src="/2023/04/13/qemu-colo-details/fig1.png" class="">
+
+<ol>
+<li>The block device on the primary node mounts two sub-devices via quorum, providing backup from the primary node to the secondary host. The read pattern (FIFO) is extended to meet the situation where the primary node will only read the local disk (the threshold needs to be set to 1 so that read operations will only be performed locally)</li>
+<li>A newly implemented filter called replication is responsible for controlling block replication</li>
+<li>The secondary node receives disk write requests from the primary node through the embedded nbd server</li>
+<li>The device on the secondary node is a custom block device, we call it an active disk. it should be an empty device at the beginning, but the block device needs to support bdrv_make_empty() and backing_file</li>
+<li>The hidden-disk is created automatically, and this file caches the contents modified by what is written from the primary node. It should also be an empty device at the beginning and support bdrv_make_empty() and backing_file</li>
+<li>The blockdev-backup job (sync=none) will synchronize all the contents of the hidden-disk cache that should have been overwritten by nbd-induced writes, so the primary and secondary nodes should have the same disk contents before the replication starts</li>
+<li>The secondary node also has a quorum node, so that the secondary can become the new primary after the failover and continue to perform the replication</li>
+</ol>
+<p>There are seven types of internal errors that can exist when block replication runs:</p>
+<ol>
+<li>Primary disk I/O errors</li>
+<li>Primary disk forwarding errors</li>
+<li>blockdev-backup error</li>
+<li>secondary disk I/O errors</li>
+<li>active disk I/O error</li>
+<li>Error clearing hidden disk and active disk</li>
+<li>failover failure</li>
+</ol>
+<p>For error 1 and error 5, just report block level errors directly upwards.</p>
+<p>For 2, 3, 4, and 6 need to be reported to the control plane of FT for failover process control.</p>
+<p>In the case of 7, if the active commit fails, it will prompt a secondary node write operation error and let the person performing the failover decide how to handle it.</p>
+<h2 id="colo-checkpoint"><a href="#colo-checkpoint" class="headerlink" title="colo checkpoint "></a>colo checkpoint </h2><p>colo uses vm’s live migration to achieve the checkpoint function</p>
+<p>Based on the above block-replication to achieve disk synchronization, the other part is how to synchronize the running state data of virtual machines, here directly using the existing live migration, that is, cloud host hot migration, so that after each checkpoint can be considered pvm and svm disk/memory are consistent, so need to be in This event depends on the time of live migration.</p>
+<p>First, let’s organize the checkpoint process, which is divided into two major parts</p>
+<h3 id="Configuration-phase"><a href="#Configuration-phase" class="headerlink" title="Configuration phase"></a>Configuration phase</h3><p>This part will be executed mainly when the colo is first set up, we know that by default at the beginning we will configure the disk synchronization of pvm and svm, but the memory is not actually synchronized yet, so at the beginning we will ask the svm to be pused at first after the startup, and then submit two synchronization operations from the pvm side</p>
+<ol>
+<li>Submit the drive-mirror task to mirror the contents of the disk from the pvm to the remote svm’s disk (embedded nbd is used here, which is also the target disk of the block replicaton later) to ensure that the pvm’s contents are consistent with the svm’s</li>
+<li>Submit a migration task to synchronize memory from pvm to svm, and since both pvm and svm are required to be paired at this point, you actually wait until both pvm and svm are synchronized, then you need to cancel the drive-mirror task, start block replication, and continue running vm<br>Of course, the paused state mentioned in 2 has been changed to be similar to hot migration after the improvements made by intel. After the drive-mirror task is submitted, the id of the task and the information of the block replication disks are used as parameters for the colo migration, which will actually be automatically changed when migrating in the line of online migration. After the migration is completed, the drive-mirror task is automatically cancelled and block-replication is automatically started before running vm, which simplifies the steps a lot.</li>
+</ol>
+<p>After the configuration, you need to manually issue a migrate command to the colo pvm, and the checkpoint will enter the cycle of monitoring after the first migrate.</p>
+<img src="/2023/04/13/qemu-colo-details/fig2.png" class="">
+
+<h3 id="Start-the-checkpoint"><a href="#Start-the-checkpoint" class="headerlink" title="Start the checkpoint"></a>Start the checkpoint</h3><p>The checkpoint mechanism consists mainly of a loop, and the code flow of qemu is as follows:</p>
+<img src="/2023/04/13/qemu-colo-details/fig3.png" class="">
+
+<p>Combined with this picture we explain the more important parts inside</p>
+<h4 id="Process-phase"><a href="#Process-phase" class="headerlink" title="Process phase"></a>Process phase</h4><p>COLO-FT initializes some key variables such as migration status, FAILOVER status and listens to the internal checkpoint notify (triggered from COLO compare)</p>
+<p>After the first successful migrate, the discount state is initialized and the migration state is changed to COLO</p>
+<p>After receiving a request for a checkpoint, a series of checkpoint creation processes are performed</p>
+<h4 id="Colo-Status"><a href="#Colo-Status" class="headerlink" title="Colo Status"></a>Colo Status</h4><p>For the COLO-FT virtual machine, there are two important states</p>
+<p>One is the MigrationState, which on the COLO-FT virtual machine is MIGRATION_STATUS_COLO corresponding to the string “COLO”, which is a prerequisite state to allow checkpointing, and the cloud host must have established the COLO-FT mechanism. FT mechanism, that is, through the above configuration phase to complete the configuration and the first checkpoint, will enter this state and the main loop</p>
+<p>Another state is failover_state, which is a global variable defined in colo_failover.c, which is accessed by colo.c through failover_get_state(), and this parameter is set to FAILOVER_STATUS at the start of the checkpoint loop _NONE, which means that failover is not needed. The bottom half of qemu mounts the mechanism for modifying this state, so it can be triggered by user state commands, so you need to pay attention to whether failover is triggered or not when actually doing checkpoint</p>
+<h4 id="Communitaion"><a href="#Communitaion" class="headerlink" title="Communitaion"></a>Communitaion</h4><p>COLO communicates through messages to get the status of the SVM, as well as to send and confirm the start and completion of the checkpoint, and the message process inside has the following main steps</p>
+<ol>
+<li>Sending COLO_MESSAGE_CHECKPOINT_REQUEST</li>
+<li>After the SVM receives the message, pause the SVM and send COLO_MESSAGE_CHECKPOINT_READY</li>
+<li>PVM starts saving and live migration of VMSTATE</li>
+<li>SVM gets the migrated information and does the CPU synchronization and VM state LOAD locally.</li>
+<li>SVM will wait for a check message from PVM after the migration is completed, and PVM will send a message after the live migration is completed.</li>
+<li>PVM sends COLO_MESSAGE_VMSTATE_SIZE with the size of VMSTATE sent via QIOChannelBuffer</li>
+<li>SVM receives the message and checks if the size received locally is the same as the size sent, if it is, it replies COLO_MESSAGE_VMSTATE_RECEIVED</li>
+<li>After confirming the VMSTATE transfer, the SVM will do some migration and subsequent synchronization and cleanup.</li>
+<li>After completion, the SVM executes vm_start() and sends COLO_MESSAGE_VMSTATE_LOADED.</li>
+<li>After the PVM receives the message that the SVM has successfully loaded, the PVM will also execute vm_start().</li>
+</ol>
+<p>The logic of suspend, migrate and resume the operation of PVM SVM is realized through the message collaboration between PVM and SVM</p>
+<img src="/2023/04/13/qemu-colo-details/fig4.png" class="">
+
+<p>Existing problems, because the current checkpoint are notified to each other through the message, once the corresponding packet is sent and not returned, the next wait may always exist, can not be closed, assuming that at this time from the bottom half (bottom half) to send a request also did not do to clean up the wait state.</p>
+<p>It should be noted that: the default checkpoint once the failure occurs, the vm will be a direct exit, requiring the rebuilding of COLO-FT, so the establishment of COLO-FT failure needs to be analyzed from two parts</p>
+<p>Whether the configuration phase migration has failed<br>Whether the configuration is complete (migration has become colo state) but the checkpoint failed (the above process failed) resulting in COLO-FT exit</p>
+<h3 id="colo-proxy"><a href="#colo-proxy" class="headerlink" title="colo proxy"></a>colo proxy</h3><p>colo proxy as the core component of COLO-FT, this article mainly focuses on the functionality of colo proxy in QEMU</p>
+<p>When QEMU implements the net module, it actually treats the actual device in the guest as a receiver, so the corresponding relationship is as follows</p>
+<p>TX RX</p>
+<p>qemu side network device (sender) ——————-→ guest inside driver (receiver)</p>
+<p>Combined with the code, the filter will be executed before actually doing transimission, and then go to sender processing.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">NetQueue *queue;</span><br><span class="line">size_t size &#x3D; iov_size(iov, iovcnt);</span><br><span class="line">int ret;</span><br><span class="line"></span><br><span class="line">if (size &gt; NET_BUFSIZE) &#123;</span><br><span class="line">    return size;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">if (sender-&gt;link_down || !sender-&gt;peer) &#123;</span><br><span class="line">    return size;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;* Let filters handle the packet first *&#x2F;</span><br><span class="line">ret &#x3D; filter_receive_iov(sender, NET_FILTER_DIRECTION_TX, sender,</span><br><span class="line">                         QEMU_NET_PACKET_FLAG_NONE, iov, iovcnt, sent_cb);</span><br><span class="line">if (ret) &#123;</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ret &#x3D; filter_receive_iov(sender-&gt;peer, NET_FILTER_DIRECTION_RX, sender,</span><br><span class="line">                         QEMU_NET_PACKET_FLAG_NONE, iov, iovcnt, sent_cb);</span><br><span class="line">if (ret) &#123;</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">queue &#x3D; sender-&gt;peer-&gt;incoming_queue;</span><br><span class="line"></span><br><span class="line">return qemu_net_queue_send_iov(queue, sender,</span><br><span class="line">                               QEMU_NET_PACKET_FLAG_NONE,</span><br><span class="line">                               iov, iovcnt, sent_cb);</span><br></pre></td></tr></table></figure>
+
+<p>The filter-mirror and filter-redirect in the network-filter implemented by colo act as the forwarding function of the proxy</p>
+<p>The classic process for a network card is as follows:</p>
+<img src="/2023/04/13/qemu-colo-details/fig5.png" class="">
+
+<p>The host device receives the network packet and sends it to the guest</p>
+<ol>
+<li>First execute the first filter-mirror, for qemu is transimission, so execute mirror action, the network packet mirror a copy sent off through outdev (chardev), and then call the next filter (because it is TX, so other filters will not be executed, so pvm on (the packet is sent directly to the guest)</li>
+<li>SVM’s indev connects to PVM’s mirror’s outdev (via socket), so it receives the packet sent by 1. The filter does not specify an outdev after receiving the packet, so it calls the next filter directly</li>
+<li>SVM calls filter-rewrite, the direction of this filter is ALL, so the packets to and from SVM will be processed by this filter, if the target is sent, because it is sent to VM so the first direction is TX, COLO will record the various states of this TCP packet</li>
+<li>Because there is no next filter so it is sent to the qemu network device, and then take the process of sending to the guest</li>
+<li>From the guest to the qemu network packet, the direction is RX so the filter processing order will be reversed and sent to the rewrite first</li>
+<li>SVM calls filter-rewrite this time in the direction of RX, so when processing, it will process the tcp packets returned by SVM, compare the input and output of tcp packets through the tcp packets table, and if the processing fails, it will put the packet in the queue and resend it again (note: need to continue deeper analysis), and then the filter- redirector</li>
+<li>Also in the PVM mirror filter, because there is no subsequent TX filter, the packet is sent directly to the qemu net device and then to the PVM guest.</li>
+<li>The packets coming out of the PVM guest will be sent to the primary in interface of the colo-compare thing by filter-redirector because it is in the RX direction, so some filters will be performed in the reverse direction</li>
+<li>SVM will send the return of SVM to the secondary in interface of colo-compare of PVM via redirector’s outdev<br>colo-compare receives the packet and starts to do the relevant analysis to decide whether checkpoint is needed</li>
+<li>The filter-redirector’s indev receives the return from colo-compare after comparison and forwards it to the host net device via outdev</li>
+</ol>
+<p>This is the end of a complete packet processing process.</p>
+<p>Since colo-compare is responsible for comparing pvm and svm packets, there are some metrics that need to be understood</p>
+<h3 id="payload"><a href="#payload" class="headerlink" title="payload"></a>payload</h3><p>payload_size = total size - header_size i.e. the size of the whole packet minus the length of the header</p>
+<p>packet data offset packet header size after the distance and payload_size comparison is consistent</p>
+<p>The following is a summary of what needs to be done here</p>
+<p>The logic of colo-compare comparison is organized:</p>
+<table>
+<thead>
+<tr>
+<th>Protocol</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TCP</td>
+<td>Compare whether the payloads are the same. If it is the same and the ack is the same then it is over. If it is the same but the ack of pvm is larger than the ack of svm, the packet sent to svm is dropped and the packet of pvm will not be sent (meaning sent back to the host NIC). So we will record the maximum ack in the current queue (both pvm and svm queues) until the ack exceeds the smaller of the two maximum ack values, and we can ensure that the packet payload is confirmed by both sides</td>
+</tr>
+<tr>
+<td>UDP</td>
+<td>only palyload checked</td>
+</tr>
+<tr>
+<td>ICMP</td>
+<td>only palyload checked</td>
+</tr>
+<tr>
+<td>Other</td>
+<td>only packet size checked</td>
+</tr>
+</tbody></table>
+<p>Possible reasons for network packet loss are therefore:</p>
+<ol>
+<li>colo-compare did not receive the packet correctly</li>
+<li>svm’s redirector did not successfully forward packets to rewrite</li>
+<li>mirror did not replicate the packet successfully</li>
+<li>pvm’s redirector did not successfully send pvm’s return to colo-compare</li>
+<li>svm’s rewrite did not send/receive packets successfully</li>
+<li>colo-compare is not sending packets correctly</li>
+<li>svm’s redirector did not successfully forward packets to colo-compare</li>
+</ol>
+<p>Problem processing</p>
+<p>The processing of 1 mainly relies on the colo compare mechanism itself, for tcp packets will determine whether there are subsequent packets returned by ack, if there are subsequent packets, it means that the previous is missed</p>
+<p>2 If the packet is not successfully sent to rewrite, it will not be processed by svm, so finally colo compare will encounter the situation where pvm has a packet but svm does not have a packet, and the processing is similar to 1</p>
+<p>3 If mirror does not successfully copy the package, then there will also be a situation similar to 1, pvm exists package, svm no package</p>
+<p>4 if pvm redirector did not successfully send the packet, then it seems from colo compare is pvm lost packets, but the same 1 processing, will wait for the pvm and svm minimum ack is exceeded, that is, both pvm or svm even if packet loss occurs, colo compare will wait for the updated packet to appear before returning the packet otherwise will always card does not reverse the current packet</p>
+<p>5 If rewritte’s send-receive fails, this situation will cause the svm to not receive the packet and not return, similar to 1, but if failover occurs at this time, the svm packet is lost</p>
+<p>6 this exception will lead to colo send and receive packet exceptions, network anomalies, not very well handled because itself colo compare is the core component</p>
+<p>7 similar situation svm seems to have replied or actively sent the packet, but because colo compare did not receive, resulting in the svm within the data that did not reply, the benefit is that if the subsequent failover can occur, rewrite because the packet was recorded, will send the packet again, then it seems to be working again (need to test)</p>
+<h3 id="Trigger-checkpoint"><a href="#Trigger-checkpoint" class="headerlink" title="Trigger checkpoint"></a>Trigger checkpoint</h3><p>There are two conditions for triggering from colo-comare, because COLO-FT will establish a notification mechanism when it is established, and colo compare will trigger checkpoint from inside actively through this mechanism</p>
+<ol>
+<li>Checkpoint will be triggered if the payload of the compare tcp packet is inconsistent</li>
+<li>Timed to check if there is a certain period of time but has not received the same return packet (i.e., pvm, svm packet chain table content is inconsistent) trigger checkpoint</li>
+<li>If there is a packet in the pvm list but not in the secondary packet, then it means that the packet reply is late, this situation is handled by 2, if the comparison finds that the non-tcp packet comparison is inconsistent will trigger a checkpoint</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/04/13/qemu-colo-details/" data-id="clgfbjhl80000e7wb9imx6mfo" data-title="Qemu Colo Details" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/04/13/qemu-colo-details/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/04/13/qemu-colo-details/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">KVM虚拟化性能分析</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
+          </li>
+        
+          <li>
+            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2023 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

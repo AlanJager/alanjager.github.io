@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-04-13T16:14:00.290Z</updated>
+  <updated>2023-04-27T06:27:29.312Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,37 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Understand virtio memory balloon</title>
+    <link href="http://hanayo.cn/2023/04/27/virtio-memory-balloon/"/>
+    <id>http://hanayo.cn/2023/04/27/virtio-memory-balloon/</id>
+    <published>2023-04-27T06:20:37.000Z</published>
+    <updated>2023-04-27T06:27:29.312Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;p&gt;Virtio memory ballooning is a</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="virtio-balloon" scheme="http://hanayo.cn/categories/virtualization/virtio-balloon/"/>
+    
+    
+    <category term="qemu" scheme="http://hanayo.cn/tags/qemu/"/>
+    
+    <category term="virtio" scheme="http://hanayo.cn/tags/virtio/"/>
+    
+    <category term="memory balloon" scheme="http://hanayo.cn/tags/memory-balloon/"/>
+    
+  </entry>
   
   <entry>
     <title>Qemu Colo Details</title>
@@ -596,27 +627,6 @@
     <category term="TDP" scheme="http://hanayo.cn/tags/TDP/"/>
     
     <category term="code-reading" scheme="http://hanayo.cn/tags/code-reading/"/>
-    
-  </entry>
-  
-  <entry>
-    <title></title>
-    <link href="http://hanayo.cn/2022/09/28/libvirt-memory-snapshot/"/>
-    <id>http://hanayo.cn/2022/09/28/libvirt-memory-snapshot/</id>
-    <published>2022-09-28T01:19:10.372Z</published>
-    <updated>2022-09-28T01:19:10.373Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;virDomainDefParseXML -&amp;gt; virDomainDiskDefParseXML -&amp;gt; virDomainDeviceInfoParseXML -&amp;gt; virDomainDeviceAddressParseXML -&amp;gt;</summary>
-        
-      
-    
-    
-    
     
   </entry>
   

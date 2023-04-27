@@ -72,6 +72,242 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-virtio-memory-balloon" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/04/27/virtio-memory-balloon/" class="article-date">
+  <time class="dt-published" datetime="2023-04-27T06:20:37.000Z" itemprop="datePublished">2023-04-27</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>Virtio memory ballooning is a technique that adjusts memory allocation in virtualized environments. The hypervisor can add or remove memory from a virtual machine based on demand, using a balloon driver in the guest operating system. When demand is high, the balloon driver inflates and the guest operating system releases memory. When demand is low, the balloon driver deflates and the guest operating system can use more memory.</p>
+<p>This technique optimizes memory usage and reduces the risk of memory exhaustion, making it useful in cloud computing environments. However, it also has trade-offs to consider. Inflating the balloon driver can cause performance issues if the guest operating system can’t release memory quickly enough. It may also struggle with high memory pressure. Understanding these limitations is key to making informed decisions about using virtio memory ballooning.</p>
+<h2 id="Overview-of-Virtio-Memory-Ballooning"><a href="#Overview-of-Virtio-Memory-Ballooning" class="headerlink" title="Overview of Virtio Memory Ballooning"></a>Overview of Virtio Memory Ballooning</h2><p>Based on wiki <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Memory_ballooning">memory ballooning</a> is a technique used to eliminate the need to overprovision host memory used by a virtual machine. To implement it, the virtual machine’s kernel implements a “balloon driver” which allocates unused memory within the VM’s address space into a reserved memory pool (the “balloon”) so that it is unavailable to other processes on the VM. However, rather than being reserved for other uses within the VM, the physical memory mapped to those pages within the VM is actually unmapped from the VM by the host operating system’s hypervisor, making it available for other uses by the host machine. Depending on the amount of memory required by the VM, the size of the “balloon” may be increased or decreased dynamically, mapping and unmapping physical memory as required by the VM.</p>
+<p>According to the Virtio v1.2 specification, Virtio Memory Ballooning follows the Virtio protocol. Including:</p>
+<h3 id="Feature-bits"><a href="#Feature-bits" class="headerlink" title="Feature bits"></a>Feature bits</h3><ul>
+<li><strong>VIRTIO_BALLOON_F_MUST_TELL_HOST (0):</strong> Host must be notified before balloon pages are used.</li>
+<li><strong>VIRTIO_BALLOON_F_STATS_VQ (1):</strong> A virtqueue is present for reporting guest memory statistics.</li>
+<li><strong>VIRTIO_BALLOON_F_DEFLATE_ON_OOM (2):</strong> Balloon deflates when guest is out of memory.</li>
+<li><strong>VIRTIO_BALLOON_F_FREE_PAGE_HINT (3):</strong> The device supports free page hinting. The configuration field <em>free_page_hint_cmd_id</em> is valid.</li>
+<li><strong>VIRTIO_BALLOON_F_PAGE_POISON (4):</strong> The driver will immediately write <em>poison_val</em> to pages after deflating them. The configuration field <em>poison_val</em> is valid.</li>
+<li><strong>VIRTIO_BALLOON_F_PAGE_REPORTING (5):</strong> The device supports free page reporting. A virtqueue is present for reporting free guest memory.</li>
+</ul>
+<h3 id="Memory-Statistics-Tags"><a href="#Memory-Statistics-Tags" class="headerlink" title="Memory Statistics Tags"></a>Memory Statistics Tags</h3><ul>
+<li><strong>VIRTIO_BALLOON_S_SWAP_IN (0)</strong>: Amount of memory swapped in (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_SWAP_OUT (1)</strong>: Amount of memory swapped out to disk (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_MAJFLT (2)</strong>: Number of major page faults that have occurred.</li>
+<li><strong>VIRTIO_BALLOON_S_MINFLT (3)</strong>: Number of minor page faults that have occurred.</li>
+<li><strong>VIRTIO_BALLOON_S_MEMFREE (4)</strong>: Amount of memory not being used (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_MEMTOT (5)</strong>: Total amount of memory available (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_AVAIL (6)</strong>: Estimate of available memory (in bytes) for starting new applications.</li>
+<li><strong>VIRTIO_BALLOON_S_CACHES (7)</strong>: Amount of memory (in bytes) that can be quickly reclaimed without I/O.</li>
+<li><strong>VIRTIO_BALLOON_S_HTLB_PGALLOC (8)</strong>: Number of successful hugetlb page allocations in the guest.</li>
+<li><strong>VIRTIO_BALLOON_S_HTLB_PGFAIL (9)</strong>: Number of failed hugetlb page allocations in the guest.</li>
+</ul>
+<h3 id="Free-page-hinting"><a href="#Free-page-hinting" class="headerlink" title="Free page hinting"></a>Free page hinting</h3><p>Free page hinting is used during migration to determine which pages within the guest are not being used. These pages are then skipped over while migrating the guest. The device will indicate it is ready to start hinting by setting the <em>free_page_hint_cmd_id</em> to one of the non-reserved values that can be used as a command ID. The driver is notified of the following reserved values:</p>
+<ul>
+<li>VIRTIO_BALLOON_CMD_ID_STOP (0): any previously supplied command ID is invalid. The driver should stop hinting free pages until a new command ID is supplied, but should not release any hinted pages for use by the guest.</li>
+<li>VIRTIO_BALLOON_CMD_ID_DONE (1): any previously supplied command ID is invalid. The driver should stop hinting free pages and release all hinted pages for use by the guest.</li>
+</ul>
+<p>When a hint is provided, it indicates that the data contained in the given page is no longer needed and can be discarded. If the driver writes to the page, this overrides the hint and the data will be retained. Any stale pages that have not been written to since the page was hinted may lose their content. If read, the contents of such pages will be uninitialized memory.</p>
+<h3 id="Page-Poison"><a href="#Page-Poison" class="headerlink" title="Page Poison"></a>Page Poison</h3><p>Page Poison is a feature that lets the host know when the guest is initializing free pages with <em>poison_val</em>. When enabled, the driver immediately writes to pages after deflating and pages reported as free will retain <em>poison_val</em>. If the guest is not initializing freed pages, the driver should reject the VIRTIO_BALLOON_F_PAGE_POISON feature. If the feature has been negotiated, the driver will place the initialization value into the <em>poison_val</em> configuration field data.</p>
+<h3 id="Free-Page-Reporting"><a href="#Free-Page-Reporting" class="headerlink" title="Free Page Reporting"></a>Free Page Reporting</h3><p>Free Page Reporting is a method similar to balloon inflation, but without a deflation queue. Reported free pages can be reused by the driver after the request is acknowledged, without notifying the device.</p>
+<p>The driver initiates reporting by gathering free pages into a scatter-gather list, which is then added to the reporting_vq. The exact timing and selection of free pages is determined by the driver.</p>
+<p>Once the driver has enough pages available, it sends a reporting request to the device, which acknowledges the request using the reporting_vq descriptor. After acknowledgement, the driver can reuse the reported free pages by returning them to the free page lists in the guest operating system.</p>
+<p>The driver can continue to gather and report free pages until it has reached the desired number of pages.</p>
+<h2 id="Comparison-to-Other-Memory-Management-Techniques"><a href="#Comparison-to-Other-Memory-Management-Techniques" class="headerlink" title="Comparison to Other Memory Management Techniques"></a>Comparison to Other Memory Management Techniques</h2><p>Virtio memory ballooning is just one of several memory management techniques available in virtualized environments. Here are some other techniques that are commonly used:</p>
+<h3 id="Overcommitment"><a href="#Overcommitment" class="headerlink" title="Overcommitment"></a>Overcommitment</h3><p>Overcommitment is a technique that allows virtual machines to use more memory than physically available. This is useful when memory demand is highly variable. However, overcommitment can cause performance issues if the host system runs out of memory and needs to swap memory pages to disk.</p>
+<p>KVM hypervisor automatically overcommits CPUs and memory. This means that more virtualized CPUs and memory can be allocated to virtual machines than there are physical resources. This saves system resources, resulting in less power, cooling, and investment in server hardware while still allowing under-utilized virtualized servers or desktops to run on fewer hosts.</p>
+<h3 id="Memory-Compression"><a href="#Memory-Compression" class="headerlink" title="Memory Compression"></a>Memory Compression</h3><p>Memory compression compresses memory pages to free up memory in high demand situations. However, this technique can lead to performance problems if the compression algorithm is slow or if memory demand is high.</p>
+<p>Zram, zcache, and zswap advance in-kernel compression in different ways. Zram and zcache, both found in the staging tree, have improved in design and implementation, but they are not stable enough for promotion into the core kernel. Zswap proposes a simplified frontswap-only fork of zcache for direct merging into the MM subsystem. While simpler than zcache, zswap is entirely dependent on still-in-staging zsmalloc and has limitations. If zswap is merged, it remains to be seen if it will ever be extended adequately.</p>
+<h3 id="Hypervisor-Swapping"><a href="#Hypervisor-Swapping" class="headerlink" title="Hypervisor Swapping"></a>Hypervisor Swapping</h3><p>Hypervisor swapping is a technique in which the hypervisor swaps memory pages between the host and guest operating systems in order to optimize memory usage. This can be useful in situations where there is a high demand for memory or when the host system is running low on memory. However, hypervisor swapping can also lead to performance issues if the guest operating system can’t release memory quickly enough.</p>
+<p>Compared to these techniques, virtio memory ballooning has some unique advantages. It optimizes memory usage within the guest operating system itself, reducing the risk of memory exhaustion and improving performance. However, it also has some trade-offs to consider, such as the potential for performance issues if the guest operating system can’t release memory quickly enough.</p>
+<h2 id="How-to-use-Virtio-Memory-Ballooning-on-linux"><a href="#How-to-use-Virtio-Memory-Ballooning-on-linux" class="headerlink" title="How to use Virtio Memory Ballooning on linux"></a>How to use Virtio Memory Ballooning on linux</h2><h3 id="Environment"><a href="#Environment" class="headerlink" title="Environment"></a>Environment</h3><p>On host side we use libvirt to setup a vm.</p>
+<p>The memory tag means: The maximum allocation of memory for the guest at boot time.</p>
+<p>The currentMemory tag means: The actual allocation of memory for the guest.</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">maxMemory</span> <span class="attr">slots</span>=<span class="string">&#x27;16&#x27;</span> <span class="attr">unit</span>=<span class="string">&#x27;KiB&#x27;</span>&gt;</span>1524288<span class="tag">&lt;/<span class="name">maxMemory</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">memory</span> <span class="attr">unit</span>=<span class="string">&#x27;KiB&#x27;</span>&gt;</span>8388608<span class="tag">&lt;/<span class="name">memory</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">currentMemory</span> <span class="attr">unit</span>=<span class="string">&#x27;KiB&#x27;</span>&gt;</span>8388608<span class="tag">&lt;/<span class="name">currentMemory</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<aside>
+💡 The maxMemory tag means: the run time maximum memory allocation of the guest. The initial memory specified by either the <memory> element or the NUMA cell size configuration can be increased by hot-plugging of memory to the limit specified by this element.
+
+</aside>
+
+<p>And add memballoon virtio device in vm xml:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">memballoon</span> <span class="attr">model</span>=<span class="string">&#x27;virtio&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>To use Virtio Memory Ballooning on Linux guest, you’ll need to ensure that your kernel has support for the virtio_balloon driver. You can check for this by running the following command:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsmod | grep virtio_balloon</span><br></pre></td></tr></table></figure>
+
+<aside>
+💡 If you want to test pm_sleep make sure CONFIG_PM_SLEEP is enabled
+
+</aside>
+
+<p>If the virtio_balloon driver is not listed, you may need to load it manually by running the following command:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">modprobe virtio_balloon</span><br></pre></td></tr></table></figure>
+
+<p>We can do some test to confirm balloon driver is working:</p>
+<h3 id="Basic-usage"><a href="#Basic-usage" class="headerlink" title="Basic usage"></a>Basic usage</h3><p>Explaination from </p>
+<p><a target="_blank" rel="noopener" href="https://github.com/libvirt/libvirt/blob/master/docs/manpages/virsh.rst">libvirt/virsh.rst at master · libvirt/libvirt</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME          </span></span><br><span class="line">actual 8388608          <span class="comment"># Current balloon value (in KB)</span></span><br><span class="line">swap_in 7011156         <span class="comment"># The amount of data read from swap space (in kB)</span></span><br><span class="line">swap_out 664776         <span class="comment"># The amount of memory written out to swap space (in kB)</span></span><br><span class="line">major_fault 234565      <span class="comment"># The number of page faults where disk IO was required</span></span><br><span class="line">minor_fault 84722778    <span class="comment"># The number of other page faults</span></span><br><span class="line">unused 6291308          <span class="comment"># The amount of memory left unused by the system (in kB)</span></span><br><span class="line">available 8388044       <span class="comment"># The amount of usable memory as seen by the domain (in kB)</span></span><br><span class="line">usable 6349618          <span class="comment"># The amount of memory which can be reclaimed by balloon without causing host swapping (in KB) *</span></span><br><span class="line">last_update 1682566755  <span class="comment"># Timestamp of the last update of statistics (in seconds)</span></span><br><span class="line">disk_caches 116620      <span class="comment"># The amount of memory that can be reclaimed without additional I/O, typically disk caches (in KiB)</span></span><br><span class="line">rss 8529188             <span class="comment"># Resident Set Size of the running domain&#x27;s process (in kB)</span></span><br></pre></td></tr></table></figure>
+
+<p>with memory balloon we can get details about guest usage which matches the Memory Statistics Tags we metioned above.</p>
+<p>And from dominfo we can see the memory usage directly</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dominfo YOUR_VM_NAME</span></span><br><span class="line">Id:             7</span><br><span class="line">Name:           1970b0ef25e44adc834767fe81f155d5</span><br><span class="line">UUID:           1970b0ef-25e4-4adc-8347-67fe81f155d5</span><br><span class="line">OS Type:        hvm</span><br><span class="line">State:          running</span><br><span class="line">CPU(s):         4</span><br><span class="line">CPU time:       214084.1s</span><br><span class="line">Max memory:     8388608 KiB</span><br><span class="line">Used memory:    8388608 KiB</span><br><span class="line">Persistent:     yes</span><br><span class="line">Autostart:      <span class="built_in">disable</span></span><br><span class="line">Managed save:   no</span><br><span class="line">Security model: none</span><br><span class="line">Security DOI:   0</span><br></pre></td></tr></table></figure>
+
+<h3 id="Shrinking-memory"><a href="#Shrinking-memory" class="headerlink" title="Shrinking memory"></a>Shrinking memory</h3><p>At first, check the unused memory of your guest</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME | grep unused</span></span><br><span class="line">unused 2868704</span><br></pre></td></tr></table></figure>
+
+<p>then we try to set memory to a size we want</p>
+<p>Simply, </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">use actual - unused = 8388608 - 2868704 = 5519904</span><br></pre></td></tr></table></figure>
+
+<p>Then we use setmem</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh setmem YOUR_VM_NAME --size 5519904KiB --current</span></span><br></pre></td></tr></table></figure>
+
+<p>Check the shrink take effects:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME</span></span><br><span class="line">actual 5519904</span><br><span class="line">swap_in 0</span><br><span class="line">swap_out 2592</span><br><span class="line">major_fault 6236</span><br><span class="line">minor_fault 181380396</span><br><span class="line">unused 140212</span><br><span class="line">available 5139400</span><br><span class="line">usable 3424496</span><br><span class="line">last_update 1682567978</span><br><span class="line">rss 5583008</span><br></pre></td></tr></table></figure>
+
+<p>actual changed to 5519904 and we check the guest on the other side</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># free -hm</span></span><br><span class="line">              total        used        free      shared  buff/cache   available</span><br><span class="line">Mem:           4.9G        862M        134M        299M        3.9G        3.3G</span><br><span class="line">Swap:          7.9G        3.5M        7.9G</span><br></pre></td></tr></table></figure>
+
+<p>Total memory changed even smaller than 5519904 ~= 5.26G about 7% memory missing and almost same with available 5139400</p>
+<aside>
+💡 Qemu level vm statistics may different from the statistics inside guest.
+
+</aside>
+
+<h3 id="Expanding-memory"><a href="#Expanding-memory" class="headerlink" title="Expanding memory"></a><strong><strong>Expanding</strong></strong> memory</h3><p>To increase the memory allocation of a virtual machine using virtio memory ballooning, you can use the <code>virsh setmem</code> command. For example, to increase the memory allocation to 8GB, you would run:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">virsh setmem YOUR_VM_NAME --size 8G --current</span><br></pre></td></tr></table></figure>
+
+<p>This will increase the memory allocation of the virtual machine to 8GB. However, it’s important to note that the guest operating system must have support for virtio memory ballooning in order to take advantage of this feature.</p>
+<p>In addition, it’s important to monitor the memory usage of virtual machines to ensure that they have enough memory to operate effectively. This can be done using tools like <code>virsh dommemstat</code> to monitor memory usage statistics.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME</span></span><br><span class="line">actual 8388608</span><br><span class="line">swap_in 0</span><br><span class="line">swap_out 2592</span><br><span class="line">major_fault 6236</span><br><span class="line">minor_fault 181827159</span><br><span class="line">unused 3008116</span><br><span class="line">available 8008104</span><br><span class="line">usable 6293140</span><br><span class="line">last_update 1682571788</span><br><span class="line">rss 7545844</span><br></pre></td></tr></table></figure>
+
+<aside>
+💡 Unused memory after increase may not changed right now, wait for a minute to see its changes.
+
+</aside>
+
+<p>Inside guest</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># free -hm</span></span><br><span class="line">              total        used        free      shared  buff/cache   available</span><br><span class="line">Mem:           7.6G        862M        2.9G        299M        3.9G        6.0G</span><br><span class="line">Swap:          7.9G        3.5M        7.9G</span><br></pre></td></tr></table></figure>
+
+<p>With 8GB memory from qemu side, guest have total 7.6G memory. There is still a 5% missing.</p>
+<h2 id="Industry-Practices"><a href="#Industry-Practices" class="headerlink" title="Industry Practices"></a>Industry Practices</h2><h3 id="Proxmox"><a href="#Proxmox" class="headerlink" title="Proxmox"></a>Proxmox</h3><p><a target="_blank" rel="noopener" href="https://pve.proxmox.com/wiki/Dynamic_Memory_Management">Dynamic memory management</a> shows that KSM and memory balloon works on windows and linux guest, a memory range from min and max will be required and guest’s memory will dynamicly changed between the range to impelement memory ballooning.</p>
+<h3 id="Google-cloud"><a href="#Google-cloud" class="headerlink" title="Google cloud"></a>Google cloud</h3><p><a target="_blank" rel="noopener" href="https://cloud.google.com/compute/docs/dynamic-resource-management">Dynamic resource management</a> Memory ballooning is an interface mechanism between host and guest to dynamically adjust the size of the reserved memory for the guest. A <a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005">virtio memory balloon device</a> <br> is used to implement memory ballooning. Through the virtio memory balloon device, a host can explicitly ask a guest to yield a certain amount of free memory pages (also called memory balloon inflation), and reclaim the memory so that the host can use the free memory for other VMs. Likewise, the virtio memory balloon device can return memory pages back to the guest by deflating the memory balloon.</p>
+<p>Compute Engine E2 VM instances that are based on a <a target="_blank" rel="noopener" href="https://cloud.google.com/compute/docs/images#os-compute-support">public image</a><br> have a <a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005">virtio memory balloon device</a> , which monitors the guest operating system’s memory use. The guest operating system communicates its available memory to the host system. The host reallocates any unused memory to other processes on demand, thereby using memory more effectively. Compute Engine collects and uses this data to make more accurate <a target="_blank" rel="noopener" href="https://cloud.google.com/compute/docs/instances/apply-machine-type-recommendations-for-instances">rightsizing recommendations</a>.</p>
+<p>In <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Linux_kernel_version_history">Linux kernels</a> before 5.2, the Linux memory system sometimes mistakenly prevents large allocations when the balloon device is present. This is rarely an issue in practice, but we recommend changing the virtual memory <code>overcommit_memory</code> setting to <code>1</code> to prevent the issue from occurring. This change is already made by default in all Google-provided images published since February 9, 2021.</p>
+<p>To fix the setting, use the following command to change the value from <code>0</code> to <code>1</code>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo &#x2F;sbin&#x2F;sysctl -w vm.overcommit_memory&#x3D;1</span><br></pre></td></tr></table></figure>
+
+<p>To persist this change across reboots, add the following to your <code>/etc/sysctl.conf</code> file:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vm.overcommit_memory&#x3D;1</span><br></pre></td></tr></table></figure>
+
+<h3 id="Nutanix"><a href="#Nutanix" class="headerlink" title="Nutanix"></a>Nutanix</h3><p><a target="_blank" rel="noopener" href="https://www.nutanix.dev/2022/05/05/squeeze-even-more-out-of-your-hci/">Squeeze even more memory of your HCI</a> </p>
+<p>Memory overcommit allows more memory to be assigned to VMs than is physically present in the server hardware. Unused memory allocated to a VM can be reclaimed by the hypervisor and made available to other VMs on the host. AHV adjusts memory usage for each VM according to its usage, allowing the host to use excess memory to satisfy the requirements of other VMs. This reduces hardware costs for large deployments or increases the utilization of an existing environment that can’t be immediately expanded with new nodes. VMs without memory overcommit will operate with their pre-assigned memory, and can coexist with overcommit enabled VMs. Nutanix uses a multi-tier approach combining ballooning and hypervisor-level swap to optimize performance. Metrics are presented to the administrator in Prism Central to indicate the gains achieved through overcommit and its impact on VM performance. Memory overcommit may not be appropriate for performance-sensitive workloads due to its dynamic nature.</p>
+<p><a target="_blank" rel="noopener" href="https://portal.nutanix.com/page/documents/details?targetId=AHV-Admin-Guide-v6_1:ahv-vm-limitations-memory-overcommit-c.html">Limits of Memory Overcommit</a></p>
+<p>Memory overcommit has the following limitations:</p>
+<ul>
+<li>You can enable or disable Memory Overcommit only while the VM is powered off.</li>
+<li>Power off the VM enabled with memory overcommit before you change the memory allocation for the VM.<br>For example, you cannot update the memory of a VM that is enabled with memory overcommit when it is still running. The system displays the following alert: InvalidVmState: Cannot complete request in state on.</li>
+<li>Memory overcommit is not supported with VMs that use GPU passthrough and vNUMA.<br>For example, you cannot update a VM to a vNUMA VM when it is enabled with memory overcommit. The system displays the following alert: InvalidArgument: Cannot use memory overcommit feature for a vNUMA VM error.</li>
+<li>Memory overcommit feature can slow down the performance and the predictable performance of the VM<br>For example, migrating a VM enabled with Memory Overcommit takes longer than migrating a VM not enabled with Memory Overcommit.</li>
+<li>There may be a temporary spike in the aggregate memory usage in the cluster during the migration of a VM enabled with Memory Overcommit from one node to another.<br>For example, when you migrate a VM from Node A to Node B, the total memory used in the cluster during migration is greater than the memory usage before the migration.<br>The memory usage of the cluster eventually drops back to pre-migration levels when the cluster reclaims the memory for other VM operations.</li>
+<li>Using Memory Overcommit heavily can cause a spike in the disk space utilization in the cluster. This spike is caused because the Host Swap uses some of the disk space in the cluster.<br>If the VMs do not have a swap disk, then in case of memory pressure, AHV uses space from the swap disk created on ADSF to provide memory to the VM. This can lead to an increase in disk space consumption on the cluster.</li>
+<li>All DR operations except Cross Cluster Live Migration (CCLM) are supported<br>On the destination side, if a VM fails when you enable Memory Overcommit, the failed VM fails over (creating the VM on the remote site) as a fixed size VM. You can enable Memory Overcommit on this VM after the failover is complete.</li>
+</ul>
+<h2 id="Limitations-and-Challenges"><a href="#Limitations-and-Challenges" class="headerlink" title="Limitations and Challenges"></a>Limitations and Challenges</h2><p>Guest should support virtio memory ballooning, if the balloon driver not available there is no effective way to do it.</p>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>No Balloon Driver</th>
+<th>Partially Supported</th>
+<th>Fully Supported</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CentOS</td>
+<td>6.1, 6.2</td>
+<td>6.3–6.9, 7.1, 7.2</td>
+<td>7.3–7.7, 8.0–8.2</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>7.3</td>
+<td>7.4, 7.5</td>
+<td>7.6, 7.7</td>
+</tr>
+<tr>
+<td>Ubuntu</td>
+<td>See note.</td>
+<td>12.04</td>
+<td>14.04 and newer</td>
+</tr>
+</tbody></table>
+<aside>
+💡 Some Ubuntu versions have a working balloon driver but it may be disabled by default.
+
+</aside>
+
+<p>Not all situations are suitable for memory ballooning. Frequent expansion and contraction of memory can be harmful if the memory usage changes dynamically.</p>
+<h2 id="Future-Development"><a href="#Future-Development" class="headerlink" title="Future Development"></a>Future Development</h2><p><a target="_blank" rel="noopener" href="https://www.linux-kvm.org/page/Projects/auto-ballooning">https://www.linux-kvm.org/page/Projects/auto-ballooning</a> The auto ballooning project was initiated in 2013. The hypervisor and Linux kernel need to be updated to support the project, which has not been upstreamed yet.</p>
+<h2 id="Real-World-Implementation-Case-Study"><a href="#Real-World-Implementation-Case-Study" class="headerlink" title="Real-World Implementation Case Study"></a>Real-World Implementation Case Study</h2><ul>
+<li><strong><strong><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=r1wxgLTG40g">Lessons Learned Building a Production Memory-Overcommit Solution</a></strong></strong></li>
+</ul>
+<h2 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h2><p>Virtualization is important in modern computing for flexible and efficient resource allocation. Memory management is challenging in virtualized environments when multiple virtual machines run on a single physical server. Virtio memory ballooning optimizes memory usage by dynamically adjusting guest memory reservation. It improves performance and reduces the risk of memory exhaustion. This article explains how to use virtio memory ballooning on Linux, compares it to other memory management techniques, and discusses industry practices, limitations, and future developments.</p>
+<h2 id="References"><a href="#References" class="headerlink" title="References"></a>References</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/libvirt/libvirt/blob/master/docs/manpages/virsh.rst">libvirt/virsh.rst at master · libvirt/libvirt</a></li>
+<li><a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005">virtio-v1.1-csprd01/virtio-v1.1-csprd01.html#x1-2790005</a></li>
+<li><a target="_blank" rel="noopener" href="https://pve.proxmox.com/wiki/Dynamic_Memory_Management">Dynamic memory management</a></li>
+<li><a target="_blank" rel="noopener" href="https://cloud.google.com/compute/docs/dynamic-resource-management">Dynamic resource management</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.nutanix.dev/2022/05/05/squeeze-even-more-out-of-your-hci/">Squeeze even more memory of your HCI</a></li>
+<li><a target="_blank" rel="noopener" href="https://portal.nutanix.com/page/documents/details?targetId=AHV-Admin-Guide-v6_1:ahv-vm-limitations-memory-overcommit-c.html">Limits of Memory Overcommit</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.linux-kvm.org/page/Projects/auto-ballooning">https://www.linux-kvm.org/page/Projects/auto-ballooning</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=r1wxgLTG40g">Lessons Learned Building a Production Memory-Overcommit Solution</a></li>
+</ul>
+<p>Powered by Notion AI</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/04/27/virtio-memory-balloon/" data-id="clgyqlnf10000ayca8dho589n" data-title="Understand virtio memory balloon" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/04/27/virtio-memory-balloon/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/04/27/virtio-memory-balloon/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-qemu-colo-details" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/04/13/qemu-colo-details/" class="article-date">
@@ -2393,148 +2629,11 @@
 
 
   
-    <article id="post-live-migration-failed-due-to-libvirt-keepalive-timeout" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" class="article-date">
-  <time class="dt-published" datetime="2023-01-13T08:16:33.000Z" itemprop="datePublished">2023-01-13</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/libvirt/">libvirt</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>Live migration is a important part of kvm virtualization at the first day it was designed. However when dive into control plane of libvirt live migration, it became quite complex. So I will describe the basic implementation about it at the early stage.</p>
-<h2 id="Libvirt-QEMU-basic-building-blocks"><a href="#Libvirt-QEMU-basic-building-blocks" class="headerlink" title="Libvirt + QEMU basic building blocks"></a>Libvirt + QEMU basic building blocks</h2><p>For KVM based virtualization software, normally use libvirt + QEMU to manage guest’s lifecycle. And for live migration we have to know some basic part between libvirt and QEMU.</p>
-<img src="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/libvirt+qemu.png" class="">
-
-<p>the figure below introduces the basic parts and I just list those parts from left to right:</p>
-<ul>
-<li>virsh: a commandline interface to management domains</li>
-<li>libvirt sdk: Python, Go… supported sdk to access libvirt by defined api</li>
-<li>Libvirt api: exposed connect (the connection to libvirt), domain (guest), network (virtualization network of a hypervisor), storage volume (storage volume as block device which can be used by domain), storage pool (logically used for allocate and store storage volumes)</li>
-<li>QEMU driver: libvirt driver of qemu, it will translate libvirt api invoke to related qemu operations</li>
-<li>QEMU: a generic and open source machine emulator and virtualizer</li>
-<li>qmp: QEMU machine protocol, is a JSON-based protocol, which allows applications to control a QEMU instance</li>
-</ul>
-<p>So when we do a live migration operation all those parts will be involved.</p>
-<h2 id="Libvirt-live-migration"><a href="#Libvirt-live-migration" class="headerlink" title="Libvirt live migration"></a>Libvirt live migration</h2><p>For the control plane (libvirt), many concepts need to be introduced before we try to comprehensive its migration logic.</p>
-<p>According to <a target="_blank" rel="noopener" href="https://libvirt.org/migration.html">https://libvirt.org/migration.html</a> there are two options for network data transport.</p>
-<ul>
-<li>Native transport: use qemu socket to transport data<ul>
-<li>Require network between hypervisor (firewall issue should be solved)</li>
-<li>Encryption support is depend on hypervisor</li>
-<li>Better performance (minimising the number of data copies)</li>
-</ul>
-</li>
-<li>Tunnelled transport: the data will be transported through libvirt RPC protocol<ul>
-<li>Encryption supported</li>
-<li>Less firewall issues</li>
-<li>Worst performance (due to encryption)</li>
-</ul>
-</li>
-</ul>
-<p>And libvirt also support different control plane, the migration support have common features</p>
-<ol>
-<li>a peer2peer flag decide if we use client to connect to libvirtd servers or libvirtd server manage the connection itself</li>
-<li>A destination URI with a form like ‘qemu+ssh://desthost/system’ for libvirtd connection</li>
-<li>Data transport URI need a optional URI like ‘tcp://10.0.0.1/‘ means use TCP for data transport to hypervisor or libvirtd server</li>
-<li>Normally libvirtd on target will automatically determine its native hypervisor URI so is not required in migratin api</li>
-<li>If hypervisor do not offer encryption itself, tunnelled migration should be used</li>
-<li>When libvirt daemon can not access network use unix migration</li>
-<li>For vm with disks on non-shared storage, remember copy all storages</li>
-</ol>
-<p>Following are libvirt supported migrations and all available for qemu driver:</p>
-<ul>
-<li>Native migration, client to two libvirtd servers</li>
-<li>Native migration, client to and peer2peer between two libvirtd servers</li>
-<li>Tunnelled migration, client and peer2peer between two libvirtd servers</li>
-<li>Native migration, client to one libvirtd server</li>
-<li>Native migration, peer2peer between two libvirtd servers</li>
-<li>Tunnelled migration, peer2peer between two libvirtd servers</li>
-<li>Migration using UNIX sockets</li>
-<li>Migration of VMs using non-shared images for disks</li>
-</ul>
-<h2 id="Libvirt-keepalive-of-client"><a href="#Libvirt-keepalive-of-client" class="headerlink" title="Libvirt keepalive of client"></a>Libvirt keepalive of client</h2><p>Libvirt use a C/S architecture and during migration libvirt need to support ‘client to two libvirtd servers’ or ‘client to and peer2peer between two libvirtd servers’. </p>
-<p>So connection management between client and server or server and server is important for libvirt. And some common conserns for this architecture:</p>
-<ul>
-<li>Client and server connection<ul>
-<li>Async task not relay on the connection if server implement idempotency<ul>
-<li>Domain object lock help with idempotency</li>
-</ul>
-</li>
-<li>Sync task relay on the connection<ul>
-<li>All sync tasks should fail if connection keepalive timeout</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>Server and server connection<ul>
-<li>Source server should be treated as client and same with client and server connection</li>
-</ul>
-</li>
-</ul>
-<p>In order to solve basic requirements, libvirt introduced keepalive for client connection. Client can set a keepalive timeout with interval and count (server should support this because a keepalive response is required). </p>
-<p>Note: </p>
-<ul>
-<li>Default settings is configured from libvirtd.conf</li>
-<li>If set keepalive timeout to 0 means disable keepalive for client</li>
-</ul>
-<p>The code from <code>src/rpc/virkeepalive.h</code> is quite easy:</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">virKeepAlivePtr <span class="title">virKeepAliveNew</span><span class="params">(<span class="keyword">int</span> interval,</span></span></span><br><span class="line"><span class="function"><span class="params">                                <span class="keyword">unsigned</span> <span class="keyword">int</span> count,</span></span></span><br><span class="line"><span class="function"><span class="params">                                <span class="keyword">void</span> *client,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveSendFunc sendCB,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveDeadFunc deadCB,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveFreeFunc freeCB)</span></span></span><br><span class="line"><span class="function">                                <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">3</span>)</span> <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">4</span>)</span></span></span><br><span class="line"><span class="function">                                <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">5</span>)</span> <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">6</span>)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">virKeepAliveStart</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">int</span> interval,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">unsigned</span> <span class="keyword">int</span> count)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">virKeepAliveStop</span><span class="params">(virKeepAlivePtr ka)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">virKeepAliveTimeout</span><span class="params">(virKeepAlivePtr ka)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">bool</span> <span class="title">virKeepAliveTrigger</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                         virNetMessagePtr *msg)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">bool</span> <span class="title">virKeepAliveCheckMessage</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                              virNetMessagePtr msg,</span></span></span><br><span class="line"><span class="function"><span class="params">                              virNetMessagePtr *response)</span></span>;</span><br></pre></td></tr></table></figure>
-
-<h2 id="For-libvirt-keepalive-timeout-issue"><a href="#For-libvirt-keepalive-timeout-issue" class="headerlink" title="For libvirt keepalive timeout issue"></a>For libvirt keepalive timeout issue</h2><p>The result from <a target="_blank" rel="noopener" href="https://bugzilla.redhat.com/show_bug.cgi?id=1367620">https://bugzilla.redhat.com/show_bug.cgi?id=1367620</a> butzilla explains a issue of live migration failure due to poor network and the connection between libvirtd servers down which will report a keepalive timeout error.</p>
-<p>In libvirtd log (<a target="_blank" rel="noopener" href="https://libvirt.org/kbase/debuglogs.html">https://libvirt.org/kbase/debuglogs.html</a>) we could see:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">2023-01-05 05:07:36.721+0000: 114785: info : virKeepAliveTimerInternal:131 : RPC_KEEPALIVE_TIMEOUT: ka&#x3D;0x7f6af4006c60 client&#x3D;0x7f6af400</span><br><span class="line">6a70 countToDeath&#x3D;0 idle&#x3D;30</span><br><span class="line">2023-01-05 05:07:36.721+0000: 114785: debug : virKeepAliveTimerInternal:136 : No response from client 0x7f6af4006a70 after 5 keepalive</span><br><span class="line">messages in 30 seconds</span><br><span class="line">2023-01-05 05:07:36.721+0000: 114785: error : virKeepAliveTimerInternal:138 : internal error: connection closed due to keepalive timeout</span><br></pre></td></tr></table></figure>
-
-<p>And search for client=0x7f6af400 we can find it is a connection created during migration:</p>
-<img src="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/libvirtd-migration-keepalive.png" class="">
-
-<p>the dconn is the URI to destination libvirtd server.</p>
-<p>For peer2peer live migration, this issue can be workaround by using seperate network for libvirtd connection and data transport.</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" data-id="cld1mheak000qyuwb9r1kfm1f" data-title="Live migration failed due to libvirt keepalive timeout" class="article-share-link">Share</a>
-      
-      
-        <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
     
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
   </nav>
 
 </section>
@@ -2555,7 +2654,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -2565,7 +2664,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -2587,6 +2686,10 @@
       <ul>
         
           <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
             <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
           </li>
         
@@ -2600,10 +2703,6 @@
         
           <li>
             <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
           </li>
         
       </ul>

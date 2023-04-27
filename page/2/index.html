@@ -72,6 +72,143 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-live-migration-failed-due-to-libvirt-keepalive-timeout" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" class="article-date">
+  <time class="dt-published" datetime="2023-01-13T08:16:33.000Z" itemprop="datePublished">2023-01-13</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/libvirt/">libvirt</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/">Live migration failed due to libvirt keepalive timeout</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Live migration is a important part of kvm virtualization at the first day it was designed. However when dive into control plane of libvirt live migration, it became quite complex. So I will describe the basic implementation about it at the early stage.</p>
+<h2 id="Libvirt-QEMU-basic-building-blocks"><a href="#Libvirt-QEMU-basic-building-blocks" class="headerlink" title="Libvirt + QEMU basic building blocks"></a>Libvirt + QEMU basic building blocks</h2><p>For KVM based virtualization software, normally use libvirt + QEMU to manage guest’s lifecycle. And for live migration we have to know some basic part between libvirt and QEMU.</p>
+<img src="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/libvirt+qemu.png" class="">
+
+<p>the figure below introduces the basic parts and I just list those parts from left to right:</p>
+<ul>
+<li>virsh: a commandline interface to management domains</li>
+<li>libvirt sdk: Python, Go… supported sdk to access libvirt by defined api</li>
+<li>Libvirt api: exposed connect (the connection to libvirt), domain (guest), network (virtualization network of a hypervisor), storage volume (storage volume as block device which can be used by domain), storage pool (logically used for allocate and store storage volumes)</li>
+<li>QEMU driver: libvirt driver of qemu, it will translate libvirt api invoke to related qemu operations</li>
+<li>QEMU: a generic and open source machine emulator and virtualizer</li>
+<li>qmp: QEMU machine protocol, is a JSON-based protocol, which allows applications to control a QEMU instance</li>
+</ul>
+<p>So when we do a live migration operation all those parts will be involved.</p>
+<h2 id="Libvirt-live-migration"><a href="#Libvirt-live-migration" class="headerlink" title="Libvirt live migration"></a>Libvirt live migration</h2><p>For the control plane (libvirt), many concepts need to be introduced before we try to comprehensive its migration logic.</p>
+<p>According to <a target="_blank" rel="noopener" href="https://libvirt.org/migration.html">https://libvirt.org/migration.html</a> there are two options for network data transport.</p>
+<ul>
+<li>Native transport: use qemu socket to transport data<ul>
+<li>Require network between hypervisor (firewall issue should be solved)</li>
+<li>Encryption support is depend on hypervisor</li>
+<li>Better performance (minimising the number of data copies)</li>
+</ul>
+</li>
+<li>Tunnelled transport: the data will be transported through libvirt RPC protocol<ul>
+<li>Encryption supported</li>
+<li>Less firewall issues</li>
+<li>Worst performance (due to encryption)</li>
+</ul>
+</li>
+</ul>
+<p>And libvirt also support different control plane, the migration support have common features</p>
+<ol>
+<li>a peer2peer flag decide if we use client to connect to libvirtd servers or libvirtd server manage the connection itself</li>
+<li>A destination URI with a form like ‘qemu+ssh://desthost/system’ for libvirtd connection</li>
+<li>Data transport URI need a optional URI like ‘tcp://10.0.0.1/‘ means use TCP for data transport to hypervisor or libvirtd server</li>
+<li>Normally libvirtd on target will automatically determine its native hypervisor URI so is not required in migratin api</li>
+<li>If hypervisor do not offer encryption itself, tunnelled migration should be used</li>
+<li>When libvirt daemon can not access network use unix migration</li>
+<li>For vm with disks on non-shared storage, remember copy all storages</li>
+</ol>
+<p>Following are libvirt supported migrations and all available for qemu driver:</p>
+<ul>
+<li>Native migration, client to two libvirtd servers</li>
+<li>Native migration, client to and peer2peer between two libvirtd servers</li>
+<li>Tunnelled migration, client and peer2peer between two libvirtd servers</li>
+<li>Native migration, client to one libvirtd server</li>
+<li>Native migration, peer2peer between two libvirtd servers</li>
+<li>Tunnelled migration, peer2peer between two libvirtd servers</li>
+<li>Migration using UNIX sockets</li>
+<li>Migration of VMs using non-shared images for disks</li>
+</ul>
+<h2 id="Libvirt-keepalive-of-client"><a href="#Libvirt-keepalive-of-client" class="headerlink" title="Libvirt keepalive of client"></a>Libvirt keepalive of client</h2><p>Libvirt use a C/S architecture and during migration libvirt need to support ‘client to two libvirtd servers’ or ‘client to and peer2peer between two libvirtd servers’. </p>
+<p>So connection management between client and server or server and server is important for libvirt. And some common conserns for this architecture:</p>
+<ul>
+<li>Client and server connection<ul>
+<li>Async task not relay on the connection if server implement idempotency<ul>
+<li>Domain object lock help with idempotency</li>
+</ul>
+</li>
+<li>Sync task relay on the connection<ul>
+<li>All sync tasks should fail if connection keepalive timeout</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Server and server connection<ul>
+<li>Source server should be treated as client and same with client and server connection</li>
+</ul>
+</li>
+</ul>
+<p>In order to solve basic requirements, libvirt introduced keepalive for client connection. Client can set a keepalive timeout with interval and count (server should support this because a keepalive response is required). </p>
+<p>Note: </p>
+<ul>
+<li>Default settings is configured from libvirtd.conf</li>
+<li>If set keepalive timeout to 0 means disable keepalive for client</li>
+</ul>
+<p>The code from <code>src/rpc/virkeepalive.h</code> is quite easy:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">virKeepAlivePtr <span class="title">virKeepAliveNew</span><span class="params">(<span class="keyword">int</span> interval,</span></span></span><br><span class="line"><span class="function"><span class="params">                                <span class="keyword">unsigned</span> <span class="keyword">int</span> count,</span></span></span><br><span class="line"><span class="function"><span class="params">                                <span class="keyword">void</span> *client,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveSendFunc sendCB,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveDeadFunc deadCB,</span></span></span><br><span class="line"><span class="function"><span class="params">                                virKeepAliveFreeFunc freeCB)</span></span></span><br><span class="line"><span class="function">                                <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">3</span>)</span> <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">4</span>)</span></span></span><br><span class="line"><span class="function">                                <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">5</span>)</span> <span class="title">ATTRIBUTE_NONNULL</span><span class="params">(<span class="number">6</span>)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">virKeepAliveStart</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">int</span> interval,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">unsigned</span> <span class="keyword">int</span> count)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">virKeepAliveStop</span><span class="params">(virKeepAlivePtr ka)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">virKeepAliveTimeout</span><span class="params">(virKeepAlivePtr ka)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">bool</span> <span class="title">virKeepAliveTrigger</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                         virNetMessagePtr *msg)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">bool</span> <span class="title">virKeepAliveCheckMessage</span><span class="params">(virKeepAlivePtr ka,</span></span></span><br><span class="line"><span class="function"><span class="params">                              virNetMessagePtr msg,</span></span></span><br><span class="line"><span class="function"><span class="params">                              virNetMessagePtr *response)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="For-libvirt-keepalive-timeout-issue"><a href="#For-libvirt-keepalive-timeout-issue" class="headerlink" title="For libvirt keepalive timeout issue"></a>For libvirt keepalive timeout issue</h2><p>The result from <a target="_blank" rel="noopener" href="https://bugzilla.redhat.com/show_bug.cgi?id=1367620">https://bugzilla.redhat.com/show_bug.cgi?id=1367620</a> butzilla explains a issue of live migration failure due to poor network and the connection between libvirtd servers down which will report a keepalive timeout error.</p>
+<p>In libvirtd log (<a target="_blank" rel="noopener" href="https://libvirt.org/kbase/debuglogs.html">https://libvirt.org/kbase/debuglogs.html</a>) we could see:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">2023-01-05 05:07:36.721+0000: 114785: info : virKeepAliveTimerInternal:131 : RPC_KEEPALIVE_TIMEOUT: ka&#x3D;0x7f6af4006c60 client&#x3D;0x7f6af400</span><br><span class="line">6a70 countToDeath&#x3D;0 idle&#x3D;30</span><br><span class="line">2023-01-05 05:07:36.721+0000: 114785: debug : virKeepAliveTimerInternal:136 : No response from client 0x7f6af4006a70 after 5 keepalive</span><br><span class="line">messages in 30 seconds</span><br><span class="line">2023-01-05 05:07:36.721+0000: 114785: error : virKeepAliveTimerInternal:138 : internal error: connection closed due to keepalive timeout</span><br></pre></td></tr></table></figure>
+
+<p>And search for client=0x7f6af400 we can find it is a connection created during migration:</p>
+<img src="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/libvirtd-migration-keepalive.png" class="">
+
+<p>the dconn is the URI to destination libvirtd server.</p>
+<p>For peer2peer live migration, this issue can be workaround by using seperate network for libvirtd connection and data transport.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" data-id="cld1mheak000qyuwb9r1kfm1f" data-title="Live migration failed due to libvirt keepalive timeout" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-nessus-on-centos-7" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/12/15/nessus-on-centos-7/" class="article-date">
@@ -1183,57 +1320,11 @@
 
 
   
-    <article id="post-libvirt-memory-snapshot" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/09/28/libvirt-memory-snapshot/" class="article-date">
-  <time class="dt-published" datetime="2022-09-28T01:19:10.372Z" itemprop="datePublished">2022-09-28</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>virDomainDefParseXML -&gt; virDomainDiskDefParseXML -&gt; virDomainDeviceInfoParseXML -&gt; virDomainDeviceAddressParseXML -&gt; virPCIDeviceAddressParseXML</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">if (devaddr) &#123;</span><br><span class="line">    if (virDomainParseLegacyDeviceAddress(devaddr,</span><br><span class="line">                                          &amp;def-&gt;info.addr.pci) &lt; 0) &#123;</span><br><span class="line">        virReportError(VIR_ERR_INTERNAL_ERROR,</span><br><span class="line">                       _(&quot;Unable to parse devaddr parameter &#39;%s&#39;&quot;),</span><br><span class="line">                       devaddr);</span><br><span class="line">        goto error;</span><br><span class="line">    &#125;</span><br><span class="line">    def-&gt;info.type &#x3D; VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI;</span><br><span class="line">&#125; else &#123;</span><br></pre></td></tr></table></figure>
-
-<p>qemuDomainSaveInternal -&gt; </p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">if (!(cookie &#x3D; qemuDomainSaveCookieNew(vm)))</span><br><span class="line">    goto endjob;</span><br><span class="line"></span><br><span class="line">if (!(data &#x3D; virQEMUSaveDataNew(xml, cookie, was_running, compressed,</span><br><span class="line">                                driver-&gt;xmlopt)))</span><br><span class="line">    goto endjob;</span><br><span class="line">xml &#x3D; NULL;</span><br><span class="line"></span><br><span class="line">ret &#x3D; qemuDomainSaveMemory(driver, vm, path, data, compressedpath,</span><br><span class="line">                           flags, QEMU_ASYNC_JOB_SAVE);</span><br><span class="line">if (ret &lt; 0)</span><br><span class="line">    goto endjob;</span><br><span class="line"></span><br><span class="line">&#x2F;* Shut it down *&#x2F;</span><br><span class="line">qemuProcessStop(driver, vm, VIR_DOMAIN_SHUTOFF_SAVED,</span><br><span class="line">                QEMU_ASYNC_JOB_SAVE, 0);</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">        rc &#x3D; qemuMonitorMigrateToFd(priv-&gt;mon,</span><br><span class="line">                                    QEMU_MONITOR_MIGRATE_BACKGROUND,</span><br><span class="line">                                    fd);</span><br><span class="line">                                    </span><br><span class="line">int</span><br><span class="line">qemuMonitorMigrateToFd(qemuMonitorPtr mon,</span><br><span class="line">                       unsigned int flags,</span><br><span class="line">                       int fd)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    VIR_DEBUG(&quot;fd&#x3D;%d flags&#x3D;0x%x&quot;, fd, flags);</span><br><span class="line"></span><br><span class="line">    QEMU_CHECK_MONITOR(mon);</span><br><span class="line"></span><br><span class="line">    if (qemuMonitorSendFileHandle(mon, &quot;migrate&quot;, fd) &lt; 0)</span><br><span class="line">        return -1;</span><br><span class="line"></span><br><span class="line">    ret &#x3D; qemuMonitorJSONMigrate(mon, flags, &quot;fd:migrate&quot;);</span><br><span class="line"></span><br><span class="line">    if (ret &lt; 0) &#123;</span><br><span class="line">        if (qemuMonitorCloseFileHandle(mon, &quot;migrate&quot;) &lt; 0)</span><br><span class="line">            VIR_WARN(&quot;failed to close migration handle&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>qemu should support sendFD (qemu is should using a unix socket monitor)</p>
-<p>qemu monitor get fd (SCM_RIGHTS) </p>
-<p>SCM_RIGHTS<br>              Send or receive a set of open file descriptors from<br>              another process.  The data portion contains an integer<br>              array of the file descriptors.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;* Perform the migration *&#x2F;</span><br><span class="line">if (qemuMigrationSrcToFile(driver, vm, fd, compressedpath, asyncJob) &lt; 0)</span><br><span class="line">    goto cleanup;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemuMonitorJSONMigrate</span><br></pre></td></tr></table></figure>
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/09/28/libvirt-memory-snapshot/" data-id="cld1mheaj000oyuwbei0mcdcw" data-title="" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/09/28/libvirt-memory-snapshot/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/28/libvirt-memory-snapshot/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
     
-    <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
+    <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
   </nav>
 
 </section>
@@ -1254,7 +1345,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -1264,7 +1355,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -1286,6 +1377,10 @@
       <ul>
         
           <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
             <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
           </li>
         
@@ -1299,10 +1394,6 @@
         
           <li>
             <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
           </li>
         
       </ul>

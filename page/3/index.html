@@ -72,6 +72,52 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-libvirt-memory-snapshot" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/09/28/libvirt-memory-snapshot/" class="article-date">
+  <time class="dt-published" datetime="2022-09-28T01:19:10.372Z" itemprop="datePublished">2022-09-28</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>virDomainDefParseXML -&gt; virDomainDiskDefParseXML -&gt; virDomainDeviceInfoParseXML -&gt; virDomainDeviceAddressParseXML -&gt; virPCIDeviceAddressParseXML</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">if (devaddr) &#123;</span><br><span class="line">    if (virDomainParseLegacyDeviceAddress(devaddr,</span><br><span class="line">                                          &amp;def-&gt;info.addr.pci) &lt; 0) &#123;</span><br><span class="line">        virReportError(VIR_ERR_INTERNAL_ERROR,</span><br><span class="line">                       _(&quot;Unable to parse devaddr parameter &#39;%s&#39;&quot;),</span><br><span class="line">                       devaddr);</span><br><span class="line">        goto error;</span><br><span class="line">    &#125;</span><br><span class="line">    def-&gt;info.type &#x3D; VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI;</span><br><span class="line">&#125; else &#123;</span><br></pre></td></tr></table></figure>
+
+<p>qemuDomainSaveInternal -&gt; </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">if (!(cookie &#x3D; qemuDomainSaveCookieNew(vm)))</span><br><span class="line">    goto endjob;</span><br><span class="line"></span><br><span class="line">if (!(data &#x3D; virQEMUSaveDataNew(xml, cookie, was_running, compressed,</span><br><span class="line">                                driver-&gt;xmlopt)))</span><br><span class="line">    goto endjob;</span><br><span class="line">xml &#x3D; NULL;</span><br><span class="line"></span><br><span class="line">ret &#x3D; qemuDomainSaveMemory(driver, vm, path, data, compressedpath,</span><br><span class="line">                           flags, QEMU_ASYNC_JOB_SAVE);</span><br><span class="line">if (ret &lt; 0)</span><br><span class="line">    goto endjob;</span><br><span class="line"></span><br><span class="line">&#x2F;* Shut it down *&#x2F;</span><br><span class="line">qemuProcessStop(driver, vm, VIR_DOMAIN_SHUTOFF_SAVED,</span><br><span class="line">                QEMU_ASYNC_JOB_SAVE, 0);</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">        rc &#x3D; qemuMonitorMigrateToFd(priv-&gt;mon,</span><br><span class="line">                                    QEMU_MONITOR_MIGRATE_BACKGROUND,</span><br><span class="line">                                    fd);</span><br><span class="line">                                    </span><br><span class="line">int</span><br><span class="line">qemuMonitorMigrateToFd(qemuMonitorPtr mon,</span><br><span class="line">                       unsigned int flags,</span><br><span class="line">                       int fd)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    VIR_DEBUG(&quot;fd&#x3D;%d flags&#x3D;0x%x&quot;, fd, flags);</span><br><span class="line"></span><br><span class="line">    QEMU_CHECK_MONITOR(mon);</span><br><span class="line"></span><br><span class="line">    if (qemuMonitorSendFileHandle(mon, &quot;migrate&quot;, fd) &lt; 0)</span><br><span class="line">        return -1;</span><br><span class="line"></span><br><span class="line">    ret &#x3D; qemuMonitorJSONMigrate(mon, flags, &quot;fd:migrate&quot;);</span><br><span class="line"></span><br><span class="line">    if (ret &lt; 0) &#123;</span><br><span class="line">        if (qemuMonitorCloseFileHandle(mon, &quot;migrate&quot;) &lt; 0)</span><br><span class="line">            VIR_WARN(&quot;failed to close migration handle&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>qemu should support sendFD (qemu is should using a unix socket monitor)</p>
+<p>qemu monitor get fd (SCM_RIGHTS) </p>
+<p>SCM_RIGHTS<br>              Send or receive a set of open file descriptors from<br>              another process.  The data portion contains an integer<br>              array of the file descriptors.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;* Perform the migration *&#x2F;</span><br><span class="line">if (qemuMigrationSrcToFile(driver, vm, fd, compressedpath, asyncJob) &lt; 0)</span><br><span class="line">    goto cleanup;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemuMonitorJSONMigrate</span><br></pre></td></tr></table></figure>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/09/28/libvirt-memory-snapshot/" data-id="cld1mheaj000oyuwbei0mcdcw" data-title="" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/09/28/libvirt-memory-snapshot/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/09/28/libvirt-memory-snapshot/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-a-simplified-TDP-with-large-tables" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/09/27/a-simplified-TDP-with-large-tables/" class="article-date">
@@ -1438,144 +1484,11 @@
 
 
   
-    <article id="post-kvm-introduction-00" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/06/30/kvm-introduction-00/" class="article-date">
-  <time class="dt-published" datetime="2022-06-30T15:47:07.000Z" itemprop="datePublished">2022-06-30</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/06/30/kvm-introduction-00/">KVM introduction 00</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>See notation of <code>virt/kvm/kvm_main.c</code> in linux kernel</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Kernel-based Virtual Machine driver for Linux</span><br><span class="line"> *</span><br><span class="line"> * This module enables machines with Intel VT-x extensions to run virtual</span><br><span class="line"> * machines without emulation or binary translation.</span><br><span class="line"> *</span><br><span class="line"> * Copyright (C) 2006 Qumranet, Inc.</span><br><span class="line"> * Copyright 2010 Red Hat, Inc. and&#x2F;or its affiliates.</span><br><span class="line"> *</span><br><span class="line"> * Authors:</span><br><span class="line"> *   Avi Kivity   &lt;avi@qumranet.com&gt;</span><br><span class="line"> *   Yaniv Kamay  &lt;yaniv@qumranet.com&gt;</span><br><span class="line"> *</span><br><span class="line"> * This work is licensed under the terms of the GNU GPL, version 2.  See</span><br><span class="line"> * the COPYING file in the top-level directory.</span><br><span class="line"> *</span><br><span class="line"> *</span><br></pre></td></tr></table></figure>
-
-<p>I got some questions</p>
-<ul>
-<li>what means kernel-based</li>
-<li>what is VT-x</li>
-<li>emulation? binary traslation?</li>
-<li>who is Avi Kivity</li>
-<li>is there any user-mode hypervisor?</li>
-</ul>
-<h2 id="Kernel-based"><a href="#Kernel-based" class="headerlink" title="Kernel-based"></a>Kernel-based</h2><blockquote>
-</blockquote>
-<p>Kernel-based Virtual Machine (KVM) is a virtualization module in the Linux kernel that allows the kernel to function as a hypervisor. It was merged into the mainline Linux kernel in version 2.6.20, which was released on February 5, 2007. <sup>[1]</sup></p>
-<p>its available under <code>linux/virt</code></p>
-<h2 id="VT-x"><a href="#VT-x" class="headerlink" title="VT-x"></a>VT-x</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">This module enables machines with Intel VT-x extensions to run virtual</span><br><span class="line">machines without emulation or binary translation.</span><br></pre></td></tr></table></figure>
-
-<p>According to the code notation, Intel VT-x extensions is metioned.</p>
-<blockquote>
-</blockquote>
-<p>Previously codenamed “Vanderpool”, VT-x represents Intel’s technology for virtualization on the x86 platform. On November 13, 2005, Intel released two models of Pentium 4 (Model 662 and 672) as the first Intel processors to support VT-x. The CPU flag for VT-x capability is “vmx”; in Linux, this can be checked via /proc/cpuinfo, or in macOS via sysctl machdep.cpu.features.<sup>[2]</sup></p>
-<p>for example, on centos 7.6</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@test ~]# cat &#x2F;proc&#x2F;cpuinfo | grep vmx | head -1</span><br><span class="line">flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology eagerfpu pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 arat</span><br></pre></td></tr></table></figure>
-
-<p>or on Intel CPU MacBook Pro (2020)</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">➜  ~ sysctl machdep.cpu.features | grep -i vmx</span><br><span class="line">machdep.cpu.features: FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C</span><br></pre></td></tr></table></figure>
-
-<p>vmx is available</p>
-<blockquote>
-</blockquote>
-<p>“VMX” stands for Virtual Machine Extensions, which adds 13 new instructions: VMPTRLD, VMPTRST, VMCLEAR, VMREAD, VMWRITE, VMCALL, VMLAUNCH, VMRESUME, VMXOFF, VMXON, INVEPT, INVVPID, and VMFUNC.[21] These instructions permit entering and exiting a virtual execution mode where the guest OS perceives itself as running with full privilege (ring 0), but the host OS remains protected.<sup>[2]</sup></p>
-<p>note: virtual execution mode is a important concept</p>
-<p>refer to paper <strong>kvm: the Linux Virtual Machine Monitor</strong> KVM is designed to add a guest mode, joining the existing <em>kernel mode</em> and <em>user mode</em> </p>
-<img src="/2022/06/30/kvm-introduction-00/cpu_executino_loop.png" class="">
-
-<p>In <em>guest-mode</em> CPU instruction executed natively but when I/O requests or signal(typically, network packets received or timeout), exit <em>guest-mode</em> is required and kvm than redirect those I/O or signal handling to <em>user-mode</em> process to emulation device and execute actual I/O. After I/O handling finished, KVM will enter guest mode to execute its CPU instructions again.</p>
-<p>For <em>kernel-mode</em> handling exit and enter is basic task. And <em>user-mode</em> process calls kernel to enter <em>guest-mode</em> until it interrupt.</p>
-<h2 id="Emulation-amp-Binary-translation"><a href="#Emulation-amp-Binary-translation" class="headerlink" title="Emulation &amp; Binary translation"></a>Emulation &amp; Binary translation</h2><blockquote>
-</blockquote>
-<p>In computing, binary translation is a form of binary recompilation where sequences of instructions are translated from a source instruction set to the target instruction set. In some cases such as instruction set simulation, the target instruction set may be the same as the source instruction set, providing testing and debugging features such as instruction trace, conditional breakpoints and hot spot detection.</p>
-<blockquote>
-</blockquote>
-<p>The two main types are static and dynamic binary translation. Translation can be done in hardware (for example, by circuits in a CPU) or in software (e.g. run-time engines, static recompiler, emulators).<sup>[3]</sup></p>
-<p>Emulators mostly used to run softwares or applications on current OS where those softwares or applications are not support. For example, <a target="_blank" rel="noopener" href="https://github.com/OpenEmu/OpenEmu">https://github.com/OpenEmu/OpenEmu</a> a multiple video game system. This is advantage of emulators.</p>
-<p>Disadvantage is that binary translation sometimes require instructino scan, if its used for CPU instruction translations, it spends more time than native instruction. More details in <a target="_blank" rel="noopener" href="https://people.redhat.com/pbonzini/qemu-test-doc/_build/html/topics/Translator-Internals.html">Translator-Internals</a> will be talked in next blogs.</p>
-<h2 id="Avi-Kivity"><a href="#Avi-Kivity" class="headerlink" title="Avi Kivity"></a>Avi Kivity</h2><p>Mad C++ developer, proud grandfather of KVM. Now working on @ScyllaDB, an open source drop-in replacement for Cassandra that’s 10X faster. Hiring (remotes too).</p>
-<p>from <a target="_blank" rel="noopener" href="https://twitter.com/avikivity">https://twitter.com/avikivity</a></p>
-<blockquote>
-</blockquote>
-<p>Avi Kivity began the development of KVM in mid-2006 at Qumranet, a technology startup company that was acquired by Red Hat in 2008. KVM surfaced in October, 2006 and was merged into the Linux kernel mainline in kernel version 2.6.20, which was released on 5 February 2007. </p>
-<blockquote>
-</blockquote>
-<p>KVM is maintained by Paolo Bonzini. <sup>[1]</sup></p>
-<h2 id="Virtualization"><a href="#Virtualization" class="headerlink" title="Virtualization"></a>Virtualization</h2><img src="/2022/06/30/kvm-introduction-00/hardware_assisted_virtualization.png" class="">
-
-<p>For hardware assisted virtualiztion, VMM running below ring0 Guest OS, user application can directly execute user requests, and sensitive OS call trap to VMM without binary translation or Paravirtualization so overhead is decreased.</p>
-<p>But for older full virtualization design</p>
-<img src="/2022/06/30/kvm-introduction-00/full_virtualization.png" class="">
-
-<p>Guest OS runs on Ring1 and VMM runs on Ring0, without hardware assist, OS requests trap to VMM and after binary translation the instruction finally executed.</p>
-<h2 id="KVM-Details"><a href="#KVM-Details" class="headerlink" title="KVM Details"></a>KVM Details</h2><h3 id="Memory-map"><a href="#Memory-map" class="headerlink" title="Memory map"></a>Memory map</h3><p>From perspective of Linux guest OS. Physical memory is already prepared and virtual memory is allocated depend on the physical memory. When guest OS require a virtual address(GVA), Guest OS need to translate is to guest physical address(GPA), this obey the prinsiple of Linux, and tlb, page cache will be involved. And no difference with a Linux Guest running on a real server.</p>
-<p>From perspective of host, start a Guest need to allocate a memory space as GPA space. So every GPA has a mapped host virtual address(HVA) and also a host physical address(HPA)</p>
-<p>So typically, if a guest need to access a virtual memory address</p>
-<p>GVA -&gt; GPA -&gt; HVA -&gt; GPA</p>
-<p>at least three times of translation is needed.</p>
-<p>Nowadays, CPU offer EPT(Intel) or NPT(AMD) to accelerate GPA -&gt; HVA translation. We will refer that in after blogs.</p>
-<h3 id="vMMU"><a href="#vMMU" class="headerlink" title="vMMU"></a>vMMU</h3><p>MMU consists of </p>
-<ul>
-<li>A radix tree ,the page table, encoding the virtual- to-physical translation. This tree is provided by system software on physical memory, but is rooted in a hardware register (the cr3 register)</li>
-<li>A mechanism to notify system software of missing translations (page faults)</li>
-<li>An on-chip cache(the translation lookaside buffer, or tlb) that accelerates lookups of the page table</li>
-<li>Instructions for switching the translation root inorder to provide independent address spaces</li>
-<li>Instructions for managing the tlb</li>
-</ul>
-<p>As referred in <strong>Memory map</strong> GPA -&gt; HVA should be offered by KVM.</p>
-<p>If no hardware assist, use shadow table to maintain the map between GPA and HVA, the good point of shadow table is that runtime address translation overhead is decrease but the major problem is how to synchronize guest page table with shadow page table, when guest writes page table, the shadow page table need to be changed together, so virtual MMU need offer hooks to implement this.</p>
-<p>Another question is context switch. Shadow page tables based on the fact that guest should sync its tlb with shadow page tables so that tlb management instruction will be trapped. But the most common tlb management instruction in context-switch is invalidates the entire tlb. So the shadow page tables need to be synced again. Causes bad performance when vm runs multi processes.</p>
-<p>vMMU is implement in order to improve guest performance which caches all page tables during context switch. This means context swtich could find its cache from vMMU directly, invdalidates tlb has no influence on context-switch.</p>
-<ul>
-<li>[1] <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine">https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine</a></li>
-<li>[2] <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)">https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)</a></li>
-<li>[3] <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Binary_translation">https://en.wikipedia.org/wiki/Binary_translation</a></li>
-<li>[4] <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/ols/2007/ols2007v1-pages-225-230.pdf">https://www.kernel.org/doc/ols/2007/ols2007v1-pages-225-230.pdf</a></li>
-</ul>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/06/30/kvm-introduction-00/" data-id="cld1mheai000nyuwb2orxc0lk" data-title="KVM introduction 00" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/06/30/kvm-introduction-00/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/06/30/kvm-introduction-00/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
     
-    <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
+    <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
   </nav>
 
 </section>
@@ -1596,7 +1509,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
     </div>
   </div>
 
@@ -1606,7 +1519,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 15.71px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 11.43px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 17.14px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 10px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
     </div>
   </div>
 
@@ -1628,6 +1541,10 @@
       <ul>
         
           <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
             <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
           </li>
         
@@ -1641,10 +1558,6 @@
         
           <li>
             <a href="/2023/03/03/virtio-on-linux/">Virtio on Linux</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/01/cpu-feature-configuration-code-diving/">Cpu feature configuration code diving</a>
           </li>
         
       </ul>

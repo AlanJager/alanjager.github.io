@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-04-27T06:27:29.312Z</updated>
+  <updated>2023-05-26T05:47:53.234Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,37 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Understanding CPU Topology for Improved Performance</title>
+    <link href="http://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/"/>
+    <id>http://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/</id>
+    <published>2023-05-26T05:44:12.000Z</published>
+    <updated>2023-05-26T05:47:53.234Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="cpu" scheme="http://hanayo.cn/categories/virtualization/cpu/"/>
+    
+    
+    <category term="cpu" scheme="http://hanayo.cn/tags/cpu/"/>
+    
+    <category term="performance" scheme="http://hanayo.cn/tags/performance/"/>
+    
+    <category term="virtualization" scheme="http://hanayo.cn/tags/virtualization/"/>
+    
+  </entry>
   
   <entry>
     <title>Understand virtio memory balloon</title>
@@ -592,41 +623,6 @@
     
     
     <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>kvm: mmu: Rework the x86 TDP direct mapped case</title>
-    <link href="http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/"/>
-    <id>http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/</id>
-    <published>2022-09-29T04:03:02.000Z</published>
-    <updated>2022-09-29T04:05:03.969Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;figure class=&quot;highlight plain&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span class=&quot;line&quot;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&quot;line&quot;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span</summary>
-        
-      
-    
-    
-    
-    <category term="virtualization" scheme="http://hanayo.cn/categories/virtualization/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/categories/virtualization/kvm/"/>
-    
-    
-    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
-    
-    <category term="virt" scheme="http://hanayo.cn/tags/virt/"/>
-    
-    <category term="kvm" scheme="http://hanayo.cn/tags/kvm/"/>
-    
-    <category term="TDP" scheme="http://hanayo.cn/tags/TDP/"/>
-    
-    <category term="code-reading" scheme="http://hanayo.cn/tags/code-reading/"/>
     
   </entry>
   

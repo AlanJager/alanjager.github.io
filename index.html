@@ -72,6 +72,148 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-2023-12-06" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/12/06/2023-12-06/" class="article-date">
+  <time class="dt-published" datetime="2023-12-06T06:14:17.000Z" itemprop="datePublished">2023-12-06</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a disk is loaded. During the kernel startup process, the disk (vdb) is recognized, and then qemu receives a device removal event, which is fed back to libvirt. Libvirt updates the XML, causing inconsistency between the disk state recorded in the zstack database and the XML on the host.</p>
+<p>The main issue here is that the libvirt loading device interface returns success, and the XML corresponding to the device is also added. However, this device is deleted according to the event feedback from qemu.</p>
+<p>Important log information: Here, let’s first analyze the system logs in the guest OS:</p>
+<p>Here, we notice the logs related to pciehp because this virtual machine is UEFI-booted, leading to numerous pcie-related logs (due to UEFI boot requiring the q35 machine type, which defaults to pcie devices).</p>
+<p>The initially observed logs include an error log from pcieport:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</span><br></pre></td></tr></table></figure>
+
+<p>Followed by the recognition of the vdb device:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB&#x2F;500 GiB)</span><br></pre></td></tr></table></figure>
+
+<p>An external interrupt is sent to the virtual machine:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br></pre></td></tr></table></figure>
+
+<p>Subsequently, through ausearch, it is identified that libvirt received a device deletion event, leading to the removal of the mentioned device:</p>
+<p>libvirt received device deleted event, removing the device</p>
+<p>Based on these scenarios, we have summarized the steps to reproduce the issue:</p>
+<ol>
+<li>During the kernel startup process</li>
+<li>Load the data disk.</li>
+<li>Check for inconsistencies between the XML and the database.</li>
+<li>Through repeated testing of VM boot and data disk loading, the issue can be reproduced.</li>
+</ol>
+<p>Regarding the error logs mentioned above, the explanation is as follows:</p>
+<ol>
+<li><p><code>pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</code>:</p>
+<ul>
+<li>According to <a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/3144711">https://access.redhat.com/solutions/3144711</a>, this error may occur because in virtualized environments, there might be more PCIe ports than in a real physical environment, leading to this error. However, it does not have any actual impact.</li>
+</ul>
+</li>
+<li><p><code>_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB/500 GiB)</code>:</p>
+<ul>
+<li>This indicates that the virtio-blk disk has indeed been successfully loaded, as it has been recognized within the virtual machine.</li>
+</ul>
+</li>
+<li><p><code>pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</code>:</p>
+<ul>
+<li>“Attention button pressed” indicates that when resetting the PCIe slot, QEMU sends the corresponding interrupt. When the host receives this interrupt, the corresponding processing logic prints this log.</li>
+</ul>
+</li>
+</ol>
+<p>As for the key QEMU code, by searching the codebase, it has been confirmed that QEMU sends the corresponding interrupt when resetting the PCIe slot, and the host prints the log as part of the corresponding processing logic.</p>
+<p>code from <code>pcie.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,</span><br><span class="line">                             PCI_EXP_SLTSTA_EIS |&#x2F;* on reset,</span><br><span class="line">                                                    the lock is released *&#x2F;</span><br><span class="line">                             PCI_EXP_SLTSTA_CC |</span><br><span class="line">                             PCI_EXP_SLTSTA_PDC |</span><br><span class="line">                             PCI_EXP_SLTSTA_ABP);</span><br></pre></td></tr></table></figure>
+
+<p>which is used in <code>qdev.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">QLIST_FOREACH(bus, &amp;dev-&gt;child_bus, sibling) &#123;</span><br><span class="line">     object_property_set_bool(OBJECT(bus), true, &quot;realized&quot;,</span><br><span class="line">                                  &amp;local_err);</span><br><span class="line">     if (local_err !&#x3D; NULL) &#123;</span><br><span class="line">         goto child_realize_fail;</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br><span class="line"> if (dev-&gt;hotplugged) &#123;</span><br><span class="line">     device_reset(dev);</span><br><span class="line"> &#125;</span><br><span class="line"> dev-&gt;pending_deleted_event &#x3D; false;</span><br><span class="line"> </span><br><span class="line"> if (hotplug_ctrl) &#123;</span><br><span class="line">     hotplug_handler_plug(hotplug_ctrl, dev, &amp;local_err);</span><br><span class="line">     if (local_err !&#x3D; NULL) &#123;</span><br><span class="line">         goto child_realize_fail;</span><br><span class="line">     &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>During the device hotplug process, there will be a reset action.</p>
+<p>Kernel-related code:</p>
+<p>from <code>pciehp_hpc.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">static int pciehp_poll(void *data)</span><br><span class="line">&#123;</span><br><span class="line">    struct controller *ctrl &#x3D; data;</span><br><span class="line"> </span><br><span class="line">    schedule_timeout_idle(10 * HZ); &#x2F;* start with 10 sec delay *&#x2F;</span><br><span class="line"> </span><br><span class="line">    while (!kthread_should_stop()) &#123;</span><br><span class="line">        &#x2F;* poll for interrupt events or user requests *&#x2F;</span><br><span class="line">        while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) &#x3D;&#x3D; IRQ_WAKE_THREAD ||</span><br><span class="line">               atomic_read(&amp;ctrl-&gt;pending_events))</span><br><span class="line">            pciehp_ist(IRQ_NOTCONNECTED, ctrl);</span><br><span class="line"> </span><br><span class="line">        if (pciehp_poll_time &lt;&#x3D; 0 || pciehp_poll_time &gt; 60)</span><br><span class="line">            pciehp_poll_time &#x3D; 2; &#x2F;* clamp to sane value *&#x2F;</span><br><span class="line"> </span><br><span class="line">        schedule_timeout_idle(pciehp_poll_time * HZ);</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">    &#x2F;* Check Attention Button Pressed *&#x2F;</span><br><span class="line">    if (events &amp; PCI_EXP_SLTSTA_ABP) &#123;</span><br><span class="line">        ctrl_info(ctrl, &quot;Slot(%s): Attention button pressed\n&quot;,</span><br><span class="line">              slot_name(ctrl));</span><br><span class="line">        pciehp_handle_button_press(ctrl);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>This code represents a kernel function for polling PCIe Hot Plug events. It uses a kernel thread (kthread) to continuously poll for interrupt events or user requests related to PCIe Hot Plug. The function includes a timeout mechanism with an initial delay of 10 seconds and then repeats the polling process based on the specified polling time. The function stops when the kernel thread should stop (kthread_should_stop() returns true).</p>
+<p>And pciehp_handle_button_press is implemented as following:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">void pciehp_handle_button_press(struct controller *ctrl)</span><br><span class="line">&#123;</span><br><span class="line">	mutex_lock(&amp;ctrl-&gt;state_lock);</span><br><span class="line">	switch (ctrl-&gt;state) &#123;</span><br><span class="line">	case OFF_STATE:</span><br><span class="line">	case ON_STATE:</span><br><span class="line">		if (ctrl-&gt;state &#x3D;&#x3D; ON_STATE) &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; BLINKINGOFF_STATE;</span><br><span class="line">			ctrl_info(ctrl, &quot;Slot(%s): Powering off due to button press\n&quot;,</span><br><span class="line">				  slot_name(ctrl));</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; BLINKINGON_STATE;</span><br><span class="line">			ctrl_info(ctrl, &quot;Slot(%s) Powering on due to button press\n&quot;,</span><br><span class="line">				  slot_name(ctrl));</span><br><span class="line">		&#125;</span><br><span class="line">		&#x2F;* blink power indicator and turn off attention *&#x2F;</span><br><span class="line">		pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,</span><br><span class="line">				      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		schedule_delayed_work(&amp;ctrl-&gt;button_work, 5 * HZ);</span><br><span class="line">		break;</span><br><span class="line">	case BLINKINGOFF_STATE:</span><br><span class="line">	case BLINKINGON_STATE:</span><br><span class="line">		&#x2F;*</span><br><span class="line">		 * Cancel if we are still blinking; this means that we</span><br><span class="line">		 * press the attention again before the 5 sec. limit</span><br><span class="line">		 * expires to cancel hot-add or hot-remove</span><br><span class="line">		 *&#x2F;</span><br><span class="line">		ctrl_info(ctrl, &quot;Slot(%s): Button cancel\n&quot;, slot_name(ctrl));</span><br><span class="line">		cancel_delayed_work(&amp;ctrl-&gt;button_work);</span><br><span class="line">		if (ctrl-&gt;state &#x3D;&#x3D; BLINKINGOFF_STATE) &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; ON_STATE;</span><br><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,</span><br><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; OFF_STATE;</span><br><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,</span><br><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		&#125;</span><br><span class="line">		ctrl_info(ctrl, &quot;Slot(%s): Action canceled due to button press\n&quot;,</span><br><span class="line">			  slot_name(ctrl));</span><br><span class="line">		break;</span><br><span class="line">	default:</span><br><span class="line">		ctrl_err(ctrl, &quot;Slot(%s): Ignoring invalid state %#x\n&quot;,</span><br><span class="line">			 slot_name(ctrl), ctrl-&gt;state);</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">	mutex_unlock(&amp;ctrl-&gt;state_lock);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Both OFF_STATE and ON_STATE could changed to each other by same press request. </p>
+<p>Based on the test results, we preliminarily conclude that there is a race condition between hot-plug operations and kernel boot, leading to unexpected changes in the PCIe slot’s state from off → on → off. (Note: The crucial point here is that pciehp_handle_button_press(ctrl); simultaneously handles both on and off scenarios.)</p>
+<p>With reference to the above keywords, we identified a related Bugzilla entry for QEMU version 4.2 by searching for ‘qemu pci device kernel boot race condition’:</p>
+<p><a target="_blank" rel="noopener" href="https://bugzilla.kernel.org/show_bug.cgi?id=211691">https://bugzilla.kernel.org/show_bug.cgi?id=211691</a></p>
+<p>“The document mentions a virtio-net failover mechanism introduced by QEMU 4.2, addressing the issue of hot-plugging network cards failing during the VM startup phase. This problem arises from a race condition in the QEMU code that sets the PCIe slot’s state. The provided QEMU patch resolves the issue:</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/qemu/qemu/commit/df72184ec15829053b3bb5a0d5801773b6d9ec25">QEMU Patch Link</a></p>
+<p>The title of this patch is: ‘pcie: don’t set link state active if the slot is empty.’</p>
+<p>Upon reviewing its content, it appears that during PCIe initialization and the hot-plug phase, the ‘reset’ is called, potentially causing inconsistencies in the slot’s state. This patch addresses the problem by preventing the setting of the link state to active if the slot is empty, eliminating the observed issue.”</p>
+<p>TIPs:</p>
+<p>Search for changes related to the virtual machine process using <code>ausearch</code>:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ausearch -m <span class="string">&quot;VIRT_RESOURCE&quot;</span> -p 63259</span><br></pre></td></tr></table></figure>
+
+<p>Libvirt’s XML and QEMU event update mechanism: Details can be found in TIC-1360 - Cloud VM disk does not exist, capacity inconsistency between UI interface and underlying view (Closed).</p>
+<p>Quick reference for PCIe events:</p>
+<p>From linux pci_regs.h:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PCI_EXP_SLTCTL      24  <span class="comment">/* Slot Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ABPE    0x0001  <span class="comment">/* Attention Button Pressed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PFDE    0x0002  <span class="comment">/* Power Fault Detected Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_MRLSCE  0x0004  <span class="comment">/* MRL Sensor Changed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PDCE    0x0008  <span class="comment">/* Presence Detect Changed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_CCIE    0x0010  <span class="comment">/* Command Completed Interrupt Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_HPIE    0x0020  <span class="comment">/* Hot-Plug Interrupt Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_AIC 0x00c0  <span class="comment">/* Attention Indicator Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_SHIFT 6      <span class="comment">/* Attention Indicator shift */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 <span class="comment">/* Attention Indicator on */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 <span class="comment">/* Attention Indicator blinking */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_OFF   0x00c0 <span class="comment">/* Attention Indicator off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PIC 0x0300  <span class="comment">/* Power Indicator Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 <span class="comment">/* Power Indicator on */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 <span class="comment">/* Power Indicator blinking */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 <span class="comment">/* Power Indicator off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PCC 0x0400  <span class="comment">/* Power Controller Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_ON         0x0000 <span class="comment">/* Power On */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_OFF        0x0400 <span class="comment">/* Power Off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_EIC 0x0800  <span class="comment">/* Electromechanical Interlock Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_DLLSCE  0x1000  <span class="comment">/* Data Link Layer State Changed Enable */</span></span></span><br></pre></td></tr></table></figure>
+
+<p>QEMU systemtap trace, refer to: <a target="_blank" rel="noopener" href="https://qemu-project.gitlab.io/qemu/devel/tracing.html">QEMU Tracing Documentation</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/usr/bin/qemu-trace-stap run /usr/libexec/qemu-kvm pci_cfg_write</span><br></pre></td></tr></table></figure>
+
+<p>Guest os pcie trace analysis:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Powering off due to button press</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_get_power_status: SLOTCTRL 6c value read 2f1</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_unconfigure_device: domain:bus:dev = 0000:08:00</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 40</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0018 from Slot Status</span><br><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br></pre></td></tr></table></figure>
+
+<p>cmd 0x0100</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 &#x2F;* Power Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 &#x2F;* Attention Indicator blinking *&#x2F;</span><br><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 &#x2F;* Attention Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</p>
+<p>cmd 0x0200</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 &#x2F;* Power Indicator blinking *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 &#x2F;* Attention Indicator blinking *&#x2F;</span><br><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 &#x2F;* Attention Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 400</p>
+<p>cmd 0x0400</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_OFF        0x0400 &#x2F;* Power Off *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300<br>cmd 0x0300</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 &#x2F;* Power Indicator off *&#x2F;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/12/06/2023-12-06/" data-id="clpte86eu0000aucafvj0077k" data-title="The disk in the guest OS is unmounted during the kernel startup process." class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/12/06/2023-12-06/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/12/06/2023-12-06/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-understanding-cpu-topology-for-improved-performance" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/" class="article-date">
@@ -2402,222 +2544,6 @@
 
 
   
-    <article id="post-virtio-devices-and-drivers-overview-the-headjack-and-the-phone" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" class="article-date">
-  <time class="dt-published" datetime="2023-02-22T14:12:09.000Z" itemprop="datePublished">2023-02-22</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio/">virtio</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/">Virtio devices and drivers overview: The headjack and the phone</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <blockquote>
-<p>This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed virtqueue. This is the basis for the communication between hosts and virtual environments like guests or containers.</p>
-</blockquote>
-<p>这个由三部分组成的系列，将会带你了解virtio数据平面的布局，split virtuqueue 和 packed virtqueue。这是物理机与虚拟环境比如虚拟机或容器交流的基础。</p>
-<blockquote>
-<p>One of the challenges when coming to explain these approaches is the lack of documentation and the many terms involved. This set of posts attempts to demystify the virtio data plane and provide you with a clear down to earth explanation of what is what.</p>
-</blockquote>
-<p>在解释这些方法时，面临的挑战之一是缺乏文档和涉及的许多术语。这组文章试图揭开virtio数据平面的神秘面纱，并为你提供一个清晰的解释，说明什么是什么。</p>
-<blockquote>
-<p>This is a technical deep dive and is relevant for those who are interested in the bits and bytes of things. It details the communication format between the different virtio parts and data plane protocols.</p>
-</blockquote>
-<p>这是一个技术上的深入研究，与那些对事物的比特和字节感兴趣的人有关。它详细介绍了不同virtio部件和数据平面协议之间的通信格式。</p>
-<blockquote>
-<p>While further extensions, optimizations and features are being added to both virtqueue versions, to improve performance and to simplify implementation, the core of the virtqueue operations remains the same. This is because it has been designed with extensibility in mind. </p>
-</blockquote>
-<p>虽然两个版本的virtqueue都加入了进一步的扩展、优化和功能，以提高性能和简化实现，但virtqueue操作的核心仍然保持不变。这是因为它在设计时就考虑到了可扩展性。</p>
-<blockquote>
-<p>Packed virtqueue, which complements the split virtqueue has been merged in the virtio 1.1 spec, and successfully implemented in both emulated devices (qemu, virtio_net, dpdk) and physical devices.</p>
-</blockquote>
-<p>作为split virtqueue的补充，packed virtqueue已被合并到virtio 1.1规范中，并在模拟设备（qemu、virtio_net、dpdk）和物理设备中成功实现。</p>
-<blockquote>
-<p>We’ll start with an overview of the virtio device, drivers and their data plane interaction. Then we’ll move on to explain the details of the split virtqueue ring layout. This is followed by an overview of the packed ring layout and the advantages it brings over the split virtqueue approach.</p>
-</blockquote>
-<p>我们将首先概述virtio设备、驱动程序和它们的数据平面互动。然后，我们将继续解释split virtqueue ring layout的细节。随后，我们将概述packed ring layout以及它比split virtqueue方法带来的优势。</p>
-<h2 id="Virtio-devices-and-drivers-overview-who-is-who"><a href="#Virtio-devices-and-drivers-overview-who-is-who" class="headerlink" title="Virtio devices and drivers overview: who is who"></a>Virtio devices and drivers overview: who is who</h2><blockquote>
-<p>This section provides a brief overview of the virtio devices, virtio drivers, examples of the different architectures you can use and the different components. If you’re already familiar with these topics or you have already followed the virtio networking series you can jump directly to the next section focusing on the virtio rings.</p>
-</blockquote>
-<p>本节简要介绍了virtio设备、virtio驱动、你可以使用的不同架构的例子以及不同的组件。如果你已经熟悉了这些主题，或者你已经关注了virtio网络系列，你可以直接跳到下一节，重点介绍virtio rings。</p>
-<h3 id="Virtio-devices-In-and-out-the-virtual-world"><a href="#Virtio-devices-In-and-out-the-virtual-world" class="headerlink" title="Virtio devices: In and out the virtual world"></a>Virtio devices: In and out the virtual world</h3><blockquote>
-<p>A virtio device is a device that exposes a virtio interface for the software to manage and exchange information. It can be exposed to the emulated environment using PCI, Memory Mapping I/O (Just to expose the device in a region of memory) and S/390 Channel I/O. Part of the communication needs to be delegated to theses, like device discovery.</p>
-</blockquote>
-<p>Virtio设备是一个暴露出virtio接口的设备，供软件管理和交换信息。它可以使用PCI、内存映射I/O（只是在内存的一个区域暴露设备）和S/390通道I/O暴露在仿真环境中。部分通信需要委托给这些设备，如设备发现。</p>
-<blockquote>
-<p>Its main task is to convert the signal from the format they have outside of the virtual environment (the VM, the container, etc) to the format they need to be exchanged through the virtio dataplane and vice-versa. This signal could be real (for example the electricity or the light from a NIC) or already virtual (like the representation the host has from a network packet).</p>
-</blockquote>
-<p>它的主要任务是将信号从它们在虚拟环境（虚拟机、容器等）之外的格式转换成它们需要通过virtio数据线交换的格式，反之亦然。这个信号可以是真实的（例如来自网卡的电或光），或者已经是虚拟的（如主机从网络包中得到的表示）。</p>
-<blockquote>
-<p>The virtio interface consist of the following mandatory parts (<a target="_blank" rel="noopener" href="https://docs.oasis-open.org/virtio/virtio/v1.1/cs01/virtio-v1.1-cs01.html#x1-90002">virtio1.1 spec</a>): </p>
-<ul>
-<li>Device status field</li>
-<li>Feature bits</li>
-<li>Notifications</li>
-<li>One or more virtqueues</li>
-</ul>
-<p>Now we’ll provide additional details to each of these parts and how the device and driver starts communicating using these.</p>
-</blockquote>
-<p>virtio接口由以下强制性部分组成（virtio1.1规范）:</p>
-<ul>
-<li>设备状态字段</li>
-<li>特征位</li>
-<li>通知</li>
-<li>一个或多个虚拟队列</li>
-</ul>
-<p>现在我们将提供这些部分的额外细节，以及设备和驱动如何使用这些部分开始通信。</p>
-<h3 id="Device-status-field-Is-everything-ok"><a href="#Device-status-field-Is-everything-ok" class="headerlink" title="Device status field: Is everything ok?"></a>Device status field: Is everything ok?</h3><blockquote>
-<p>The device status field is a sequence of bits the device and the driver use to perform their initialization. We can imagine it as traffic lights on a console, each part set and clear each bit indicating their status.</p>
-</blockquote>
-<p>设备状态字段是设备和驱动程序用来执行其初始化的一个比特序列。我们可以把它想象成控制台上的交通灯，每个部分设置和清除每个位，表示它们的状态。</p>
-<blockquote>
-<p>The guest or the driver set the bit <code>ACKNOWLEDGE</code> (0x1) in the device status field to indicate that it acknowledges the device, and the bit <code>DRIVER</code> (0x2) to indicate an initialization in progress. After that, it starts a feature negotiation using the feature bits (more on this later), and sets bit <code>DRIVER_OK</code> (0x4) and <code>FEATURES_OK</code> (0x8) to acknowledge the features, so communication can start. If the device wants to indicate a fatal failure, it can set bit <code>DEVICE_NEEDS_RESET</code> (0x40), and the driver can do the same with bit <code>FAILED</code> (0x80).</p>
-</blockquote>
-<p>访客或驱动程序在设备状态字段中设置位<code>ACKNOWLEDGE</code>（0x1）以表示它确认了设备，并设置位<code>DRIVER</code>（0x2）以表示初始化正在进行。之后，它开始使用功能位进行功能协商（后面会详细介绍），并设置位<code>DRIVER_OK</code>（0x4）和<code>FEATURES_OK</code>（0x8）来确认功能，这样就可以开始通信了。如果设备想指示一个致命的故障，它可以设置位<code>DEVICE_NEEDS_RESET</code> (0x40)，而驱动程序可以用位<code>FAILED</code> (0x80)做同样的事情。</p>
-<blockquote>
-<p>The device communicates the location of these bits using transport specific methods, like PCI scanning or knowing the address for MMIO.</p>
-</blockquote>
-<p>设备使用传输的特定方法来传达这些位的位置，如PCI扫描或知道MMIO的地址。</p>
-<h3 id="Feature-bits-Setting-the-communication-agreement-points"><a href="#Feature-bits-Setting-the-communication-agreement-points" class="headerlink" title="Feature bits: Setting the communication agreement points"></a>Feature bits: Setting the communication agreement points</h3><blockquote>
-<p>Device’s feature bits are used to communicate what features it supports, and to agree with the drivers about what of them will be used. These can be device-generic or device-specific. As an example of the first case, a bit can acknowledge if the device supports SR-IOV or what memory mode can be used. An example of the second case can be the different offloads it can perform, like checksumming or scatter-gather If the device is a network interface.</p>
-</blockquote>
-<p>设备的功能位用于交流它支持哪些功能，并与驱动程序商定将使用其中哪些功能。这些位可以是设备通用的，也可以是设备特定的。作为第一种情况的一个例子，一个比特可以确认设备是否支持SR-IOV或者可以使用什么内存模式。第二种情况的一个例子是，如果设备是一个网络接口，它可以执行不同的卸载，如校验和或散点收集。</p>
-<blockquote>
-<p>After the device initialization exposed in the previous section, the former reads the feature bits the device offers, and sends back the subset that it can handle. If they agree on them, the driver will allocate and inform about the virtqueues to the device, and all other configuration needed.</p>
-</blockquote>
-<p>在上一节暴露的设备初始化之后，前者会读取设备提供的功能位，并发回它能处理的子集。如果他们达成一致，驱动程序将分配和通知设备的虚拟队列，以及所有其他需要的配置。</p>
-<h3 id="Notifications-You-have-work-to-do"><a href="#Notifications-You-have-work-to-do" class="headerlink" title="Notifications: You have work to do"></a>Notifications: You have work to do</h3><blockquote>
-<p>Devices and drivers must notify that they have information to communicate using a notification. While the semantic of these is specified in the standard, the implementation of these are transport specific, like a PCI interruption or to write to a specific memory location. The device and the driver needs to expose at least one notification method. We will expand on this later in future sections.</p>
-</blockquote>
-<p>设备和驱动程序必须通知他们有使用通知的信息进行通信。虽然这些的语义是在标准中规定的，但这些的实现是特定于传输的，比如PCI中断或写到一个特定的内存位置。设备和驱动程序需要公开至少一个通知方法。我们将在以后的章节中对此进行阐述。</p>
-<h3 id="One-or-more-virtqueues-The-communication-vehicles"><a href="#One-or-more-virtqueues-The-communication-vehicles" class="headerlink" title="One or more virtqueues: The communication vehicles"></a>One or more virtqueues: The communication vehicles</h3><blockquote>
-<p>A virtqueue is just a queue of guest’s buffers that the host consumes, either reading them or writing to them, and returns to the guest. The current memory layout of a virtqueue implementation is a circular ring, so it is often called the virtring or vring.</p>
-<p>They will be the main topic of the next section, Virtqueues and virtio ring, so at this moment is enough with that definition.</p>
-</blockquote>
-<p>virtqueue只是一个guest缓冲区的队列，主机消耗这些缓冲区，要么读取它们，要么写入它们，然后返回给客体。目前virtqueue实现的内存布局是一个圆形的环，所以它通常被称为virtring或vring。</p>
-<p>它们将是下一节的主要话题，即virtqueues和virtio ring，所以此刻有了这个定义就足够了。</p>
-<h2 id="Virtio-drivers-The-software-avatar"><a href="#Virtio-drivers-The-software-avatar" class="headerlink" title="Virtio drivers: The software avatar"></a>Virtio drivers: The software avatar</h2><blockquote>
-<p>The virtio driver is the software part in the virtual environment that talks with the virtio device using the relevant parts of the virtio spec.</p>
-<p>Generally speaking, its virtio control plane tasks are:</p>
-<ul>
-<li>Look for the device</li>
-<li>To allocate shared memory in the guest for the communication</li>
-</ul>
-<p>Start it using the protocol in Virtio devices.</p>
-</blockquote>
-<p>virtio驱动是虚拟环境中的软件部分，它使用virtio规范的相关部分与virtio设备对话。</p>
-<p>一般来说，其virtio控制面的任务是。</p>
-<ul>
-<li>寻找设备</li>
-<li>在客户中为通信分配共享内存</li>
-</ul>
-<p>使用virtio设备中的协议启动它。</p>
-<h3 id="Devices-and-drivers-interaction-The-scenarios"><a href="#Devices-and-drivers-interaction-The-scenarios" class="headerlink" title="Devices and drivers interaction: The scenarios"></a>Devices and drivers interaction: The scenarios</h3><blockquote>
-<p>In this section we are going to locate each virtio networking element (device, driver, and how the communication works) in three different architectures, to provide both a common frame to start explaining the virtio data plane and to show how adaptive it is. We have already presented these elements in past posts, so you can skip this section if you are a virtio-net series reader. On the other hand, if you have not read them, you can use them as a reference to understand this part better.</p>
-</blockquote>
-<p>在这一节中，我们将把每个virtio网络元素（设备、驱动和通信如何工作）放在三个不同的架构中，以提供一个共同的框架来开始解释virtio数据平面，并展示它的适应性。我们已经在过去的文章中介绍了这些元素，所以如果你是virtio-net系列的读者，你可以跳过这一部分。另一方面，如果你没有读过这些文章，你可以把它们作为参考来更好地理解这一部分。</p>
-<blockquote>
-<p>In Introduction to virtio-networking and vhost-net we showed the environment in which qemu created an emulated net device and offered it to the guest’s virtio-net driver. In this environment, the driver notifications are routed from whatever method is exposed to guests (usually, PCI) to KVM interruptions that stop the guest’s processor and return the control to the host (vmexit). Similarly, the device notifications are a special ioctl the host can send to the KVM device (vCPU IRQ). QEMU can access virtqueue information using the shared memory.</p>
-</blockquote>
-<p>在介绍virtio-networking和vhost-net时，我们展示了qemu创建一个模拟的net设备并将其提供给客户的virtio-net驱动程序的环境。在这个环境中，驱动程序的通知从任何暴露给客体的方法（通常是PCI）被路由到KVM中断，停止客体的处理器并将控制权返回给主机（vmexit）。同样地，设备通知是主机可以向KVM设备发送的特殊ioctl（vCPU IRQ）。QEMU可以使用共享内存访问virtqueue信息。</p>
-<blockquote>
-<p>Please note the implications of the virtio rings shared memory concept: The memory the driver and the device access is the same page in RAM, they are not two different regions that follow a protocol to synchronize.</p>
-</blockquote>
-<p>请注意virtio环的共享内存概念的含义。驱动程序和设备访问的内存是RAM中的同一个页面，它们不是两个不同的区域，它们遵循一个协议来进行同步。</p>
-
-
-<p><em>Figure 1: Qemu emulated device component diagram</em></p>
-<blockquote>
-<p>Since the notification now needs to travel from the guest (KVM), to QEMU, and then to the kernel for the latter to forward the network frame, we can spawn a thread in the kernel with access to the guest’s shared memory mapping and then let it handle the virtio dataplane.</p>
-</blockquote>
-<p>由于通知现在需要从guest（KVM）到QEMU，再到内核，以便后者转发网络帧，我们可以在内核中生成一个线程，访问客体的共享内存映射，然后让它处理virtio数据平面。</p>
-<blockquote>
-<p>In that context, QEMU initiates the device using the virtio dataplane, and then forwards the virtio device status to vhost-net, delegating the data plane to it. In this scenario, KVM will use an event file descriptor (eventfd) to communicate the device interruptions, and expose another one to receive CPU interruptions. The guest does not need to be aware of this change, it will operate as the previous scenario.</p>
-</blockquote>
-<p>在这种情况下，QEMU使用virtio数据平面启动设备，然后将virtio设备状态转发给vhost-net，将数据平面委托给它。在这种情况下，KVM将使用一个事件文件描述符（eventfd）来传达设备中断，并公开另一个文件描述符来接收CPU中断。guest不需要意识到这种变化，它将像之前的方案一样操作。</p>
-<blockquote>
-<p>Also, in order to increase the performance, we created an in-kernel virtio-net device (called vhost-net) to offload the data plane directly to the kernel, where packet forwarding takes place:</p>
-</blockquote>
-<p>另外，为了提高性能，我们创建了一个内核内的virtio-net设备（称为vhost-net），将数据平面直接卸载到内核，在那里进行数据包转发。</p>
-<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig2.png" class="">
-
-<p><em>Figure 2: Virtio-net components diagram</em></p>
-<blockquote>
-<p>Later on, we moved the virtio device from the kernel to an userspace process in the host (covered in the post “A journey to the vhost-users realm”) that can run a packet forwarding framework like DPDK. The protocol to set all this up is called virtio-user.</p>
-</blockquote>
-<p>后来，我们把virtio设备从内核移到了主机的用户空间进程中（在 “通往vhost-users领域的旅程 “一文中有所涉及），该进程可以运行像DPDK这样的包转发框架。设置这一切的协议被称为virtio-user。</p>
-<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig3.png" class="">
-
-<p><em>Figure 3: Virtio-user components diagram</em></p>
-<blockquote>
-<p>It even allows guests to run virtio drivers in guest’s userland, instead of the kernel! In this case, virtio names driver the process that is managing the memory and the virtqueues, not the kernel code that runs in the guest.</p>
-</blockquote>
-<p>它甚至允许客户在客户的用户区运行virtio驱动，而不是在内核中运行 在这种情况下，virtio将驱动程序命名为管理内存和virtqueues的进程，而不是在guest中运行的内核代码</p>
-<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig4.png" class="">
-
-<p><em>Figure 4: Virtio-user with userland driver in guest</em></p>
-<blockquote>
-<p>Lastly, we can directly do a virtio device passthrough with the proper hardware. If the NIC supports the virtio data plane, we can expose it directly to the guest with proper hardware (IOMMU device, able to translate between the guest’s and device’s memory addresses) and software (for example, VFIO linux driver, that enables the host to directly give the control of a PCI device to the guest). The device uses the typical hardware signals for notifications infrastructure, like PCI and CPU interruptions (IRQ).</p>
-</blockquote>
-<p>最后，我们可以通过适当的硬件直接进行virtio设备透传。如果网卡支持virtio数据平面，我们可以通过适当的硬件（IOMMU设备，能够在guest和设备的内存地址之间进行转换）和软件（例如，VFIO linux驱动，使主机能够直接将PCI设备的控制权交给guest）将其直接暴露给guest。该设备使用典型的硬件信号来通知基础设施，如PCI和CPU中断（IRQ）。</p>
-<blockquote>
-<p>If a hardware NIC wants to go this way, the easiest approach is to build its driver on top of <a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/achieving-network-wirespeed-open-standard-manner-introducing-vdpa">vDPA</a>, also explained in earlier posts of this series.</p>
-</blockquote>
-<p>如果硬件网卡想走这条路，最简单的方法是在vDPA的基础上构建它的驱动程序，在本系列的早期文章中也有解释.</p>
-<img src="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/2020-06-18-virtio-fig5.png" class="">
-
-<p><em>Figure 5: Virtio hardware passthrough components diagram</em></p>
-<blockquote>
-<p>We will explain what happens inside of the dataplane communication in the rest of the posts.</p>
-</blockquote>
-<p>我们将在接下来的文章中解释数据平面通信内部发生了什么。</p>
-<blockquote>
-<p>Thanks to the deep investment in standardization, the virtio data plane is the same in whatever way we use across these scenarios, and whatever transport protocol we use. The format of the exchanged messages are the same, and different devices or drivers can negotiate different capabilities or features based on its characteristics using the feature bits, previously mentioned. This way, the virtqueues only act as a common thin layer of device-driver communication that allows to reduce the investment of development and deployment.</p>
-</blockquote>
-<p>由于对标准化的深入投资，virtio数据平面在这些场景中，无论我们使用什么方式，无论我们使用什么传输协议，都是一样的。交换的消息的格式是相同的，不同的设备或驱动程序可以根据它的特点，使用前面提到的特征位，协商不同的能力或特征。这样一来，虚拟队列只是作为设备-驱动程序通信的一个普通薄层，可以减少开发和部署的投资。</p>
-<blockquote>
-<p>As stated on <a target="_blank" rel="noopener" href="https://www.redhat.com/en/virtio-networking-series">previous blogs on this series</a>, the interest of this standardization is to achieve a slim layer of communication with the virtual environment (instead of emulating a complete piece of hardware), that makes it easier to verify for correctness across different virtualization technologies or hardware.</p>
-</blockquote>
-<p>正如本系列的前几篇博客所述，这种标准化的兴趣在于实现与虚拟环境的薄层通信（而不是模拟一个完整的硬件），这使得在不同的虚拟化技术或硬件之间验证正确性更加容易。</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" data-id="clefret8n0000t1wbey3l78ev" data-title="Virtio devices and drivers overview: The headjack and the phone" class="article-share-link">Share</a>
-      
-      
-        <a href="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -2662,7 +2588,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -2673,6 +2599,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
         
           <li>
             <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
@@ -2688,10 +2618,6 @@
         
           <li>
             <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
           </li>
         
       </ul>

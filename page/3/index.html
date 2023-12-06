@@ -72,6 +72,114 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-iommu" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/10/06/iommu/" class="article-date">
+  <time class="dt-published" datetime="2022-10-06T06:55:56.000Z" itemprop="datePublished">2022-10-06</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/linux/">linux</a>►<a class="article-category-link" href="/categories/linux/memory-management/">memory management</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/10/06/iommu/">Input–output memory management unit</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>From Wikipedia, the free encyclopedia</p>
+<blockquote>
+<p>In <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Computing">computing</a>, an <strong>input–output memory management unit</strong> (<strong>IOMMU</strong>) is a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Memory_management_unit">memory management unit</a> (MMU) connecting a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">direct-memory-access</a>–capable (DMA-capable) I/O <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Computer_bus">bus</a> to the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Main_memory">main memory</a>. Like a traditional MMU, which translates <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Central_processing_unit">CPU</a>-visible <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_address">virtual addresses</a> to <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Physical_address">physical addresses</a>, the IOMMU maps device-visible virtual addresses (also called <em>device addresses</em> or <em>I/O addresses</em> in this context) to physical addresses. Some units also provide <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Memory_protection">memory protection</a> from faulty or malicious devices.</p>
+</blockquote>
+<p>计算机中，<strong>input–output memory management unit</strong> (<strong>IOMMU</strong>) 是直接连接到主存的一个direct-memory-access-capable（DMA-capable，允许内存直接访问的）I/O总线内存管理单元（MMU）。类似传统的MMU，会翻译CPU可见的虚拟地址为物理地址，IOMMU映射设备可见的虚拟地址（也叫做设备地址或者I/O地址）到物理地址。一些单元也提供内存保护功能，避免设备出错或者受到攻击。</p>
+<blockquote>
+<p>An example IOMMU is the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Graphics_address_remapping_table">graphics address remapping table</a> (GART) used by <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Accelerated_Graphics_Port">AGP</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/PCI_Express">PCI Express</a> graphics cards on Intel Architecture and AMD computers.</p>
+<p>On the x86 architecture, prior to splitting the functionality of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Northbridge_(computing)">northbridge</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Southbridge_(computing)">southbridge</a> between the CPU and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Platform_Controller_Hub">Platform Controller Hub</a> (PCH), I/O virtualization was not performed by the CPU but instead by the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Chipset">chipset</a>.[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-1">1]</a>[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-2">2]</a></p>
+</blockquote>
+<p>举个例子，在Intel架构和AMD计算机上被AGP和PCI Express图形卡使用的graphics address remapping table（GART）就是IOMMU</p>
+<p>在x86架构，提前拆分CPU，平台控制器HUB（PCH），I/O虚拟化在北桥和南桥的功能并不是CPU直接处理的，而是由芯片组解决的。</p>
+<blockquote>
+<p>The advantages of having an IOMMU, compared to direct physical addressing of the memory (DMA), include[*<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Wikipedia:Citation_needed">citation needed</a>*]:</p>
+<ul>
+<li>Large regions of memory can be allocated without the need to be contiguous in physical memory – the IOMMU maps contiguous virtual addresses to the underlying fragmented physical addresses. Thus, the use of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Vectored_I/O">vectored I/O</a> (<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Scatter-gather">scatter-gather</a> lists) can sometimes be avoided.</li>
+<li>Devices that do not support memory addresses long enough to address the entire physical memory can still address the entire memory through the IOMMU, avoiding overheads associated with copying buffers to and from the peripheral’s addressable memory space.</li>
+<li>For example, x86 computers can address more than 4 gigabytes of memory with the <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Physical_Address_Extension">Physical Address Extension</a> (PAE) feature in an x86 processor. Still, an ordinary 32-bit PCI device simply cannot address the memory above the 4 GiB boundary, and thus it cannot directly access it. Without an IOMMU, the operating system would have to implement time-consuming <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Bounce_buffer">bounce buffers</a> (also known as double buffers[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-3">3]</a>).</li>
+<li>Memory is protected from malicious devices that are attempting DMA attacks and faulty devices that are attempting errant memory transfers because a device cannot read or write to memory that has not been explicitly allocated (mapped) for it. The memory protection is based on the fact that OS running on the CPU (see figure) exclusively controls both the MMU and the IOMMU. The devices are physically unable to circumvent or corrupt configured memory management tables.</li>
+<li>In <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Hardware-assisted_virtualization">virtualization</a>, <em>guest</em> operating systems can use hardware that is not specifically made for virtualization. Higher performance hardware such as graphics cards use DMA to access memory directly; in a virtual environment all memory addresses are re-mapped by the virtual machine software, which causes DMA devices to fail. The IOMMU handles this re-mapping, allowing the native device drivers to be used in a guest operating system.</li>
+<li>In some architectures IOMMU also performs <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Hardware_interrupt">hardware interrupt</a> re-mapping, in a manner similar to standard memory address re-mapping.</li>
+<li>Peripheral memory paging can be supported by an IOMMU. A peripheral using the PCI-SIG PCIe Address Translation Services (ATS) Page Request Interface (PRI) extension can detect and signal the need for memory manager services.</li>
+</ul>
+<p>For system architectures in which port I/O is a distinct address space from the memory address space, an IOMMU is not used when the CPU communicates with devices via <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/I/O_port">I/O ports</a>. In system architectures in which port I/O and memory are mapped into a suitable address space, an IOMMU can translate port I/O accesses.</p>
+</blockquote>
+<p>IOMMU的优势，和内存的直接物理映射（DMA）相比，包括：</p>
+<ul>
+<li>支持分配大片的内存，而且不需要是物理上连续的。IOMMU的映射保证虚拟地址连续，物理地址可以不连续。因此<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Vectored_I/O">vectored I/O</a> (<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Scatter-gather">scatter-gather</a> lists) 有些时候是不能用的</li>
+<li>内存地址长度不支持映射整个物理内存的时候也可以通过IOMMU来找到整个内存的地址。同时可以避免拷贝特定的内存到外围的内存空间而造成损耗<ul>
+<li>对x86计算机，具备通过Physical Address Extension（PAE）寻址超过4GB的内存的特性。同时一个普通的32位 PCI设备并不能很简单的找到超过4GB的内存地址，并且也无法访问这个地址。没有IOMMU的情况下，操作系统必须要实现一个消耗时间的bounce buffers（也叫做double buffer）</li>
+</ul>
+</li>
+<li>内存保护，避免恶意设备通过DMA攻击或者错误的设备尝试传输不正确的内存，因为一个设备并不能读或者写并不是这个设备分配映射的内存。内存保护是基于OS在CPU上运行并且排他的控制MMU以及IOMMU的事实实现的。设备在物理上就是没办法去避免或者破坏已经配置好的内存管理表的。<ul>
+<li>在虚拟化中，guest操作系统可以使用非特殊的虚拟化模式的硬件（物理硬件）。高性能硬件，比如说图形卡就是使用DMA来直接访问内存的。在虚拟环境中，所有的内存地址都被虚拟机软件重新做了映射，这就会导致DMA设备会访问失败。IOMMU需要处理这个重新映射的行为，并允许本地的硬件驱动能够被虚拟机操作系统使用。</li>
+</ul>
+</li>
+<li>在一些架构中，IOMMU也执行硬件中断的重新映射，类似标准内存地址的重新映射</li>
+<li>IOMMU也支持外围的内存页。一个外围的使用PIC-SIG PCIe地址翻译服务（Address Translation Services）页请求接口（Page Request Interface）拓展能够探测并发出信号给需要内存管理的服务</li>
+</ul>
+<p>对port I/O在内存空间中有有独有地址空间系统架构里，IOMMU并不通过I/O ports进行设备和CPU的沟通。系统架构里，port I/O和内存是映射到合适的地址空间里，IOMMU可以翻译port I/O的访问。</p>
+<blockquote>
+<p>The disadvantages of having an IOMMU, compared to direct physical addressing of the memory, include:[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-price-of-safety-4">4]</a></p>
+<ul>
+<li>Some degradation of performance from translation and management overhead (e.g., page table walks).</li>
+<li>Consumption of physical memory for the added I/O <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_table">page (translation) tables</a>. This can be mitigated if the tables can be shared with the processor.</li>
+<li>In order to decrease the page table size the granularity of many IOMMUs is equal to the memory paging (often 4096 bytes), and hence each small buffer that needs protection against DMA attack has to be page aligned and zeroed before making visible to the device. Due to OS memory allocation complexity this means that the device driver needs to use bounce buffers for the sensitive data structures and hence decreasing overall performance.</li>
+</ul>
+</blockquote>
+<p>IOMMU的缺点，和内存直接访问物理地址，包括：</p>
+<ul>
+<li>因为翻译和管理地址导致的性能损耗（比如page table walks）</li>
+<li>增加I/O page（translation）tables需要消耗物理内存。如果处理器可以共享page table就能够给减缓这个问题</li>
+<li>为了减少page tables的大小以及减少page的粒度，大部分IOMMUs是和内存页（通常是4096字节）对等的，并且因为每个小buffer都需要避免DMA attack，在提供给设备访问之前，必须要被对齐并且置为0。由于OS内存分配的复杂性，这意味着设备驱动对敏感的数据结构要使用一个弹性的buffers因此降低了性能（因为要动态分配）</li>
+</ul>
+<blockquote>
+<p>When an operating system is running inside a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_machine">virtual machine</a>, including systems that use <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Paravirtualization">paravirtualization</a>, such as <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Xen">Xen</a> and <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine">KVM</a>, it does not usually know the host-physical addresses of memory that it accesses. This makes providing direct access to the computer hardware difficult, because if the guest OS tried to instruct the hardware to perform a <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">direct memory access</a> (DMA) using guest-physical addresses, it would likely corrupt the memory, as the hardware does not know about the mapping between the guest-physical and host-physical addresses for the given virtual machine. The corruption can be avoided if the hypervisor or host OS intervenes in the I/O operation to apply the translations. However, this approach incurs a delay in the I/O operation.</p>
+<p>An IOMMU solves this problem by re-mapping the addresses accessed by the hardware according to the same (or a compatible) translation table that is used to map guest-physical address to host-physical addresses.[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit#cite_note-5">5]</a></p>
+</blockquote>
+<p>当操作系统运行在虚拟机里，包括操作系统辅助虚拟化，比如Xen和KVM，通常情况下是不知道内存要访问的物理机器物理地址的。这个情况下要直接提供计算机的硬件地址是很困难的，因为如果guest OS尝试去命令硬件使用guest的物理地址执行直接内存访问（DMA），将会是一个错误的地址（因为虚拟化，guest的内存空间实际上和host的内存空间不是一回事），这是由于硬件并不知道guest物理地址和host物理地址之间的映射关系。通过host OS的介入把这个I/O操作翻译掉，就能够解决这个问题，而这个方法就会造成I/O操作变慢。</p>
+<p>一个IOMMU可以通过宠幸映射硬件关联地址的翻译来解决这个问题，也就是用来做guest物理地址和host物理地址的映射。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/10/06/iommu/" data-id="cld1mheaa000gyuwbhmka8138" data-title="Input–output memory management unit" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/10/06/iommu/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/10/06/iommu/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-kvm-mmu-rework-the-x86-tdp-direct-mapped-case" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" class="article-date">
@@ -1336,124 +1444,6 @@
 
 
   
-    <article id="post-Go-through-KVM-code-due-to-a-tdp-page-fault" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" class="article-date">
-  <time class="dt-published" datetime="2022-07-15T02:23:14.000Z" itemprop="datePublished">2022-07-15</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/kvm/">kvm</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/">Go through KVM code due to a tdp_page_fault</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="What-happened"><a href="#What-happened" class="headerlink" title="What happened?"></a>What happened?</h2><p>Our CI/CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not finished after 1h 20min. </p>
-<p>After check the codebase and test on lastest release stable branch, its more likely that the system met performance issue.</p>
-<p>Before starting trip of “dig out the root cause”, check big picture of this CI/CD system architecture.</p>
-<h2 id="Prepare-from-perf"><a href="#Prepare-from-perf" class="headerlink" title="Prepare from perf"></a>Prepare from perf</h2><p>Because integration test runs on virtual machine memory, check hypervisor’s performance might gave more details. So use perf to collect run time data for analysis.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">git clone https:&#x2F;&#x2F;github.com&#x2F;brendangregg&#x2F;FlameGraph  # or download it from github</span><br><span class="line">cd FlameGraph</span><br><span class="line">perf record -F 99 -a -g -- sleep 60</span><br><span class="line">perf script | .&#x2F;stackcollapse-perf.pl &gt; out.perf-folded</span><br><span class="line">.&#x2F;flamegraph.pl out.perf-folded &gt; perf.svg</span><br></pre></td></tr></table></figure>
-
-<p>Check the flame graph</p>
-<img src="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png" class=""> 
-
-
-<h2 id="Start-from-tdp-page-fault"><a href="#Start-from-tdp-page-fault" class="headerlink" title="Start from tdp_page_fault"></a>Start from tdp_page_fault</h2><p>Abviously cpu spend lots of time to handle tdp_page_fault</p>
-<p>find definition from <code>linux/arch/x86/kvm/mmu.c</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	struct kvm_mmu *context &#x3D; &amp;vcpu-&gt;arch.mmu;</span><br><span class="line"></span><br><span class="line">	context-&gt;base_role.word &#x3D; 0;</span><br><span class="line">	context-&gt;base_role.guest_mode &#x3D; is_guest_mode(vcpu);</span><br><span class="line">	context-&gt;base_role.smm &#x3D; is_smm(vcpu);</span><br><span class="line">	context-&gt;base_role.ad_disabled &#x3D; (shadow_accessed_mask &#x3D;&#x3D; 0);</span><br><span class="line">	context-&gt;page_fault &#x3D; tdp_page_fault;</span><br><span class="line">	context-&gt;sync_page &#x3D; nonpaging_sync_page;</span><br><span class="line">	context-&gt;invlpg &#x3D; nonpaging_invlpg;</span><br><span class="line">	context-&gt;update_pte &#x3D; nonpaging_update_pte;</span><br><span class="line">	context-&gt;shadow_root_level &#x3D; kvm_x86_ops-&gt;get_tdp_level(vcpu);</span><br><span class="line">	context-&gt;root_hpa &#x3D; INVALID_PAGE;</span><br><span class="line">	context-&gt;direct_map &#x3D; true;</span><br><span class="line">	context-&gt;set_cr3 &#x3D; kvm_x86_ops-&gt;set_tdp_cr3;</span><br><span class="line">	context-&gt;get_cr3 &#x3D; get_cr3;</span><br><span class="line">	context-&gt;get_pdptr &#x3D; kvm_pdptr_read;</span><br><span class="line">	context-&gt;inject_page_fault &#x3D; kvm_inject_page_fault;</span><br></pre></td></tr></table></figure>
-
-<p><code>kvm_vcpu</code> <code>page_fault</code> point to <code>tdp_page_fault</code> when mmu field of <code>kvm_vcpu</code> is initializing.</p>
-<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	if (mmu_is_nested(vcpu))</span><br><span class="line">		init_kvm_nested_mmu(vcpu);</span><br><span class="line">	else if (tdp_enabled)</span><br><span class="line">		init_kvm_tdp_mmu(vcpu);</span><br><span class="line">	else</span><br><span class="line">		init_kvm_softmmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">void kvm_mmu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	MMU_WARN_ON(VALID_PAGE(vcpu-&gt;arch.mmu.root_hpa));</span><br><span class="line"></span><br><span class="line">	init_kvm_mmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>from kvm vcpu setup <code>arch/x86/kvm/x86.c</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	kvm_vcpu_mtrr_init(vcpu);</span><br><span class="line">	vcpu_load(vcpu);</span><br><span class="line">	kvm_vcpu_reset(vcpu, false);</span><br><span class="line">	kvm_mmu_setup(vcpu);</span><br><span class="line">	vcpu_put(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>vcpu is created by </p>
-<p><code>kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)</code></p>
-<p>check mmu in vcpu structure:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Paging state of the vcpu</span><br><span class="line"> *</span><br><span class="line"> * If the vcpu runs in guest mode with two level paging this still saves</span><br><span class="line"> * the paging mode of the l1 guest. This context is always used to</span><br><span class="line"> * handle faults.</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct kvm_mmu mmu;</span><br></pre></td></tr></table></figure>
-
-<h2 id="Find-more-by-pf-interception"><a href="#Find-more-by-pf-interception" class="headerlink" title="Find more by pf_interception"></a>Find more by pf_interception</h2><p>combine to flage graph, pf_interception is before tdp_page_fault,</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">static int pf_interception(struct vcpu_svm *svm)</span><br><span class="line">&#123;</span><br><span class="line">	u64 fault_address &#x3D; __sme_clr(svm-&gt;vmcb-&gt;control.exit_info_2);</span><br><span class="line">	u64 error_code &#x3D; svm-&gt;vmcb-&gt;control.exit_info_1;</span><br><span class="line"></span><br><span class="line">	return kvm_handle_page_fault(&amp;svm-&gt;vcpu, error_code, fault_address,</span><br><span class="line">			static_cpu_has(X86_FEATURE_DECODEASSISTS) ?</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_bytes : NULL,</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>refer to its usage:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[SVM_EXIT_EXCP_BASE + PF_VECTOR] &#x3D; pf_interception</span><br></pre></td></tr></table></figure>
-
-<p>SVM_EXIT_EXCP_BASE is related to AMD CPU virtualization, PF_VECTOR means page_frame vector, used by page fault.</p>
-<p>more details about the PF_VECTOR in <code>arch/x86/kvm/svm.c</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">if (npt_enabled) &#123;</span><br><span class="line">	&#x2F;* Setup VMCB for Nested Paging *&#x2F;</span><br><span class="line">	control-&gt;nested_ctl |&#x3D; SVM_NESTED_CTL_NP_ENABLE;</span><br><span class="line">	clr_intercept(svm, INTERCEPT_INVLPG);</span><br><span class="line">	clr_exception_intercept(svm, PF_VECTOR);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_READ);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);</span><br><span class="line">	save-&gt;g_pat &#x3D; svm-&gt;vcpu.arch.pat;</span><br><span class="line">	save-&gt;cr3 &#x3D; 0;</span><br><span class="line">	save-&gt;cr4 &#x3D; 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>if AMD CPU’s npt not enabled, PF_VECTOR will be used to intercept page fault.</p>
-<p>So just quickly go through guest virtual address translation.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Fetch a guest pte for a guest virtual address</span><br><span class="line"> *&#x2F;</span><br><span class="line">static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span><br><span class="line">				    struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,</span><br><span class="line">				    gva_t addr, u32 access)</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">error:</span><br><span class="line">	errcode |&#x3D; write_fault | user_fault;</span><br><span class="line">	if (fetch_fault &amp;&amp; (mmu-&gt;nx ||</span><br><span class="line">			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))</span><br><span class="line">		errcode |&#x3D; PFERR_FETCH_MASK;</span><br><span class="line"></span><br><span class="line">	walker-&gt;fault.vector &#x3D; PF_VECTOR;</span><br><span class="line">	walker-&gt;fault.error_code_valid &#x3D; true;</span><br><span class="line">	walker-&gt;fault.error_code &#x3D; errcode;</span><br></pre></td></tr></table></figure>
-
-<p>error is defined to raise PF_VECTOR when failed to find any PTE(Page table entry) </p>
-<p>Than let’s find the next method <code>handle_exit()</code> from svm.c</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">static int handle_exit(struct kvm_vcpu *vcpu)</span><br></pre></td></tr></table></figure>
-
-<p>following shows more details</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">struct vcpu_svm *svm &#x3D; to_svm(vcpu);</span><br><span class="line">struct kvm_run *kvm_run &#x3D; vcpu-&gt;run;</span><br><span class="line">u32 exit_code &#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br></pre></td></tr></table></figure>
-
-<p>the vcpu structure will be changed to vcpu_svm and than get the exit_code from it.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))</span><br><span class="line">	vcpu-&gt;arch.cr0 &#x3D; svm-&gt;vmcb-&gt;save.cr0;</span><br><span class="line">if (npt_enabled)</span><br><span class="line">	vcpu-&gt;arch.cr3 &#x3D; svm-&gt;vmcb-&gt;save.cr3;</span><br><span class="line"></span><br><span class="line">if (unlikely(svm-&gt;nested.exit_required)) &#123;</span><br><span class="line">	nested_svm_vmexit(svm);</span><br><span class="line">	svm-&gt;nested.exit_required &#x3D; false;</span><br><span class="line"></span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>than the exit_code will be traced.</p>
-<p>CR0 has various control flags that modify the basic operation of the processor. See more: <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Control_register#CR0">https://en.wikipedia.org/wiki/Control_register#CR0</a></p>
-<p>if npt_enabled(CPU enable npt) vcpu will use vmcb saved cr3</p>
-<p>vmcb: Intel VT-x name it as vmcs(virtual machine control structure), AMD name it as vmcb(virtual machine control block)</p>
-<p>vmcb_control_area and vmcb_save_area combined as virtual machine control block. </p>
-<p>note: need more research</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">if (is_guest_mode(vcpu)) &#123;</span><br><span class="line">	int vmexit;</span><br><span class="line"></span><br><span class="line">	trace_kvm_nested_vmexit(svm-&gt;vmcb-&gt;save.rip, exit_code,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_1,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_2,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info_err,</span><br><span class="line">				KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">	vmexit &#x3D; nested_svm_exit_special(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_CONTINUE)</span><br><span class="line">		vmexit &#x3D; nested_svm_exit_handled(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_DONE)</span><br><span class="line">		return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>if vm is nested exit, handle nested exit next step, interrupts will be queued and if vm exit due to SVM_EXIT_ERR exit this thread.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">svm_complete_interrupts(svm);</span><br><span class="line"></span><br><span class="line">if (svm-&gt;vmcb-&gt;control.exit_code &#x3D;&#x3D; SVM_EXIT_ERR) &#123;</span><br><span class="line">	kvm_run-&gt;exit_reason &#x3D; KVM_EXIT_FAIL_ENTRY;</span><br><span class="line">	kvm_run-&gt;fail_entry.hardware_entry_failure_reason</span><br><span class="line">		&#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br><span class="line">	pr_err(&quot;KVM: FAILED VMRUN WITH VMCB:\n&quot;);</span><br><span class="line">	dump_vmcb(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>last, check if the error code is external interrupt and not kernel handable error</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">if (is_external_interrupt(svm-&gt;vmcb-&gt;control.exit_int_info) &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_EXCP_BASE + PF_VECTOR &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_NPF &amp;&amp; exit_code !&#x3D; SVM_EXIT_TASK_SWITCH &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_INTR &amp;&amp; exit_code !&#x3D; SVM_EXIT_NMI)</span><br><span class="line">	printk(KERN_ERR &quot;%s: unexpected exit_int_info 0x%x &quot;</span><br><span class="line">	       &quot;exit_code 0x%x\n&quot;,</span><br><span class="line">	       __func__, svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">	       exit_code);</span><br><span class="line"></span><br><span class="line">if (exit_code &gt;&#x3D; ARRAY_SIZE(svm_exit_handlers)</span><br><span class="line">    || !svm_exit_handlers[exit_code]) &#123;</span><br><span class="line">	WARN_ONCE(1, &quot;svm: unexpected exit reason 0x%x\n&quot;, exit_code);</span><br><span class="line">	kvm_queue_exception(vcpu, UD_VECTOR);</span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
-
-<p>finally invoke svm exit handler</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" data-id="cld1mhe9x0003yuwb8g646w4b" data-title="Go through KVM code due to a tdp_page_fault" class="article-share-link">Share</a>
-      
-      
-        <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -1498,7 +1488,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -1509,6 +1499,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
         
           <li>
             <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
@@ -1524,10 +1518,6 @@
         
           <li>
             <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
           </li>
         
       </ul>

@@ -72,6 +72,129 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-introduction-virtio-networking-and-vhost-net-md" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" class="article-date">
+  <time class="dt-published" datetime="2021-12-15T06:42:40.000Z" itemprop="datePublished">2021-12-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/">Introduction to virtio-networking and vhost-net</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>因为最近在看vdpa-blk，查资料的时候发现了红帽在19年写了一系列文章来介绍virtio网络入门的感觉和存储的加速思路差不多就拿来整理顺便做一下翻译。原文链接已附在文尾。</p>
+<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>virtio被开发作为云主机简化访问类似块设备和网络适配器的标准开放api。其中的virtio-net是一个虚拟以太网卡，是目前virtio支持过的最复杂的设备。本文会从virtio-networking的架构提供一个高级的基于建立host kernel和VM guest kernel的接口的解决方案。将介绍包括 KVM、qemu 和 libvirt 在内的基本组件，同时结合virtio spec和vhost协议以及Open vSwitch来讲云主机连接到外部世界。接下来描述的基于vhost-net/virtio-net的架构是许多virtio-networking架构中的第一个，这些架构将在一系列帖子中介绍，这些帖子因其性能、应用程序的易用性和实际部署而异。</p>
+<p>读完这篇文章之后你应该能够清楚的了解提到的名词然后能够知道云主机中的应用如何发送数据包到其他云主机运行的应用以及如何发送到外部网络。这些术语也会作为下一片文章的基础。</p>
+<h2 id="VIrtio-basic-building-blocks"><a href="#VIrtio-basic-building-blocks" class="headerlink" title="VIrtio basic building blocks"></a>VIrtio basic building blocks</h2><p>guest VM或者说guest是被安装，执行并托管在物理机器上的虚拟机。这个提供托管guest VM并提供资源功能的机器就叫做host。guest通过hypervisor拥有分离的运行在host操作系统之上的操作系统。举个例子，host会提供虚拟网卡给虚拟机，guest机器则把它当作一个真实的网卡使用，虽然事实上它只是个虚拟网卡。</p>
+<p>下列的组件创建了接下来virtio需要提供链接的虚拟环境</p>
+<ol>
+<li>KVM - kernel based virtiual machine允许Linux提供hypervisor的功能支持运行多个隔离的虚拟环境又叫做guests。KVM提供了Linux作为hypervisor的基本功能。比如内存管理，调度，网络栈等都包含在了Linux kernel里。虚拟机通常是通过标准Linux调度去调度的进程，同时上面加在了一些专用的虚拟硬件比如网络适配器。</li>
+<li>QEMU - A hosted virtual machine monitor。通过模拟给虚拟机提供一系列硬件和设备模型。QEMU 可以与 KVM 一起使用，利用硬件扩展以接近本机的速度运行虚拟机。guest通过qemu command line interface(CLI)运行。CLI 供了为QEMU指定所有必要配置选项的能力</li>
+<li>Libvirt - 一个翻译xml格式配置到qemu CLI调用的接口。它提供了一个admin守护进程来配置子进程比如qemu，因此qemu不需要root特权。例如，当Openstack Nova想要启动一个VM时，它使用libvirt通过为每个VM调用一个qemu进程来为每个VM启动一个qemu进程。</li>
+</ol>
+<p>下图显示了这三个组件如何结合在一起：</p>
+
+
+<p>host和guest都包含了kernel space和user space。可以根据图看到，KVM运行在host的内核态，而libvirt运行在host的用户态</p>
+<p>guest虚拟机运行在qemu进程里，只是一个简单的运行在host用户态的继承并且和libvirt（用户态应用）以及KVM（内核态）通信</p>
+<p>每一个虚拟机都会创建一个qemu进程，所以如果你创建N个虚拟机，你就会有N个虚拟机qemu进程，并且libvirt会和每一个进程通信</p>
+<h2 id="Virtio-spec-and-the-vhost-protocol"><a href="#Virtio-spec-and-the-vhost-protocol" class="headerlink" title="Virtio spec and the vhost protocol"></a>Virtio spec and the vhost protocol</h2><p>当讨论vritio-networking的时候我们可以分开两层讨论</p>
+<ol>
+<li>控制平面 - 用于host和guest之间能力的协商，用于建立和终止数据平面</li>
+<li>数据平面 - 用于host和guest之间传输实际的数据（packets）</li>
+</ol>
+<p>区分清楚这两个层级是很重要的，因为这些层级需要实现的要求不一样（比如性能）并且本文和后续文章也会展示很多不同的实现。</p>
+<p>不过在以后的架构里最基础的要求，数据平面要求有尽可能好的性能来快速移动数据包，同时控制平面要求尽可能的有很好的拓展性来支持不同的设备和厂商</p>
+<p>就像在开头提到的，virtio是被开发出来作为guest访问host设备的接口的。我们可以把virtio分成两部分：</p>
+<ol>
+<li>virtio spec - The virtio spec根据OASIS提到的。定义了如何创建一个介于host和guest之间的控制平面和数据平面。举个例子数据平面需要由缓存和环状布局组成，设置在spec里面详细说明的</li>
+<li>vhost protocol - 一个为了提升性能允许virtio数据平面的实现被下放到其他元素（用户态进程或者内核模块）</li>
+</ol>
+<p>qemu进程中实现的virtio的控制平面是基于virtio spec的，然而数据平面不是。因此问题转变为了为什么数据平面没有像类似virtio spec中定义的那样实现在qemu进程里的？</p>
+<p>答案是：性能问题</p>
+<p>如果简单的按照virtio spec在qemu里实现了数据平面，我们就需要为每个从kernel进入guest的包切换上下文了反之亦然。这是一个代价很大的操作，增加了延迟同时也占用了更多的进程时间（提醒一下当前qemu只是一个Linux进程），所以我们想要尽可能的避免这个问题。</p>
+<p>这就是为什么vhost protocol出现了，让我们能够去实现一个数据平面直接从host kernel到guest而不经过qemu进程</p>
+<p>不过vhost协议本身仅描述了如何建立数据平面。任何实现被要求实现环状布局来描述数据缓存（包括host和guest的）以及真实发送/接受的数据包</p>
+<p>就像之后的章节要介绍的内容那样，vhost协议可以被实现成内核态（vhost-net）或者是用户态（vhost-user）。本文描述的vhost-net/virtio-net架构专注于内核态的又被叫做vhost-net的实现</p>
+<h2 id="The-vhost-net-virtio-net-architecture"><a href="#The-vhost-net-virtio-net-architecture" class="headerlink" title="The vhost-net/virtio-net architecture"></a>The vhost-net/virtio-net architecture</h2><p>当我们谈论关于virtio接口的时候我们有一个后端组件和一个前端组件</p>
+<ul>
+<li>后端组件是host侧的virtio接口</li>
+<li>前端组件是guest侧的virtio接口</li>
+</ul>
+<p>在vhost-net/virtio-net架构的组件里是这样的</p>
+<ul>
+<li>vhost-net是运行在host内核空间</li>
+<li>virtio-net运行在guest的内核空间</li>
+</ul>
+<p>下面的图展示了宏观上virtio的前端和后端是如何对应的：</p>
+
+
+<p>有一些点需要说明：</p>
+<ul>
+<li>因为vhost-net和virtio-net都运行在host和guest的内核空间，我们也叫他们驱动（drivers）所以如果有人“vhost-net-driver”不太要感觉奇怪指的是同一个东西</li>
+<li>在后端和前端之间有分离的控制平面和数据平面。就像前面解释过的，控制平面简单给vhost-net内核模块实现了virtio spec同时qemu进程进入guest的通讯最终到了virtio-net。Vhost-net使用了vhost协议建立了框架实现了使用共享内存的数据平面的host-guest内核包的直接转发的功能</li>
+</ul>
+<p>实际上数据面通讯  接收 receive（RX）和发送 transmit（TX）是通过vCPU专用队列完成的</p>
+<p>每一个guest都能根据vCPU的数量关联起一堆RX/TX队列，这个队列对应每一个CPU。举一个更精确的例子比如有4 vCPUs会像这样（去掉控制平面简化一下这个图）：</p>
+
+
+<h2 id="Virtio-networking-and-OVS"><a href="#Virtio-networking-and-OVS" class="headerlink" title="Virtio-networking and OVS"></a>Virtio-networking and OVS</h2><p>目前我们已经描述了如何guest能够通过virtio-networking接口把包送到host内核。为了转发这些包到其他运行在同一台host或者其他host的guest上，我们使用OVS</p>
+<p>OVS是一个软交换机，能够给提供内核内包转发。它由用户态和内核态两个部分组成</p>
+<ul>
+<li>用户空间 - 包括一个数据库（ovsdb-server）和一个OVS deamon来管理和控制交换机（ovs-switched）</li>
+<li>内核空间 - 包括ovs内核模块主要负责数据通路和转发平面</li>
+</ul>
+<p>OVS controller同时和数据库服务以及内核转发面通讯。为了使得包能够出入OVS我们使用了Linux端口。在我们的场景里，我们使用了一个端口连接OVS内核转发平面到一个物理网卡同时另外一个端口连接到vhost-net的后端。</p>
+<p>注意我们是在描述简化过的场景。实际上可能会有多个网卡连接到OVS多个端口和虚拟机运行，。因此也需要很多端口连接到vhost-net的后端。</p>
+<p>接着讲virtio-networking下面的图展示了OVS如何连接到virtio：</p>
+
+
+<p>请注意所提到的用于将OVS连接到主机外部和vhost-net以及从vhost-net连接到virtio-ne 和在VM中运行的应用程序的端口。</p>
+<p>这个总结了vhost-net/virio-net的基于host内核，guest内核和内核态OVS的架构的大概内容</p>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><p>在这篇文章中，我们已经触及了 virtio-networking 生态系统的表面，向您介绍了 virtio-networking 使用的虚拟化和网络的基本构建组件。我们简短的涵盖了virtio spec和vhost protocol，回顾了用于实现 virtio 接口的前端和后端架构，并带您了解了 vhost-net（host内核）与 virtio-net（guest内核）通信的 vhost-net/virtio-net 架构。</p>
+<p>我们在尝试解释事物时遇到的一个基本挑战是术语历史问题。例如，virtio-net既指virtio规范中的virtio网络设备实现，也指vhost-net/virtio-net架构中描述的guest内核前端。我们试图通过在上下文解释术语并使用virtio-net仅描述guest内核前端来解决这个问题。</p>
+<p>正如将在后面的文章中解释的那样，基于使用DPDK和不同硬件offload技术的virtio规范网络设备还有其他实现，这些都在virtio-networking的保护伞下。</p>
+<p>接下来的两篇文章会提供一个更加深入的关于vhost-net/virtio-net架构的理解。一篇文章将面向架构师，提供对vhost-net/virtio-net的技术深入研究，并解释数据平面和控制平面在实践中是如何实现的。面向开发人员的另一篇文章将是一个动手部分，包括Ansible脚本，以实现对vhost-net/virtio-net架构的试验。</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><p>原文链接： <a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/introduction-virtio-networking-and-vhost-net">introduction-virtio-networking-and-vhost-net</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" data-id="cld1mhea9000fyuwb4r8l2iat" data-title="Introduction to virtio-networking and vhost-net" class="article-share-link">Share</a>
+      
+      
+        <a href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-qemu-ft-01" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2021/12/14/qemu-ft-01/" class="article-date">
@@ -244,7 +367,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -255,6 +378,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
         
           <li>
             <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
@@ -270,10 +397,6 @@
         
           <li>
             <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
           </li>
         
       </ul>

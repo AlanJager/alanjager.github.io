@@ -72,6 +72,124 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-Go-through-KVM-code-due-to-a-tdp-page-fault" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" class="article-date">
+  <time class="dt-published" datetime="2022-07-15T02:23:14.000Z" itemprop="datePublished">2022-07-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/kvm/">kvm</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/">Go through KVM code due to a tdp_page_fault</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="What-happened"><a href="#What-happened" class="headerlink" title="What happened?"></a>What happened?</h2><p>Our CI/CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not finished after 1h 20min. </p>
+<p>After check the codebase and test on lastest release stable branch, its more likely that the system met performance issue.</p>
+<p>Before starting trip of “dig out the root cause”, check big picture of this CI/CD system architecture.</p>
+<h2 id="Prepare-from-perf"><a href="#Prepare-from-perf" class="headerlink" title="Prepare from perf"></a>Prepare from perf</h2><p>Because integration test runs on virtual machine memory, check hypervisor’s performance might gave more details. So use perf to collect run time data for analysis.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">git clone https:&#x2F;&#x2F;github.com&#x2F;brendangregg&#x2F;FlameGraph  # or download it from github</span><br><span class="line">cd FlameGraph</span><br><span class="line">perf record -F 99 -a -g -- sleep 60</span><br><span class="line">perf script | .&#x2F;stackcollapse-perf.pl &gt; out.perf-folded</span><br><span class="line">.&#x2F;flamegraph.pl out.perf-folded &gt; perf.svg</span><br></pre></td></tr></table></figure>
+
+<p>Check the flame graph</p>
+<img src="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png" class=""> 
+
+
+<h2 id="Start-from-tdp-page-fault"><a href="#Start-from-tdp-page-fault" class="headerlink" title="Start from tdp_page_fault"></a>Start from tdp_page_fault</h2><p>Abviously cpu spend lots of time to handle tdp_page_fault</p>
+<p>find definition from <code>linux/arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	struct kvm_mmu *context &#x3D; &amp;vcpu-&gt;arch.mmu;</span><br><span class="line"></span><br><span class="line">	context-&gt;base_role.word &#x3D; 0;</span><br><span class="line">	context-&gt;base_role.guest_mode &#x3D; is_guest_mode(vcpu);</span><br><span class="line">	context-&gt;base_role.smm &#x3D; is_smm(vcpu);</span><br><span class="line">	context-&gt;base_role.ad_disabled &#x3D; (shadow_accessed_mask &#x3D;&#x3D; 0);</span><br><span class="line">	context-&gt;page_fault &#x3D; tdp_page_fault;</span><br><span class="line">	context-&gt;sync_page &#x3D; nonpaging_sync_page;</span><br><span class="line">	context-&gt;invlpg &#x3D; nonpaging_invlpg;</span><br><span class="line">	context-&gt;update_pte &#x3D; nonpaging_update_pte;</span><br><span class="line">	context-&gt;shadow_root_level &#x3D; kvm_x86_ops-&gt;get_tdp_level(vcpu);</span><br><span class="line">	context-&gt;root_hpa &#x3D; INVALID_PAGE;</span><br><span class="line">	context-&gt;direct_map &#x3D; true;</span><br><span class="line">	context-&gt;set_cr3 &#x3D; kvm_x86_ops-&gt;set_tdp_cr3;</span><br><span class="line">	context-&gt;get_cr3 &#x3D; get_cr3;</span><br><span class="line">	context-&gt;get_pdptr &#x3D; kvm_pdptr_read;</span><br><span class="line">	context-&gt;inject_page_fault &#x3D; kvm_inject_page_fault;</span><br></pre></td></tr></table></figure>
+
+<p><code>kvm_vcpu</code> <code>page_fault</code> point to <code>tdp_page_fault</code> when mmu field of <code>kvm_vcpu</code> is initializing.</p>
+<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">static void init_kvm_mmu(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	if (mmu_is_nested(vcpu))</span><br><span class="line">		init_kvm_nested_mmu(vcpu);</span><br><span class="line">	else if (tdp_enabled)</span><br><span class="line">		init_kvm_tdp_mmu(vcpu);</span><br><span class="line">	else</span><br><span class="line">		init_kvm_softmmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>from kvm vcpu setup <code>arch/x86/kvm/mmu.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">void kvm_mmu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	MMU_WARN_ON(VALID_PAGE(vcpu-&gt;arch.mmu.root_hpa));</span><br><span class="line"></span><br><span class="line">	init_kvm_mmu(vcpu);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>from kvm vcpu setup <code>arch/x86/kvm/x86.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)</span><br><span class="line">&#123;</span><br><span class="line">	kvm_vcpu_mtrr_init(vcpu);</span><br><span class="line">	vcpu_load(vcpu);</span><br><span class="line">	kvm_vcpu_reset(vcpu, false);</span><br><span class="line">	kvm_mmu_setup(vcpu);</span><br><span class="line">	vcpu_put(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>vcpu is created by </p>
+<p><code>kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)</code></p>
+<p>check mmu in vcpu structure:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Paging state of the vcpu</span><br><span class="line"> *</span><br><span class="line"> * If the vcpu runs in guest mode with two level paging this still saves</span><br><span class="line"> * the paging mode of the l1 guest. This context is always used to</span><br><span class="line"> * handle faults.</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct kvm_mmu mmu;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Find-more-by-pf-interception"><a href="#Find-more-by-pf-interception" class="headerlink" title="Find more by pf_interception"></a>Find more by pf_interception</h2><p>combine to flage graph, pf_interception is before tdp_page_fault,</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">static int pf_interception(struct vcpu_svm *svm)</span><br><span class="line">&#123;</span><br><span class="line">	u64 fault_address &#x3D; __sme_clr(svm-&gt;vmcb-&gt;control.exit_info_2);</span><br><span class="line">	u64 error_code &#x3D; svm-&gt;vmcb-&gt;control.exit_info_1;</span><br><span class="line"></span><br><span class="line">	return kvm_handle_page_fault(&amp;svm-&gt;vcpu, error_code, fault_address,</span><br><span class="line">			static_cpu_has(X86_FEATURE_DECODEASSISTS) ?</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_bytes : NULL,</span><br><span class="line">			svm-&gt;vmcb-&gt;control.insn_len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>refer to its usage:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[SVM_EXIT_EXCP_BASE + PF_VECTOR] &#x3D; pf_interception</span><br></pre></td></tr></table></figure>
+
+<p>SVM_EXIT_EXCP_BASE is related to AMD CPU virtualization, PF_VECTOR means page_frame vector, used by page fault.</p>
+<p>more details about the PF_VECTOR in <code>arch/x86/kvm/svm.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">if (npt_enabled) &#123;</span><br><span class="line">	&#x2F;* Setup VMCB for Nested Paging *&#x2F;</span><br><span class="line">	control-&gt;nested_ctl |&#x3D; SVM_NESTED_CTL_NP_ENABLE;</span><br><span class="line">	clr_intercept(svm, INTERCEPT_INVLPG);</span><br><span class="line">	clr_exception_intercept(svm, PF_VECTOR);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_READ);</span><br><span class="line">	clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);</span><br><span class="line">	save-&gt;g_pat &#x3D; svm-&gt;vcpu.arch.pat;</span><br><span class="line">	save-&gt;cr3 &#x3D; 0;</span><br><span class="line">	save-&gt;cr4 &#x3D; 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>if AMD CPU’s npt not enabled, PF_VECTOR will be used to intercept page fault.</p>
+<p>So just quickly go through guest virtual address translation.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Fetch a guest pte for a guest virtual address</span><br><span class="line"> *&#x2F;</span><br><span class="line">static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span><br><span class="line">				    struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,</span><br><span class="line">				    gva_t addr, u32 access)</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">error:</span><br><span class="line">	errcode |&#x3D; write_fault | user_fault;</span><br><span class="line">	if (fetch_fault &amp;&amp; (mmu-&gt;nx ||</span><br><span class="line">			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))</span><br><span class="line">		errcode |&#x3D; PFERR_FETCH_MASK;</span><br><span class="line"></span><br><span class="line">	walker-&gt;fault.vector &#x3D; PF_VECTOR;</span><br><span class="line">	walker-&gt;fault.error_code_valid &#x3D; true;</span><br><span class="line">	walker-&gt;fault.error_code &#x3D; errcode;</span><br></pre></td></tr></table></figure>
+
+<p>error is defined to raise PF_VECTOR when failed to find any PTE(Page table entry) </p>
+<p>Than let’s find the next method <code>handle_exit()</code> from svm.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">static int handle_exit(struct kvm_vcpu *vcpu)</span><br></pre></td></tr></table></figure>
+
+<p>following shows more details</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">struct vcpu_svm *svm &#x3D; to_svm(vcpu);</span><br><span class="line">struct kvm_run *kvm_run &#x3D; vcpu-&gt;run;</span><br><span class="line">u32 exit_code &#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br></pre></td></tr></table></figure>
+
+<p>the vcpu structure will be changed to vcpu_svm and than get the exit_code from it.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))</span><br><span class="line">	vcpu-&gt;arch.cr0 &#x3D; svm-&gt;vmcb-&gt;save.cr0;</span><br><span class="line">if (npt_enabled)</span><br><span class="line">	vcpu-&gt;arch.cr3 &#x3D; svm-&gt;vmcb-&gt;save.cr3;</span><br><span class="line"></span><br><span class="line">if (unlikely(svm-&gt;nested.exit_required)) &#123;</span><br><span class="line">	nested_svm_vmexit(svm);</span><br><span class="line">	svm-&gt;nested.exit_required &#x3D; false;</span><br><span class="line"></span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>than the exit_code will be traced.</p>
+<p>CR0 has various control flags that modify the basic operation of the processor. See more: <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Control_register#CR0">https://en.wikipedia.org/wiki/Control_register#CR0</a></p>
+<p>if npt_enabled(CPU enable npt) vcpu will use vmcb saved cr3</p>
+<p>vmcb: Intel VT-x name it as vmcs(virtual machine control structure), AMD name it as vmcb(virtual machine control block)</p>
+<p>vmcb_control_area and vmcb_save_area combined as virtual machine control block. </p>
+<p>note: need more research</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">if (is_guest_mode(vcpu)) &#123;</span><br><span class="line">	int vmexit;</span><br><span class="line"></span><br><span class="line">	trace_kvm_nested_vmexit(svm-&gt;vmcb-&gt;save.rip, exit_code,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_1,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_info_2,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">				svm-&gt;vmcb-&gt;control.exit_int_info_err,</span><br><span class="line">				KVM_ISA_SVM);</span><br><span class="line"></span><br><span class="line">	vmexit &#x3D; nested_svm_exit_special(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_CONTINUE)</span><br><span class="line">		vmexit &#x3D; nested_svm_exit_handled(svm);</span><br><span class="line"></span><br><span class="line">	if (vmexit &#x3D;&#x3D; NESTED_EXIT_DONE)</span><br><span class="line">		return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>if vm is nested exit, handle nested exit next step, interrupts will be queued and if vm exit due to SVM_EXIT_ERR exit this thread.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">svm_complete_interrupts(svm);</span><br><span class="line"></span><br><span class="line">if (svm-&gt;vmcb-&gt;control.exit_code &#x3D;&#x3D; SVM_EXIT_ERR) &#123;</span><br><span class="line">	kvm_run-&gt;exit_reason &#x3D; KVM_EXIT_FAIL_ENTRY;</span><br><span class="line">	kvm_run-&gt;fail_entry.hardware_entry_failure_reason</span><br><span class="line">		&#x3D; svm-&gt;vmcb-&gt;control.exit_code;</span><br><span class="line">	pr_err(&quot;KVM: FAILED VMRUN WITH VMCB:\n&quot;);</span><br><span class="line">	dump_vmcb(vcpu);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>last, check if the error code is external interrupt and not kernel handable error</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">if (is_external_interrupt(svm-&gt;vmcb-&gt;control.exit_int_info) &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_EXCP_BASE + PF_VECTOR &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_NPF &amp;&amp; exit_code !&#x3D; SVM_EXIT_TASK_SWITCH &amp;&amp;</span><br><span class="line">    exit_code !&#x3D; SVM_EXIT_INTR &amp;&amp; exit_code !&#x3D; SVM_EXIT_NMI)</span><br><span class="line">	printk(KERN_ERR &quot;%s: unexpected exit_int_info 0x%x &quot;</span><br><span class="line">	       &quot;exit_code 0x%x\n&quot;,</span><br><span class="line">	       __func__, svm-&gt;vmcb-&gt;control.exit_int_info,</span><br><span class="line">	       exit_code);</span><br><span class="line"></span><br><span class="line">if (exit_code &gt;&#x3D; ARRAY_SIZE(svm_exit_handlers)</span><br><span class="line">    || !svm_exit_handlers[exit_code]) &#123;</span><br><span class="line">	WARN_ONCE(1, &quot;svm: unexpected exit reason 0x%x\n&quot;, exit_code);</span><br><span class="line">	kvm_queue_exception(vcpu, UD_VECTOR);</span><br><span class="line">	return 1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
+
+<p>finally invoke svm exit handler</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return svm_exit_handlers[exit_code](svm);</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" data-id="cld1mhe9x0003yuwb8g646w4b" data-title="Go through KVM code due to a tdp_page_fault" class="article-share-link">Share</a>
+      
+      
+        <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virt/" rel="tag">virt</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-python-elementtree-notes" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2022/07/01/python-elementtree-notes/" class="article-date">
@@ -1390,129 +1508,6 @@
 
 
   
-    <article id="post-introduction-virtio-networking-and-vhost-net-md" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" class="article-date">
-  <time class="dt-published" datetime="2021-12-15T06:42:40.000Z" itemprop="datePublished">2021-12-15</time>
-</a>
-    
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/translation/">translation</a>►<a class="article-category-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a>
-  </div>
-
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/">Introduction to virtio-networking and vhost-net</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>因为最近在看vdpa-blk，查资料的时候发现了红帽在19年写了一系列文章来介绍virtio网络入门的感觉和存储的加速思路差不多就拿来整理顺便做一下翻译。原文链接已附在文尾。</p>
-<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>virtio被开发作为云主机简化访问类似块设备和网络适配器的标准开放api。其中的virtio-net是一个虚拟以太网卡，是目前virtio支持过的最复杂的设备。本文会从virtio-networking的架构提供一个高级的基于建立host kernel和VM guest kernel的接口的解决方案。将介绍包括 KVM、qemu 和 libvirt 在内的基本组件，同时结合virtio spec和vhost协议以及Open vSwitch来讲云主机连接到外部世界。接下来描述的基于vhost-net/virtio-net的架构是许多virtio-networking架构中的第一个，这些架构将在一系列帖子中介绍，这些帖子因其性能、应用程序的易用性和实际部署而异。</p>
-<p>读完这篇文章之后你应该能够清楚的了解提到的名词然后能够知道云主机中的应用如何发送数据包到其他云主机运行的应用以及如何发送到外部网络。这些术语也会作为下一片文章的基础。</p>
-<h2 id="VIrtio-basic-building-blocks"><a href="#VIrtio-basic-building-blocks" class="headerlink" title="VIrtio basic building blocks"></a>VIrtio basic building blocks</h2><p>guest VM或者说guest是被安装，执行并托管在物理机器上的虚拟机。这个提供托管guest VM并提供资源功能的机器就叫做host。guest通过hypervisor拥有分离的运行在host操作系统之上的操作系统。举个例子，host会提供虚拟网卡给虚拟机，guest机器则把它当作一个真实的网卡使用，虽然事实上它只是个虚拟网卡。</p>
-<p>下列的组件创建了接下来virtio需要提供链接的虚拟环境</p>
-<ol>
-<li>KVM - kernel based virtiual machine允许Linux提供hypervisor的功能支持运行多个隔离的虚拟环境又叫做guests。KVM提供了Linux作为hypervisor的基本功能。比如内存管理，调度，网络栈等都包含在了Linux kernel里。虚拟机通常是通过标准Linux调度去调度的进程，同时上面加在了一些专用的虚拟硬件比如网络适配器。</li>
-<li>QEMU - A hosted virtual machine monitor。通过模拟给虚拟机提供一系列硬件和设备模型。QEMU 可以与 KVM 一起使用，利用硬件扩展以接近本机的速度运行虚拟机。guest通过qemu command line interface(CLI)运行。CLI 供了为QEMU指定所有必要配置选项的能力</li>
-<li>Libvirt - 一个翻译xml格式配置到qemu CLI调用的接口。它提供了一个admin守护进程来配置子进程比如qemu，因此qemu不需要root特权。例如，当Openstack Nova想要启动一个VM时，它使用libvirt通过为每个VM调用一个qemu进程来为每个VM启动一个qemu进程。</li>
-</ol>
-<p>下图显示了这三个组件如何结合在一起：</p>
-
-
-<p>host和guest都包含了kernel space和user space。可以根据图看到，KVM运行在host的内核态，而libvirt运行在host的用户态</p>
-<p>guest虚拟机运行在qemu进程里，只是一个简单的运行在host用户态的继承并且和libvirt（用户态应用）以及KVM（内核态）通信</p>
-<p>每一个虚拟机都会创建一个qemu进程，所以如果你创建N个虚拟机，你就会有N个虚拟机qemu进程，并且libvirt会和每一个进程通信</p>
-<h2 id="Virtio-spec-and-the-vhost-protocol"><a href="#Virtio-spec-and-the-vhost-protocol" class="headerlink" title="Virtio spec and the vhost protocol"></a>Virtio spec and the vhost protocol</h2><p>当讨论vritio-networking的时候我们可以分开两层讨论</p>
-<ol>
-<li>控制平面 - 用于host和guest之间能力的协商，用于建立和终止数据平面</li>
-<li>数据平面 - 用于host和guest之间传输实际的数据（packets）</li>
-</ol>
-<p>区分清楚这两个层级是很重要的，因为这些层级需要实现的要求不一样（比如性能）并且本文和后续文章也会展示很多不同的实现。</p>
-<p>不过在以后的架构里最基础的要求，数据平面要求有尽可能好的性能来快速移动数据包，同时控制平面要求尽可能的有很好的拓展性来支持不同的设备和厂商</p>
-<p>就像在开头提到的，virtio是被开发出来作为guest访问host设备的接口的。我们可以把virtio分成两部分：</p>
-<ol>
-<li>virtio spec - The virtio spec根据OASIS提到的。定义了如何创建一个介于host和guest之间的控制平面和数据平面。举个例子数据平面需要由缓存和环状布局组成，设置在spec里面详细说明的</li>
-<li>vhost protocol - 一个为了提升性能允许virtio数据平面的实现被下放到其他元素（用户态进程或者内核模块）</li>
-</ol>
-<p>qemu进程中实现的virtio的控制平面是基于virtio spec的，然而数据平面不是。因此问题转变为了为什么数据平面没有像类似virtio spec中定义的那样实现在qemu进程里的？</p>
-<p>答案是：性能问题</p>
-<p>如果简单的按照virtio spec在qemu里实现了数据平面，我们就需要为每个从kernel进入guest的包切换上下文了反之亦然。这是一个代价很大的操作，增加了延迟同时也占用了更多的进程时间（提醒一下当前qemu只是一个Linux进程），所以我们想要尽可能的避免这个问题。</p>
-<p>这就是为什么vhost protocol出现了，让我们能够去实现一个数据平面直接从host kernel到guest而不经过qemu进程</p>
-<p>不过vhost协议本身仅描述了如何建立数据平面。任何实现被要求实现环状布局来描述数据缓存（包括host和guest的）以及真实发送/接受的数据包</p>
-<p>就像之后的章节要介绍的内容那样，vhost协议可以被实现成内核态（vhost-net）或者是用户态（vhost-user）。本文描述的vhost-net/virtio-net架构专注于内核态的又被叫做vhost-net的实现</p>
-<h2 id="The-vhost-net-virtio-net-architecture"><a href="#The-vhost-net-virtio-net-architecture" class="headerlink" title="The vhost-net/virtio-net architecture"></a>The vhost-net/virtio-net architecture</h2><p>当我们谈论关于virtio接口的时候我们有一个后端组件和一个前端组件</p>
-<ul>
-<li>后端组件是host侧的virtio接口</li>
-<li>前端组件是guest侧的virtio接口</li>
-</ul>
-<p>在vhost-net/virtio-net架构的组件里是这样的</p>
-<ul>
-<li>vhost-net是运行在host内核空间</li>
-<li>virtio-net运行在guest的内核空间</li>
-</ul>
-<p>下面的图展示了宏观上virtio的前端和后端是如何对应的：</p>
-
-
-<p>有一些点需要说明：</p>
-<ul>
-<li>因为vhost-net和virtio-net都运行在host和guest的内核空间，我们也叫他们驱动（drivers）所以如果有人“vhost-net-driver”不太要感觉奇怪指的是同一个东西</li>
-<li>在后端和前端之间有分离的控制平面和数据平面。就像前面解释过的，控制平面简单给vhost-net内核模块实现了virtio spec同时qemu进程进入guest的通讯最终到了virtio-net。Vhost-net使用了vhost协议建立了框架实现了使用共享内存的数据平面的host-guest内核包的直接转发的功能</li>
-</ul>
-<p>实际上数据面通讯  接收 receive（RX）和发送 transmit（TX）是通过vCPU专用队列完成的</p>
-<p>每一个guest都能根据vCPU的数量关联起一堆RX/TX队列，这个队列对应每一个CPU。举一个更精确的例子比如有4 vCPUs会像这样（去掉控制平面简化一下这个图）：</p>
-
-
-<h2 id="Virtio-networking-and-OVS"><a href="#Virtio-networking-and-OVS" class="headerlink" title="Virtio-networking and OVS"></a>Virtio-networking and OVS</h2><p>目前我们已经描述了如何guest能够通过virtio-networking接口把包送到host内核。为了转发这些包到其他运行在同一台host或者其他host的guest上，我们使用OVS</p>
-<p>OVS是一个软交换机，能够给提供内核内包转发。它由用户态和内核态两个部分组成</p>
-<ul>
-<li>用户空间 - 包括一个数据库（ovsdb-server）和一个OVS deamon来管理和控制交换机（ovs-switched）</li>
-<li>内核空间 - 包括ovs内核模块主要负责数据通路和转发平面</li>
-</ul>
-<p>OVS controller同时和数据库服务以及内核转发面通讯。为了使得包能够出入OVS我们使用了Linux端口。在我们的场景里，我们使用了一个端口连接OVS内核转发平面到一个物理网卡同时另外一个端口连接到vhost-net的后端。</p>
-<p>注意我们是在描述简化过的场景。实际上可能会有多个网卡连接到OVS多个端口和虚拟机运行，。因此也需要很多端口连接到vhost-net的后端。</p>
-<p>接着讲virtio-networking下面的图展示了OVS如何连接到virtio：</p>
-
-
-<p>请注意所提到的用于将OVS连接到主机外部和vhost-net以及从vhost-net连接到virtio-ne 和在VM中运行的应用程序的端口。</p>
-<p>这个总结了vhost-net/virio-net的基于host内核，guest内核和内核态OVS的架构的大概内容</p>
-<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><p>在这篇文章中，我们已经触及了 virtio-networking 生态系统的表面，向您介绍了 virtio-networking 使用的虚拟化和网络的基本构建组件。我们简短的涵盖了virtio spec和vhost protocol，回顾了用于实现 virtio 接口的前端和后端架构，并带您了解了 vhost-net（host内核）与 virtio-net（guest内核）通信的 vhost-net/virtio-net 架构。</p>
-<p>我们在尝试解释事物时遇到的一个基本挑战是术语历史问题。例如，virtio-net既指virtio规范中的virtio网络设备实现，也指vhost-net/virtio-net架构中描述的guest内核前端。我们试图通过在上下文解释术语并使用virtio-net仅描述guest内核前端来解决这个问题。</p>
-<p>正如将在后面的文章中解释的那样，基于使用DPDK和不同硬件offload技术的virtio规范网络设备还有其他实现，这些都在virtio-networking的保护伞下。</p>
-<p>接下来的两篇文章会提供一个更加深入的关于vhost-net/virtio-net架构的理解。一篇文章将面向架构师，提供对vhost-net/virtio-net的技术深入研究，并解释数据平面和控制平面在实践中是如何实现的。面向开发人员的另一篇文章将是一个动手部分，包括Ansible脚本，以实现对vhost-net/virtio-net架构的试验。</p>
-<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><p>原文链接： <a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/introduction-virtio-networking-and-vhost-net">introduction-virtio-networking-and-vhost-net</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" data-id="cld1mhea9000fyuwb4r8l2iat" data-title="Introduction to virtio-networking and vhost-net" class="article-share-link">Share</a>
-      
-      
-        <a href="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2021/12/15/introduction-virtio-networking-and-vhost-net-md/" itemprop="commentCount"></span>
-          Comments
-        </a>
-      
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li></ul>
-
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
 
 
   <nav id="page-nav">
@@ -1557,7 +1552,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
     </div>
   </div>
 
@@ -1568,6 +1563,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
         
           <li>
             <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
@@ -1583,10 +1582,6 @@
         
           <li>
             <a href="/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">KVM虚拟化性能分析</a>
-          </li>
-        
-          <li>
-            <a href="/2023/03/09/cpu-features-about-kvm-hidden/">Cpu features about kvm hidden</a>
           </li>
         
       </ul>

@@ -6,7 +6,7 @@
   <link href="http://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="http://hanayo.cn/"/>
-  <updated>2023-05-26T05:47:53.234Z</updated>
+  <updated>2023-12-06T06:35:28.031Z</updated>
   <id>http://hanayo.cn/</id>
   
   <author>
@@ -15,6 +15,27 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>The disk in the guest OS is unmounted during the kernel startup process.</title>
+    <link href="http://hanayo.cn/2023/12/06/2023-12-06/"/>
+    <id>http://hanayo.cn/2023/12/06/2023-12-06/</id>
+    <published>2023-12-06T06:14:17.000Z</published>
+    <updated>2023-12-06T06:35:28.031Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>Understanding CPU Topology for Improved Performance</title>
@@ -594,35 +615,6 @@
     
     
     <category term="java" scheme="http://hanayo.cn/tags/java/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Input–output memory management unit</title>
-    <link href="http://hanayo.cn/2022/10/06/iommu/"/>
-    <id>http://hanayo.cn/2022/10/06/iommu/</id>
-    <published>2022-10-06T06:55:56.000Z</published>
-    <updated>2022-10-06T06:57:50.342Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;From Wikipedia, the free encyclopedia&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;In &lt;a href=&quot;https://en.wikipedia.org/wiki/Computing&quot;&gt;computing&lt;/a&gt;, an</summary>
-        
-      
-    
-    
-    
-    <category term="linux" scheme="http://hanayo.cn/categories/linux/"/>
-    
-    <category term="memory management" scheme="http://hanayo.cn/categories/linux/memory-management/"/>
-    
-    
-    <category term="linux" scheme="http://hanayo.cn/tags/linux/"/>
     
   </entry>
   

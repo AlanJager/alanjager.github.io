@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Linux guest could not access tsc clocksource | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Phenomenoncheck TSC disabled from guest 12[    0.000004] tsc: Detected 1999.999 MHz processor[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized   Steps lscpu | grep tsc in guest, conf">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux guest could not access tsc clocksource">
+<meta property="og:url" content="http://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="Phenomenoncheck TSC disabled from guest 12[    0.000004] tsc: Detected 1999.999 MHz processor[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized   Steps lscpu | grep tsc in guest, conf">
+<meta property="og:locale">
+<meta property="article:published_time" content="2024-02-04T05:18:56.000Z">
+<meta property="article:modified_time" content="2024-06-03T05:55:00.866Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="clocksource">
+<meta property="article:tag" content="tsc">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-linux-guest-could-not-access-tsc-clocksource" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" class="article-date">
+  <time class="dt-published" datetime="2024-02-04T05:18:56.000Z" itemprop="datePublished">2024-02-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Linux guest could not access tsc clocksource
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Phenomenon"><a href="#Phenomenon" class="headerlink" title="Phenomenon"></a>Phenomenon</h2><p>check TSC disabled from guest</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[    0.000004] tsc: Detected 1999.999 MHz processor</span><br><span class="line">[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Steps"><a href="#Steps" class="headerlink" title="Steps"></a>Steps</h2><ol>
+<li><code>lscpu | grep tsc</code> in guest, confirm cpu support tsc</li>
+<li>check vm not runs over IBM’s Summit2 by <code>dmidecode</code></li>
+<li><code>lscpu | grep constant_tsc</code> in both guest and host to confirm this is not in guest</li>
+<li>change kernel cmdline, add <code>tsc=reliable</code> if need ( based on <code>cat /proc/cmdline</code>)</li>
+<li>check cpu Vendor by <code>lscpu</code> if using Intel cpu</li>
+<li>remove <code>acpi</code> from libvirt. xml，but this will let all hot-plug operation fails</li>
+</ol>
+<p>change to using other amd cpu，tsc clocksource still could not be found</p>
+<p>Cpu that do not has vendor intel runs linux kernel will met this issue.</p>
+<h2 id="Resolution"><a href="#Resolution" class="headerlink" title="Resolution"></a>Resolution</h2><p>method 1:</p>
+<p>change guest os linux cmdline add <code>tsc=reliable</code></p>
+<p>method 2:</p>
+<p>remove <code>acpi</code> from libvirt. xml by <code>virsh edit</code></p>
+<h2 id="More-information"><a href="#More-information" class="headerlink" title="More information"></a>More information</h2><p>x86 guest disable constant_tsc in code，see the disscusion: <a target="_blank" rel="noopener" href="https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/">https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/</a></p>
+<p>but linux guest kernel let intel cpu use tsc and as the result intel vs amd cpu has below differences.</p>
+<h2 id="go-through-kernel-code"><a href="#go-through-kernel-code" class="headerlink" title="go through kernel code"></a>go through kernel code</h2><h3 id="Code-snippet-0"><a href="#Code-snippet-0" class="headerlink" title="Code snippet 0"></a><strong>Code snippet 0</strong></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * TSC can be unstable due to cpufreq or due to unsynced TSCs</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">int</span> __read_mostly tsc_unstable;`</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The code defines a static integer variable <code>tsc_unstable</code>. The <code>static</code> keyword means that this variable is only visible within the file it’s defined in, limiting its scope to <code>tsc.c</code>. This is a common practice when you want to keep the variable private to a particular file and prevent it from being accessed directly from other files.</p>
+<p>The <code>__read_mostly</code> attribute is a compiler directive specific to the Linux kernel, which suggests that this variable is expected to be read from often, but seldom written to. This can help the compiler optimize the generated code for this access pattern.</p>
+<p>The variable <code>tsc_unstable</code> is used to indicate whether the TSC is unstable. The comment above the variable declaration explains that the TSC can be unstable due to CPU frequency scaling (cpufreq) or due to unsynchronized TSCs across different cores or processors.</p>
+<p>In terms of improvements, the code is quite clear and concise. However, it might be helpful to expand the comment to explain what the implications of an unstable TSC are, and how the <code>tsc_unstable</code> variable is used in the system’s logic.</p>
+<h3 id="Code-snippet-1"><a href="#Code-snippet-1" class="headerlink" title="Code snippet 1"></a><strong>Code snippet 1</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">static int __init tsc_setup(char *str)</span><br><span class="line">&#123;</span><br><span class="line">    if (!strcmp(str, &quot;reliable&quot;))</span><br><span class="line">        tsc_clocksource_reliable &#x3D; 1;</span><br><span class="line">    if (!strncmp(str, &quot;noirqtime&quot;, 9))</span><br><span class="line">        no_sched_irq_time &#x3D; 1;</span><br><span class="line">    if (!strcmp(str, &quot;unstable&quot;))</span><br><span class="line">        mark_tsc_unstable(&quot;boot parameter&quot;);</span><br><span class="line">    if (!strcmp(str, &quot;nowatchdog&quot;))</span><br><span class="line">        no_tsc_watchdog &#x3D; 1;</span><br><span class="line">    return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The <code>__init</code> keyword before the function name is a macro used in the Linux kernel to indicate that this function is used only at initialization time. The memory for this function is freed after the initialization is complete to conserve the kernel’s memory footprint.</p>
+<p>Inside the function, there are several <code>if</code> statements that compare the input string <code>str</code> to different string literals using the <code>strcmp</code> and <code>strncmp</code> functions. <code>strcmp</code> compares two strings and returns 0 if they are identical, while <code>strncmp</code> compares up to a specified number of characters from two strings.</p>
+<p>If <code>str</code> is “reliable”, it sets the <code>tsc_clocksource_reliable</code> variable to 1. If <code>str</code> starts with “noirqtime”, it sets the <code>no_sched_irq_time</code> variable to 1. If <code>str</code> is “unstable”, it calls the <code>mark_tsc_unstable</code> function with “boot parameter” as an argument. If <code>str</code> is “nowatchdog”, it sets the <code>no_tsc_watchdog</code> variable to 1.</p>
+<p>Each of these variables or functions presumably controls a different aspect of the TSC’s behavior. For example, <code>tsc_clocksource_reliable</code> might indicate whether the TSC is a reliable source of time, and <code>no_sched_irq_time</code> might control whether the scheduler uses the TSC for interrupt timing.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of each variable and what each string argument represents would improve readability. It would also be beneficial to add error handling to account for the case where <code>str</code> does not match any of the expected values.</p>
+<p>And we could use <code>tsc=reliable</code> to kernel cmdline to changes to tsc clock source.</p>
+<h3 id="Code-snippet-2"><a href="#Code-snippet-2" class="headerlink" title="Code snippet 2"></a><strong>Code snippet 2</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">static void tsc_cs_mark_unstable(struct clocksource *cs)</span><br><span class="line">&#123;</span><br><span class="line">    if (tsc_unstable)</span><br><span class="line">        return;</span><br><span class="line"> </span><br><span class="line">    tsc_unstable &#x3D; 1;</span><br><span class="line">    if (using_native_sched_clock())</span><br><span class="line">        clear_sched_clock_stable();</span><br><span class="line">    disable_sched_clock_irqtime();</span><br><span class="line">    pr_info(&quot;Marking TSC unstable due to clocksource watchdog\n&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The function first checks if the <code>tsc_unstable</code> variable is already set to 1. If it is, the function immediately returns, as the TSC has already been marked as unstable. This is a common pattern in C programming known as a “guard clause”, which is used to exit a function early when certain conditions are met.</p>
+<p>If <code>tsc_unstable</code> is not set to 1, the function proceeds to mark the TSC as unstable. It does this by setting <code>tsc_unstable</code> to 1, and then calling two functions: <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code>. These functions presumably perform some cleanup or configuration changes related to the TSC becoming unstable.</p>
+<p>Finally, the function logs a message using the <code>pr_info</code> macro, which is a kernel print function that outputs a message to the system log. The message indicates that the TSC has been marked as unstable due to the clocksource watchdog.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of the <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code> functions would improve readability. It would also be beneficial to add error handling to account for any potential issues that could occur when these functions are called.</p>
+<h3 id="Code-snippet-3"><a href="#Code-snippet-3" class="headerlink" title="Code snippet 3"></a><strong>Code snippet 3</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Make an educated guess if the TSC is trustworthy and synchronized</span><br><span class="line"> * over all CPUs.</span><br><span class="line"> *&#x2F;</span><br><span class="line">int unsynchronized_tsc(void)</span><br><span class="line">&#123;</span><br><span class="line">    if (!boot_cpu_has(X86_FEATURE_TSC) || tsc_unstable)</span><br><span class="line">        return 1;</span><br><span class="line"> </span><br><span class="line">#ifdef CONFIG_SMP</span><br><span class="line">    if (apic_is_clustered_box())</span><br><span class="line">        return 1;</span><br><span class="line">#endif</span><br><span class="line"> </span><br><span class="line">    if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))</span><br><span class="line">        return 0;</span><br><span class="line"> </span><br><span class="line">    if (tsc_clocksource_reliable)</span><br><span class="line">        return 0;</span><br><span class="line">    &#x2F;*</span><br><span class="line">     * Intel systems are normally all synchronized.</span><br><span class="line">     * Exceptions must mark TSC as unstable:</span><br><span class="line">     *&#x2F;</span><br><span class="line">    if (boot_cpu_data.x86_vendor !&#x3D; X86_VENDOR_INTEL) &#123;</span><br><span class="line">        &#x2F;* assume multi socket systems are not synchronized: *&#x2F;</span><br><span class="line">        if (num_possible_cpus() &gt; 1)</span><br><span class="line">            return 1;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<hr>
+<p>The function begins by checking if the boot CPU has the TSC feature and if the TSC is unstable. If either of these conditions is true, the function immediately returns 1, indicating that the TSC is unsynchronized.</p>
+<p>Next, if the system is configured for symmetric multiprocessing (SMP), the function checks if the Advanced Programmable Interrupt Controller (APIC) is clustered. If it is, the function returns 1, again indicating that the TSC is unsynchronized.</p>
+<p>The function then checks if the boot CPU has the constant TSC feature or if the TSC clocksource is reliable. If either of these conditions is true, the function returns 0, indicating that the TSC is synchronized.</p>
+<p>Finally, the function checks if the CPU vendor is not Intel. If it is not, and the system has more than one possible CPU, the function returns 1, indicating that the TSC is unsynchronized. If none of the previous conditions are met, the function returns 0, indicating that the TSC is synchronized.</p>
+<h2 id="More-practice"><a href="#More-practice" class="headerlink" title="More practice"></a>More practice</h2><h3 id="SystemTap"><a href="#SystemTap" class="headerlink" title="SystemTap"></a><strong>SystemTap</strong></h3><p>Because of above issue, I just spent more time to check the tsc value used by guest and from host cpu do have any different. With systemtap.</p>
+<h3 id="observe-rdtsc"><a href="#observe-rdtsc" class="headerlink" title="observe rdtsc"></a><strong>observe rdtsc</strong></h3><h3 id="result"><a href="#result" class="headerlink" title="result"></a><strong>result</strong></h3><p>value of tsc clock，average value and stantard deviation has different</p>
+<p>and the value from guest os is not stable when compared with host</p>
+<p>during live migration, tsc value will be smaller than usual (I think its because live migration has down time, so we need to change tsc to tolerant it)</p>
+<p>so just from the small test, its not a good idea to relay on tsc which is not as specific as it on the host</p>
+<h3 id="data-from-my-test"><a href="#data-from-my-test" class="headerlink" title="data from my test"></a><strong>data from my test</strong></h3><p>The first version, use the script test average value and stantard deviation</p>
+<p>in guest:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 2000170717.800000, TSC std dev: 255861.233545</span><br><span class="line">Time mean: 1000101683.030000, Time std dev: 162898.956256</span><br><span class="line">TSC mean: 2000158595.200000, TSC std dev: 340159.343486</span><br><span class="line">Time mean: 1000092746.020000, Time std dev: 170311.019513</span><br><span class="line">TSC mean: 2000116749.600000, TSC std dev: 96417.905701</span><br><span class="line">Time mean: 1000076448.860000, Time std dev: 102460.953979</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>in guest during live migration:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 1990107194.600000, TSC std dev: 71113321.983521</span><br><span class="line">Time mean: 1000129868.770000, Time std dev: 340417.298586</span><br><span class="line">TSC mean: 1993829457.200000, TSC std dev: 47439246.502752</span><br><span class="line">Time mean: 1001882162.230000, Time std dev: 16929541.16989</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>Samples from host:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 2000087563.600000, TSC std dev: 16626.290598</span><br><span class="line">Time mean: 1000065114.610000, Time std dev: 8341.142215</span><br><span class="line">TSC mean: 2000084499.400000, TSC std dev: 4760.334824</span><br><span class="line">Time mean: 1000063541.340000, Time std dev: 2447.439965</span><br><span class="line">TSC mean: 2000083391.800000, TSC std dev: 11786.744451</span><br><span class="line">Time mean: 1000062911.800000, Time std dev: 5922.538748</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>TSC average value will be less that normal during migration.</p>
+<p>change the script to check abnormal samples</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Sample 54, TSC diff: 1998893560, Time diff: 1000069363 ns</span><br><span class="line">Sample 55, TSC diff: 1998887140, Time diff: 1000065570 ns</span><br><span class="line">Sample 56, TSC diff: 1999007020, Time diff: 1000130480 ns</span><br><span class="line">Sample 57, TSC diff: 1535293100, Time diff: 1000090774 ns</span><br><span class="line">Sample 58, TSC diff: 1998899520, Time diff: 1000073836 ns</span><br><span class="line">Sample 59, TSC diff: 2000588260, Time diff: 1001300447 ns</span><br><span class="line">Sample 60, TSC diff: 1998899540, Time diff: 1000072444 ns</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>just paste my test code:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;stdint.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;time.h&gt;</span><br><span class="line">#include &lt;math.h&gt;</span><br><span class="line"> </span><br><span class="line">#define SAMPLES 100</span><br><span class="line"> </span><br><span class="line">uint64_t rdtsc()&#123;</span><br><span class="line">    unsigned int lo,hi;</span><br><span class="line">    __asm__ __volatile__ (&quot;rdtsc&quot; : &quot;&#x3D;a&quot; (lo), &quot;&#x3D;d&quot; (hi));</span><br><span class="line">    return ((uint64_t)hi &lt;&lt; 32) | lo;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">double calc_std_dev(uint64_t *data, double mean)&#123;</span><br><span class="line">    double sum &#x3D; 0.0;</span><br><span class="line">    for(int i &#x3D; 0; i &lt; SAMPLES; i++)&#123;</span><br><span class="line">        sum +&#x3D; pow(data[i] - mean, 2);</span><br><span class="line">    &#125;</span><br><span class="line">    return sqrt(sum &#x2F; SAMPLES);</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">int main()&#123;</span><br><span class="line">    struct timespec start, end;</span><br><span class="line">    uint64_t tsc_start, tsc_end;</span><br><span class="line">    uint64_t tsc_diffs[SAMPLES], time_diffs[SAMPLES];</span><br><span class="line">    double tsc_sum &#x3D; 0.0, time_sum &#x3D; 0.0;</span><br><span class="line"> </span><br><span class="line">    for(int i &#x3D; 0; i &lt; SAMPLES; i++)&#123;</span><br><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;start);</span><br><span class="line">        tsc_start &#x3D; rdtsc();</span><br><span class="line"> </span><br><span class="line">        sleep(1);</span><br><span class="line"> </span><br><span class="line">        tsc_end &#x3D; rdtsc();</span><br><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;end);</span><br><span class="line"> </span><br><span class="line">        tsc_diffs[i] &#x3D; tsc_end - tsc_start;</span><br><span class="line">        time_diffs[i] &#x3D; (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);</span><br><span class="line"> </span><br><span class="line">        printf(&quot;Sample %d, TSC diff: %llu, Time diff: %llu ns\n&quot;, i, tsc_diffs[i], time_diffs[i]);</span><br><span class="line"> </span><br><span class="line">        tsc_sum +&#x3D; tsc_diffs[i];</span><br><span class="line">        time_sum +&#x3D; time_diffs[i];</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    double tsc_mean &#x3D; tsc_sum &#x2F; SAMPLES;</span><br><span class="line">    double time_mean &#x3D; time_sum &#x2F; SAMPLES;</span><br><span class="line"> </span><br><span class="line">    double tsc_std_dev &#x3D; calc_std_dev(tsc_diffs, tsc_mean);</span><br><span class="line">    double time_std_dev &#x3D; calc_std_dev(time_diffs, time_mean);</span><br><span class="line"> </span><br><span class="line">    printf(&quot;TSC mean: %f, TSC std dev: %f\n&quot;, tsc_mean, tsc_std_dev);</span><br><span class="line">    printf(&quot;Time mean: %f, Time std dev: %f\n&quot;, time_mean, time_std_dev);</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="more-links-for-reading"><a href="#more-links-for-reading" class="headerlink" title="more links for reading"></a>more links for reading</h2><h3 id="TSC"><a href="#TSC" class="headerlink" title="TSC"></a><strong>TSC</strong></h3><p>Time Stamp Counter (TSC)All 80x86 microprocessors include a <code>CLK</code> input pin, which receives the clock signal of an external oscillator. Starting with the Pentium, 80x86 microprocessors sport a counter that is increased at each clock signal, and is accessible through the TSC register which can be read by means of the <code>rdtsc</code> assembly instruction. When using this register the kernel has to take into consideration the frequency of the clock signal: if, for instance, the clock ticks at 1 GHz, the TSC is increased once every nanosecond. Linux may take advantage of this register to get much more accurate time measurements.</p>
+<p><a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/18627">https://access.redhat.com/solutions/18627</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" data-id="clwyjnxe000005jcc1na90x2j" data-title="Linux guest could not access tsc clocksource" class="article-share-link">Share</a>
+      
+      
+        <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav"><a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" id="article-nav-newer" class="article-nav-link-wrap"><strong class="article-nav-caption">Newer</strong><div class="article-nav-title">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</div></a>
+  
+  
+    <a href="/2023/12/06/2023-12-06/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">The disk in the guest OS is unmounted during the kernel startup process.</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.86px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.57px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 11.43px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">February 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+          </li>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2024 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

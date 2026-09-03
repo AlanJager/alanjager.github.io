@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="花の様に">
+<meta property="og:url" content="http://hanayo.cn/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:locale">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="ブログ">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+
+<article id="post-xfs-error-root-cause-uprobe-out-of-bounds" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" class="article-date">
+  <time class="dt-published" datetime="2026-09-02T08:00:00.000Z" itemprop="datePublished">2026-09-02</time>
+</a>
+  <div class="article-category"><a class="article-category-link" href="/categories/linux/">linux</a></div>
+  </div>
+  <div class="article-inner">
+    <header class="article-header"><h1 itemprop="name"><a class="p-name article-title" href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</a></h1></header>
+    <div class="e-content article-entry" itemprop="articleBody"><h2 id="Phenomenon"><a href="#Phenomenon" class="headerlink" title="Phenomenon"></a>Phenomenon</h2>
+<p>一周内，两台配置相近的 Linux 虚拟机先后出现业务无响应。控制台最后的关键日志来自 XFS：文件系统发现 inode 元数据损坏，随后主动执行 forced shutdown。</p>
+<p><img src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/console-corruption.jpg" alt="XFS console corruption log"></p>
+<p>从现象上看，这很像 XFS bug、虚拟磁盘写错位置，或者底层存储损坏。但这次真正写坏 XFS 元数据的并不是 XFS。</p>
+<p>最终定位到 Linux kernel 的 uprobe 参数抓取路径：第三方安全 Agent 注册的 uprobe 抓取了超过一页大小的参数，<code>store_trace_args()</code> 在边界检查前已经把数据写出 per-CPU buffer。溢出的内容落到相邻内存后，XFS write verifier 成了第一个发现损坏的组件。</p>
+<p>换句话说，XFS 是报警的人，不是制造问题的人。</p>
+<h2 id="Start-from-the-XFS-error"><a href="#Start-from-the-XFS-error" class="headerlink" title="Start from the XFS error"></a>Start from the XFS error</h2>
+<p>XFS 检测到元数据不符合预期时会主动关闭文件系统，防止错误继续扩大。因此，<code>xfs_do_force_shutdown</code> 说明 XFS 看到了损坏，但不能直接证明损坏由 XFS 产生。</p>
+<p>面对这种问题，最开始需要同时保留几条假设：</p>
+<ol><li>XFS 自身逻辑错误。</li><li>virtio-blk、宿主机或存储后端写错位置。</li><li>内存硬件或 DMA 写坏数据。</li><li>第三方内核模块破坏内存。</li><li>Linux 通用内核路径发生越界写或 use-after-free。</li></ol>
+<p>这里最容易犯的错误，是看到 XFS 日志就只沿着文件系统代码向下查。内存损坏问题里，打印错误的函数经常只是受害者。</p>
+<h2 id="Find-the-data-signature"><a href="#Find-the-data-signature" class="headerlink" title="Find the data signature"></a>Find the data signature</h2>
+<p>真正改变排查方向的是损坏数据的内容。</p>
+<p>在异常的 inode metadata buffer 中，可以看到类似路径和 JSON 结束符的数据片段。它们不像 XFS 元数据，也不像随机 bit flip，更像某个用户态程序正在处理的字符串。</p>
+<p>这个特征缩小了问题范围：</p>
+<ul><li>如果是硬件随机错误，数据通常不会形成可读的 JSON 结构。</li><li>如果是普通的 XFS 逻辑错误，也不应该把用户态字符串写进 inode metadata。</li><li>更合理的方向，是某条从用户态取字符串的内核路径越过了自己的 buffer 边界。</li></ul>
+<p>此时再向前检查控制台日志，可以找到 uprobe 相关 warning，并且触发进程来自第三方安全 Agent。warning、进程和损坏数据的内容开始形成同一条证据链。</p>
+<h2 id="The-uprobe-buffer"><a href="#The-uprobe-buffer" class="headerlink" title="The uprobe buffer"></a>The uprobe buffer</h2>
+<p>uprobe 可以在用户态程序的指定地址放置探针。探针触发时，内核会读取寄存器或用户态内存中的参数，再把结果写入 tracing buffer。</p>
+<p>相关路径使用一页大小的 per-CPU 临时 buffer。问题发生时，代码大致遵循下面的顺序：</p>
+<ol><li>根据 trace event 和动态参数计算 <code>dsize</code>。</li><li>调用 <code>store_trace_args()</code> 把参数写入 <code>ucb-&gt;buf</code>。</li><li>返回上层后才检查总长度是否超过 <code>PAGE_SIZE</code>。</li></ol>
+<p>这类检查虽然存在，但没有保护作用：当检查执行时，越界写已经发生。</p>
+<p>上游修复把检查移动到了 <code>store_trace_args()</code> 之前，并在长度超过一页时截断 <code>dsize</code>：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">#define MAX_UCB_BUFFER_SIZE PAGE_SIZE</span><br><span class="line"></span><br><span class="line">ucb-&gt;dsize = tu-&gt;tp.size + dsize;</span><br><span class="line">if (WARN_ON_ONCE(ucb-&gt;dsize &gt; MAX_UCB_BUFFER_SIZE)) {</span><br><span class="line">    ucb-&gt;dsize = MAX_UCB_BUFFER_SIZE;</span><br><span class="line">    dsize = MAX_UCB_BUFFER_SIZE - tu-&gt;tp.size;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">store_trace_args(ucb-&gt;buf, &amp;tu-&gt;tp, regs, NULL, esize, dsize);</span></pre></td></tr></table></figure>
+<p>对应的上游提交是 <a target="_blank" rel="noopener" href="https://git.kernel.org/stable/c/373b9338c9722a368925d83bc622c596896b328e"><code>373b9338c972</code> - uprobe: avoid out-of-bounds memory access of fetching args</a>，该问题也被登记为 <a target="_blank" rel="noopener" href="https://nvd.nist.gov/vuln/detail/CVE-2024-50067">CVE-2024-50067</a>。</p>
+<p><img src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/uprobe-root-cause.png" alt="uprobe out-of-bounds write mechanism"></p>
+<h2 id="Why-XFS-was-damaged"><a href="#Why-XFS-was-damaged" class="headerlink" title="Why XFS was damaged"></a>Why XFS was damaged</h2>
+<p>这次抓取的参数比一页 buffer 多出少量字节。这些字节不会停在 <code>ucb-&gt;buf</code> 的结尾，而是继续写入相邻内存。</p>
+<p>被覆盖的内存后来作为 XFS inode metadata buffer 使用。XFS 在 write verifier 中检查 magic、字段和结构一致性时发现内容已经损坏，于是执行 forced shutdown。</p>
+<p>目前的证据能够确认：</p>
+<ul><li>uprobe 参数长度超过一页。</li><li>旧代码先写入、后检查，存在确定的越界窗口。</li><li>损坏区中出现了与触发进程参数一致的用户态字符串特征。</li><li>上游存在与代码路径和现象匹配的修复。</li></ul>
+<p>还有一个可以继续补强的物证：从 vmcore 中取出触发 CPU 的 <code>uprobe_cpu_buffer</code> 物理页，再与受损 XFS buffer 的物理页比较，确认两者在故障现场是否直接相邻。它不改变修复方向，但能把最后一段内存落点推断变成可审计的现场证据。</p>
+<h2 id="Resolution"><a href="#Resolution" class="headerlink" title="Resolution"></a>Resolution</h2>
+<p>短期处理：</p>
+<ol><li>升级或停用会触发该路径的第三方 Agent 探针。</li><li>在受影响内核上回合上游补丁。</li><li>避免继续运行相同版本、相同探针配置的机器。</li></ol>
+<p>长期处理：</p>
+<ol><li>为生产虚拟机配置可用的 kdump，并验证 vmcore 确实可以写出。</li><li>保留串口或控制台日志，不能只依赖重启后仍存在的本地日志。</li><li>记录第三方安全、监控 Agent 的版本和变更时间。</li><li>将上游 commit、CVE 和内部内核版本建立对应关系。</li></ol>
+<h2 id="Debugging-notes"><a href="#Debugging-notes" class="headerlink" title="Debugging notes"></a>Debugging notes</h2>
+<p>这次问题留下几个比较有用的排查原则。</p>
+<h3 id="Error-reporter-is-not-always-the-root-cause"><a href="#Error-reporter-is-not-always-the-root-cause" class="headerlink" title="Error reporter is not always the root cause"></a>Error reporter is not always the root cause</h3>
+<p>文件系统、allocator 和 verifier 经常是最先发现内存损坏的组件。看到错误后，需要回答“谁发现了损坏”和“谁制造了损坏”两个不同的问题。</p>
+<h3 id="Read-before-the-fatal-line"><a href="#Read-before-the-fatal-line" class="headerlink" title="Read before the fatal line"></a>Read before the fatal line</h3>
+<p>fatal error 往往出现在证据链的末端。向前读取 50 到 200 行，重点寻找 warning、异常进程名、寄存器中的长度值以及第三方模块或 tracing 事件。</p>
+<h3 id="Read-corrupted-bytes-as-data"><a href="#Read-corrupted-bytes-as-data" class="headerlink" title="Read corrupted bytes as data"></a>Read corrupted bytes as data</h3>
+<p>不要只把损坏区域当作十六进制。尝试转成 ASCII、路径、JSON 或已知结构体。用户态字符串出现在内核元数据中，本身就是很强的方向性证据。</p>
+<h3 id="A-bounds-check-after-memcpy-is-not-a-bounds-check"><a href="#A-bounds-check-after-memcpy-is-not-a-bounds-check" class="headerlink" title="A bounds check after memcpy is not a bounds check"></a>A bounds check after memcpy is not a bounds check</h3>
+<p>检查存在不等于检查有效。代码审计时必须确认长度验证是在写入之前还是之后，以及动态字符串、数组的累计长度是否可能超过固定 buffer。</p>
+<h3 id="Keep-the-last-unverified-link-visible"><a href="#Keep-the-last-unverified-link-visible" class="headerlink" title="Keep the last unverified link visible"></a>Keep the last unverified link visible</h3>
+<p>当日志、数据签名、源码和上游补丁已经相互吻合时，也不要把暂未直接验证的物理页相邻关系写成既成事实。把缺口和验证方法留下来，事故结论才方便复查。</p></div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" data-id="xfs-error-root-cause-uprobe-out-of-bounds" data-title="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查" class="article-share-link">Share</a>
+      <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" itemprop="commentCount"></span>Comments</a>
+      <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/security/" rel="tag">security</a></li></ul>
+    </footer>
+  </div>
+  
+</article>
+
+  
+    <article id="post-linux-guest-could-not-access-tsc-clocksource" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" class="article-date">
+  <time class="dt-published" datetime="2024-02-04T05:18:56.000Z" itemprop="datePublished">2024-02-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Phenomenon"><a href="#Phenomenon" class="headerlink" title="Phenomenon"></a>Phenomenon</h2><p>check TSC disabled from guest</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[    0.000004] tsc: Detected 1999.999 MHz processor</span><br><span class="line">[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Steps"><a href="#Steps" class="headerlink" title="Steps"></a>Steps</h2><ol>
+<li><code>lscpu | grep tsc</code> in guest, confirm cpu support tsc</li>
+<li>check vm not runs over IBM’s Summit2 by <code>dmidecode</code></li>
+<li><code>lscpu | grep constant_tsc</code> in both guest and host to confirm this is not in guest</li>
+<li>change kernel cmdline, add <code>tsc=reliable</code> if need ( based on <code>cat /proc/cmdline</code>)</li>
+<li>check cpu Vendor by <code>lscpu</code> if using Intel cpu</li>
+<li>remove <code>acpi</code> from libvirt. xml，but this will let all hot-plug operation fails</li>
+</ol>
+<p>change to using other amd cpu，tsc clocksource still could not be found</p>
+<p>Cpu that do not has vendor intel runs linux kernel will met this issue.</p>
+<h2 id="Resolution"><a href="#Resolution" class="headerlink" title="Resolution"></a>Resolution</h2><p>method 1:</p>
+<p>change guest os linux cmdline add <code>tsc=reliable</code></p>
+<p>method 2:</p>
+<p>remove <code>acpi</code> from libvirt. xml by <code>virsh edit</code></p>
+<h2 id="More-information"><a href="#More-information" class="headerlink" title="More information"></a>More information</h2><p>x86 guest disable constant_tsc in code，see the disscusion: <a target="_blank" rel="noopener" href="https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/">https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/</a></p>
+<p>but linux guest kernel let intel cpu use tsc and as the result intel vs amd cpu has below differences.</p>
+<h2 id="go-through-kernel-code"><a href="#go-through-kernel-code" class="headerlink" title="go through kernel code"></a>go through kernel code</h2><h3 id="Code-snippet-0"><a href="#Code-snippet-0" class="headerlink" title="Code snippet 0"></a><strong>Code snippet 0</strong></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * TSC can be unstable due to cpufreq or due to unsynced TSCs</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">int</span> __read_mostly tsc_unstable;`</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The code defines a static integer variable <code>tsc_unstable</code>. The <code>static</code> keyword means that this variable is only visible within the file it’s defined in, limiting its scope to <code>tsc.c</code>. This is a common practice when you want to keep the variable private to a particular file and prevent it from being accessed directly from other files.</p>
+<p>The <code>__read_mostly</code> attribute is a compiler directive specific to the Linux kernel, which suggests that this variable is expected to be read from often, but seldom written to. This can help the compiler optimize the generated code for this access pattern.</p>
+<p>The variable <code>tsc_unstable</code> is used to indicate whether the TSC is unstable. The comment above the variable declaration explains that the TSC can be unstable due to CPU frequency scaling (cpufreq) or due to unsynchronized TSCs across different cores or processors.</p>
+<p>In terms of improvements, the code is quite clear and concise. However, it might be helpful to expand the comment to explain what the implications of an unstable TSC are, and how the <code>tsc_unstable</code> variable is used in the system’s logic.</p>
+<h3 id="Code-snippet-1"><a href="#Code-snippet-1" class="headerlink" title="Code snippet 1"></a><strong>Code snippet 1</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">static int __init tsc_setup(char *str)</span><br><span class="line">&#123;</span><br><span class="line">    if (!strcmp(str, &quot;reliable&quot;))</span><br><span class="line">        tsc_clocksource_reliable &#x3D; 1;</span><br><span class="line">    if (!strncmp(str, &quot;noirqtime&quot;, 9))</span><br><span class="line">        no_sched_irq_time &#x3D; 1;</span><br><span class="line">    if (!strcmp(str, &quot;unstable&quot;))</span><br><span class="line">        mark_tsc_unstable(&quot;boot parameter&quot;);</span><br><span class="line">    if (!strcmp(str, &quot;nowatchdog&quot;))</span><br><span class="line">        no_tsc_watchdog &#x3D; 1;</span><br><span class="line">    return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The <code>__init</code> keyword before the function name is a macro used in the Linux kernel to indicate that this function is used only at initialization time. The memory for this function is freed after the initialization is complete to conserve the kernel’s memory footprint.</p>
+<p>Inside the function, there are several <code>if</code> statements that compare the input string <code>str</code> to different string literals using the <code>strcmp</code> and <code>strncmp</code> functions. <code>strcmp</code> compares two strings and returns 0 if they are identical, while <code>strncmp</code> compares up to a specified number of characters from two strings.</p>
+<p>If <code>str</code> is “reliable”, it sets the <code>tsc_clocksource_reliable</code> variable to 1. If <code>str</code> starts with “noirqtime”, it sets the <code>no_sched_irq_time</code> variable to 1. If <code>str</code> is “unstable”, it calls the <code>mark_tsc_unstable</code> function with “boot parameter” as an argument. If <code>str</code> is “nowatchdog”, it sets the <code>no_tsc_watchdog</code> variable to 1.</p>
+<p>Each of these variables or functions presumably controls a different aspect of the TSC’s behavior. For example, <code>tsc_clocksource_reliable</code> might indicate whether the TSC is a reliable source of time, and <code>no_sched_irq_time</code> might control whether the scheduler uses the TSC for interrupt timing.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of each variable and what each string argument represents would improve readability. It would also be beneficial to add error handling to account for the case where <code>str</code> does not match any of the expected values.</p>
+<p>And we could use <code>tsc=reliable</code> to kernel cmdline to changes to tsc clock source.</p>
+<h3 id="Code-snippet-2"><a href="#Code-snippet-2" class="headerlink" title="Code snippet 2"></a><strong>Code snippet 2</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">static void tsc_cs_mark_unstable(struct clocksource *cs)</span><br><span class="line">&#123;</span><br><span class="line">    if (tsc_unstable)</span><br><span class="line">        return;</span><br><span class="line"> </span><br><span class="line">    tsc_unstable &#x3D; 1;</span><br><span class="line">    if (using_native_sched_clock())</span><br><span class="line">        clear_sched_clock_stable();</span><br><span class="line">    disable_sched_clock_irqtime();</span><br><span class="line">    pr_info(&quot;Marking TSC unstable due to clocksource watchdog\n&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>The function first checks if the <code>tsc_unstable</code> variable is already set to 1. If it is, the function immediately returns, as the TSC has already been marked as unstable. This is a common pattern in C programming known as a “guard clause”, which is used to exit a function early when certain conditions are met.</p>
+<p>If <code>tsc_unstable</code> is not set to 1, the function proceeds to mark the TSC as unstable. It does this by setting <code>tsc_unstable</code> to 1, and then calling two functions: <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code>. These functions presumably perform some cleanup or configuration changes related to the TSC becoming unstable.</p>
+<p>Finally, the function logs a message using the <code>pr_info</code> macro, which is a kernel print function that outputs a message to the system log. The message indicates that the TSC has been marked as unstable due to the clocksource watchdog.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of the <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code> functions would improve readability. It would also be beneficial to add error handling to account for any potential issues that could occur when these functions are called.</p>
+<h3 id="Code-snippet-3"><a href="#Code-snippet-3" class="headerlink" title="Code snippet 3"></a><strong>Code snippet 3</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Make an educated guess if the TSC is trustworthy and synchronized</span><br><span class="line"> * over all CPUs.</span><br><span class="line"> *&#x2F;</span><br><span class="line">int unsynchronized_tsc(void)</span><br><span class="line">&#123;</span><br><span class="line">    if (!boot_cpu_has(X86_FEATURE_TSC) || tsc_unstable)</span><br><span class="line">        return 1;</span><br><span class="line"> </span><br><span class="line">#ifdef CONFIG_SMP</span><br><span class="line">    if (apic_is_clustered_box())</span><br><span class="line">        return 1;</span><br><span class="line">#endif</span><br><span class="line"> </span><br><span class="line">    if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))</span><br><span class="line">        return 0;</span><br><span class="line"> </span><br><span class="line">    if (tsc_clocksource_reliable)</span><br><span class="line">        return 0;</span><br><span class="line">    &#x2F;*</span><br><span class="line">     * Intel systems are normally all synchronized.</span><br><span class="line">     * Exceptions must mark TSC as unstable:</span><br><span class="line">     *&#x2F;</span><br><span class="line">    if (boot_cpu_data.x86_vendor !&#x3D; X86_VENDOR_INTEL) &#123;</span><br><span class="line">        &#x2F;* assume multi socket systems are not synchronized: *&#x2F;</span><br><span class="line">        if (num_possible_cpus() &gt; 1)</span><br><span class="line">            return 1;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<hr>
+<p>The function begins by checking if the boot CPU has the TSC feature and if the TSC is unstable. If either of these conditions is true, the function immediately returns 1, indicating that the TSC is unsynchronized.</p>
+<p>Next, if the system is configured for symmetric multiprocessing (SMP), the function checks if the Advanced Programmable Interrupt Controller (APIC) is clustered. If it is, the function returns 1, again indicating that the TSC is unsynchronized.</p>
+<p>The function then checks if the boot CPU has the constant TSC feature or if the TSC clocksource is reliable. If either of these conditions is true, the function returns 0, indicating that the TSC is synchronized.</p>
+<p>Finally, the function checks if the CPU vendor is not Intel. If it is not, and the system has more than one possible CPU, the function returns 1, indicating that the TSC is unsynchronized. If none of the previous conditions are met, the function returns 0, indicating that the TSC is synchronized.</p>
+<h2 id="More-practice"><a href="#More-practice" class="headerlink" title="More practice"></a>More practice</h2><h3 id="SystemTap"><a href="#SystemTap" class="headerlink" title="SystemTap"></a><strong>SystemTap</strong></h3><p>Because of above issue, I just spent more time to check the tsc value used by guest and from host cpu do have any different. With systemtap.</p>
+<h3 id="observe-rdtsc"><a href="#observe-rdtsc" class="headerlink" title="observe rdtsc"></a><strong>observe rdtsc</strong></h3><h3 id="result"><a href="#result" class="headerlink" title="result"></a><strong>result</strong></h3><p>value of tsc clock，average value and stantard deviation has different</p>
+<p>and the value from guest os is not stable when compared with host</p>
+<p>during live migration, tsc value will be smaller than usual (I think its because live migration has down time, so we need to change tsc to tolerant it)</p>
+<p>so just from the small test, its not a good idea to relay on tsc which is not as specific as it on the host</p>
+<h3 id="data-from-my-test"><a href="#data-from-my-test" class="headerlink" title="data from my test"></a><strong>data from my test</strong></h3><p>The first version, use the script test average value and stantard deviation</p>
+<p>in guest:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 2000170717.800000, TSC std dev: 255861.233545</span><br><span class="line">Time mean: 1000101683.030000, Time std dev: 162898.956256</span><br><span class="line">TSC mean: 2000158595.200000, TSC std dev: 340159.343486</span><br><span class="line">Time mean: 1000092746.020000, Time std dev: 170311.019513</span><br><span class="line">TSC mean: 2000116749.600000, TSC std dev: 96417.905701</span><br><span class="line">Time mean: 1000076448.860000, Time std dev: 102460.953979</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>in guest during live migration:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 1990107194.600000, TSC std dev: 71113321.983521</span><br><span class="line">Time mean: 1000129868.770000, Time std dev: 340417.298586</span><br><span class="line">TSC mean: 1993829457.200000, TSC std dev: 47439246.502752</span><br><span class="line">Time mean: 1001882162.230000, Time std dev: 16929541.16989</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>Samples from host:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">TSC mean: 2000087563.600000, TSC std dev: 16626.290598</span><br><span class="line">Time mean: 1000065114.610000, Time std dev: 8341.142215</span><br><span class="line">TSC mean: 2000084499.400000, TSC std dev: 4760.334824</span><br><span class="line">Time mean: 1000063541.340000, Time std dev: 2447.439965</span><br><span class="line">TSC mean: 2000083391.800000, TSC std dev: 11786.744451</span><br><span class="line">Time mean: 1000062911.800000, Time std dev: 5922.538748</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>TSC average value will be less that normal during migration.</p>
+<p>change the script to check abnormal samples</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Sample 54, TSC diff: 1998893560, Time diff: 1000069363 ns</span><br><span class="line">Sample 55, TSC diff: 1998887140, Time diff: 1000065570 ns</span><br><span class="line">Sample 56, TSC diff: 1999007020, Time diff: 1000130480 ns</span><br><span class="line">Sample 57, TSC diff: 1535293100, Time diff: 1000090774 ns</span><br><span class="line">Sample 58, TSC diff: 1998899520, Time diff: 1000073836 ns</span><br><span class="line">Sample 59, TSC diff: 2000588260, Time diff: 1001300447 ns</span><br><span class="line">Sample 60, TSC diff: 1998899540, Time diff: 1000072444 ns</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>just paste my test code:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;stdint.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;time.h&gt;</span><br><span class="line">#include &lt;math.h&gt;</span><br><span class="line"> </span><br><span class="line">#define SAMPLES 100</span><br><span class="line"> </span><br><span class="line">uint64_t rdtsc()&#123;</span><br><span class="line">    unsigned int lo,hi;</span><br><span class="line">    __asm__ __volatile__ (&quot;rdtsc&quot; : &quot;&#x3D;a&quot; (lo), &quot;&#x3D;d&quot; (hi));</span><br><span class="line">    return ((uint64_t)hi &lt;&lt; 32) | lo;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">double calc_std_dev(uint64_t *data, double mean)&#123;</span><br><span class="line">    double sum &#x3D; 0.0;</span><br><span class="line">    for(int i &#x3D; 0; i &lt; SAMPLES; i++)&#123;</span><br><span class="line">        sum +&#x3D; pow(data[i] - mean, 2);</span><br><span class="line">    &#125;</span><br><span class="line">    return sqrt(sum &#x2F; SAMPLES);</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">int main()&#123;</span><br><span class="line">    struct timespec start, end;</span><br><span class="line">    uint64_t tsc_start, tsc_end;</span><br><span class="line">    uint64_t tsc_diffs[SAMPLES], time_diffs[SAMPLES];</span><br><span class="line">    double tsc_sum &#x3D; 0.0, time_sum &#x3D; 0.0;</span><br><span class="line"> </span><br><span class="line">    for(int i &#x3D; 0; i &lt; SAMPLES; i++)&#123;</span><br><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;start);</span><br><span class="line">        tsc_start &#x3D; rdtsc();</span><br><span class="line"> </span><br><span class="line">        sleep(1);</span><br><span class="line"> </span><br><span class="line">        tsc_end &#x3D; rdtsc();</span><br><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;end);</span><br><span class="line"> </span><br><span class="line">        tsc_diffs[i] &#x3D; tsc_end - tsc_start;</span><br><span class="line">        time_diffs[i] &#x3D; (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);</span><br><span class="line"> </span><br><span class="line">        printf(&quot;Sample %d, TSC diff: %llu, Time diff: %llu ns\n&quot;, i, tsc_diffs[i], time_diffs[i]);</span><br><span class="line"> </span><br><span class="line">        tsc_sum +&#x3D; tsc_diffs[i];</span><br><span class="line">        time_sum +&#x3D; time_diffs[i];</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    double tsc_mean &#x3D; tsc_sum &#x2F; SAMPLES;</span><br><span class="line">    double time_mean &#x3D; time_sum &#x2F; SAMPLES;</span><br><span class="line"> </span><br><span class="line">    double tsc_std_dev &#x3D; calc_std_dev(tsc_diffs, tsc_mean);</span><br><span class="line">    double time_std_dev &#x3D; calc_std_dev(time_diffs, time_mean);</span><br><span class="line"> </span><br><span class="line">    printf(&quot;TSC mean: %f, TSC std dev: %f\n&quot;, tsc_mean, tsc_std_dev);</span><br><span class="line">    printf(&quot;Time mean: %f, Time std dev: %f\n&quot;, time_mean, time_std_dev);</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="more-links-for-reading"><a href="#more-links-for-reading" class="headerlink" title="more links for reading"></a>more links for reading</h2><h3 id="TSC"><a href="#TSC" class="headerlink" title="TSC"></a><strong>TSC</strong></h3><p>Time Stamp Counter (TSC)All 80x86 microprocessors include a <code>CLK</code> input pin, which receives the clock signal of an external oscillator. Starting with the Pentium, 80x86 microprocessors sport a counter that is increased at each clock signal, and is accessible through the TSC register which can be read by means of the <code>rdtsc</code> assembly instruction. When using this register the kernel has to take into consideration the frequency of the clock signal: if, for instance, the clock ticks at 1 GHz, the TSC is increased once every nanosecond. Linux may take advantage of this register to get much more accurate time measurements.</p>
+<p><a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/18627">https://access.redhat.com/solutions/18627</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" data-id="clwyjnxe000005jcc1na90x2j" data-title="Linux guest could not access tsc clocksource" class="article-share-link">Share</a>
+      
+      
+        <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-2023-12-06" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/12/06/2023-12-06/" class="article-date">
+  <time class="dt-published" datetime="2023-12-06T06:14:17.000Z" itemprop="datePublished">2023-12-06</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a disk is loaded. During the kernel startup process, the disk (vdb) is recognized, and then qemu receives a device removal event, which is fed back to libvirt. Libvirt updates the XML, causing inconsistency between the disk state recorded in the zstack database and the XML on the host.</p>
+<p>The main issue here is that the libvirt loading device interface returns success, and the XML corresponding to the device is also added. However, this device is deleted according to the event feedback from qemu.</p>
+<p>Important log information: Here, let’s first analyze the system logs in the guest OS:</p>
+<p>Here, we notice the logs related to pciehp because this virtual machine is UEFI-booted, leading to numerous pcie-related logs (due to UEFI boot requiring the q35 machine type, which defaults to pcie devices).</p>
+<p>The initially observed logs include an error log from pcieport:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</span><br></pre></td></tr></table></figure>
+
+<p>Followed by the recognition of the vdb device:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB&#x2F;500 GiB)</span><br></pre></td></tr></table></figure>
+
+<p>An external interrupt is sent to the virtual machine:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br></pre></td></tr></table></figure>
+
+<p>Subsequently, through ausearch, it is identified that libvirt received a device deletion event, leading to the removal of the mentioned device:</p>
+<p>libvirt received device deleted event, removing the device</p>
+<p>Based on these scenarios, we have summarized the steps to reproduce the issue:</p>
+<ol>
+<li>During the kernel startup process</li>
+<li>Load the data disk.</li>
+<li>Check for inconsistencies between the XML and the database.</li>
+<li>Through repeated testing of VM boot and data disk loading, the issue can be reproduced.</li>
+</ol>
+<p>Regarding the error logs mentioned above, the explanation is as follows:</p>
+<ol>
+<li><p><code>pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</code>:</p>
+<ul>
+<li>According to <a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/3144711">https://access.redhat.com/solutions/3144711</a>, this error may occur because in virtualized environments, there might be more PCIe ports than in a real physical environment, leading to this error. However, it does not have any actual impact.</li>
+</ul>
+</li>
+<li><p><code>_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB/500 GiB)</code>:</p>
+<ul>
+<li>This indicates that the virtio-blk disk has indeed been successfully loaded, as it has been recognized within the virtual machine.</li>
+</ul>
+</li>
+<li><p><code>pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</code>:</p>
+<ul>
+<li>“Attention button pressed” indicates that when resetting the PCIe slot, QEMU sends the corresponding interrupt. When the host receives this interrupt, the corresponding processing logic prints this log.</li>
+</ul>
+</li>
+</ol>
+<p>As for the key QEMU code, by searching the codebase, it has been confirmed that QEMU sends the corresponding interrupt when resetting the PCIe slot, and the host prints the log as part of the corresponding processing logic.</p>
+<p>code from <code>pcie.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,</span><br><span class="line">                             PCI_EXP_SLTSTA_EIS |&#x2F;* on reset,</span><br><span class="line">                                                    the lock is released *&#x2F;</span><br><span class="line">                             PCI_EXP_SLTSTA_CC |</span><br><span class="line">                             PCI_EXP_SLTSTA_PDC |</span><br><span class="line">                             PCI_EXP_SLTSTA_ABP);</span><br></pre></td></tr></table></figure>
+
+<p>which is used in <code>qdev.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">QLIST_FOREACH(bus, &amp;dev-&gt;child_bus, sibling) &#123;</span><br><span class="line">     object_property_set_bool(OBJECT(bus), true, &quot;realized&quot;,</span><br><span class="line">                                  &amp;local_err);</span><br><span class="line">     if (local_err !&#x3D; NULL) &#123;</span><br><span class="line">         goto child_realize_fail;</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br><span class="line"> if (dev-&gt;hotplugged) &#123;</span><br><span class="line">     device_reset(dev);</span><br><span class="line"> &#125;</span><br><span class="line"> dev-&gt;pending_deleted_event &#x3D; false;</span><br><span class="line"> </span><br><span class="line"> if (hotplug_ctrl) &#123;</span><br><span class="line">     hotplug_handler_plug(hotplug_ctrl, dev, &amp;local_err);</span><br><span class="line">     if (local_err !&#x3D; NULL) &#123;</span><br><span class="line">         goto child_realize_fail;</span><br><span class="line">     &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>During the device hotplug process, there will be a reset action.</p>
+<p>Kernel-related code:</p>
+<p>from <code>pciehp_hpc.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">static int pciehp_poll(void *data)</span><br><span class="line">&#123;</span><br><span class="line">    struct controller *ctrl &#x3D; data;</span><br><span class="line"> </span><br><span class="line">    schedule_timeout_idle(10 * HZ); &#x2F;* start with 10 sec delay *&#x2F;</span><br><span class="line"> </span><br><span class="line">    while (!kthread_should_stop()) &#123;</span><br><span class="line">        &#x2F;* poll for interrupt events or user requests *&#x2F;</span><br><span class="line">        while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) &#x3D;&#x3D; IRQ_WAKE_THREAD ||</span><br><span class="line">               atomic_read(&amp;ctrl-&gt;pending_events))</span><br><span class="line">            pciehp_ist(IRQ_NOTCONNECTED, ctrl);</span><br><span class="line"> </span><br><span class="line">        if (pciehp_poll_time &lt;&#x3D; 0 || pciehp_poll_time &gt; 60)</span><br><span class="line">            pciehp_poll_time &#x3D; 2; &#x2F;* clamp to sane value *&#x2F;</span><br><span class="line"> </span><br><span class="line">        schedule_timeout_idle(pciehp_poll_time * HZ);</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">    &#x2F;* Check Attention Button Pressed *&#x2F;</span><br><span class="line">    if (events &amp; PCI_EXP_SLTSTA_ABP) &#123;</span><br><span class="line">        ctrl_info(ctrl, &quot;Slot(%s): Attention button pressed\n&quot;,</span><br><span class="line">              slot_name(ctrl));</span><br><span class="line">        pciehp_handle_button_press(ctrl);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>This code represents a kernel function for polling PCIe Hot Plug events. It uses a kernel thread (kthread) to continuously poll for interrupt events or user requests related to PCIe Hot Plug. The function includes a timeout mechanism with an initial delay of 10 seconds and then repeats the polling process based on the specified polling time. The function stops when the kernel thread should stop (kthread_should_stop() returns true).</p>
+<p>And pciehp_handle_button_press is implemented as following:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">void pciehp_handle_button_press(struct controller *ctrl)</span><br><span class="line">&#123;</span><br><span class="line">	mutex_lock(&amp;ctrl-&gt;state_lock);</span><br><span class="line">	switch (ctrl-&gt;state) &#123;</span><br><span class="line">	case OFF_STATE:</span><br><span class="line">	case ON_STATE:</span><br><span class="line">		if (ctrl-&gt;state &#x3D;&#x3D; ON_STATE) &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; BLINKINGOFF_STATE;</span><br><span class="line">			ctrl_info(ctrl, &quot;Slot(%s): Powering off due to button press\n&quot;,</span><br><span class="line">				  slot_name(ctrl));</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; BLINKINGON_STATE;</span><br><span class="line">			ctrl_info(ctrl, &quot;Slot(%s) Powering on due to button press\n&quot;,</span><br><span class="line">				  slot_name(ctrl));</span><br><span class="line">		&#125;</span><br><span class="line">		&#x2F;* blink power indicator and turn off attention *&#x2F;</span><br><span class="line">		pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,</span><br><span class="line">				      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		schedule_delayed_work(&amp;ctrl-&gt;button_work, 5 * HZ);</span><br><span class="line">		break;</span><br><span class="line">	case BLINKINGOFF_STATE:</span><br><span class="line">	case BLINKINGON_STATE:</span><br><span class="line">		&#x2F;*</span><br><span class="line">		 * Cancel if we are still blinking; this means that we</span><br><span class="line">		 * press the attention again before the 5 sec. limit</span><br><span class="line">		 * expires to cancel hot-add or hot-remove</span><br><span class="line">		 *&#x2F;</span><br><span class="line">		ctrl_info(ctrl, &quot;Slot(%s): Button cancel\n&quot;, slot_name(ctrl));</span><br><span class="line">		cancel_delayed_work(&amp;ctrl-&gt;button_work);</span><br><span class="line">		if (ctrl-&gt;state &#x3D;&#x3D; BLINKINGOFF_STATE) &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; ON_STATE;</span><br><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,</span><br><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			ctrl-&gt;state &#x3D; OFF_STATE;</span><br><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,</span><br><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br><span class="line">		&#125;</span><br><span class="line">		ctrl_info(ctrl, &quot;Slot(%s): Action canceled due to button press\n&quot;,</span><br><span class="line">			  slot_name(ctrl));</span><br><span class="line">		break;</span><br><span class="line">	default:</span><br><span class="line">		ctrl_err(ctrl, &quot;Slot(%s): Ignoring invalid state %#x\n&quot;,</span><br><span class="line">			 slot_name(ctrl), ctrl-&gt;state);</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">	mutex_unlock(&amp;ctrl-&gt;state_lock);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Both OFF_STATE and ON_STATE could changed to each other by same press request. </p>
+<p>Based on the test results, we preliminarily conclude that there is a race condition between hot-plug operations and kernel boot, leading to unexpected changes in the PCIe slot’s state from off → on → off. (Note: The crucial point here is that pciehp_handle_button_press(ctrl); simultaneously handles both on and off scenarios.)</p>
+<p>With reference to the above keywords, we identified a related Bugzilla entry for QEMU version 4.2 by searching for ‘qemu pci device kernel boot race condition’:</p>
+<p><a target="_blank" rel="noopener" href="https://bugzilla.kernel.org/show_bug.cgi?id=211691">https://bugzilla.kernel.org/show_bug.cgi?id=211691</a></p>
+<p>“The document mentions a virtio-net failover mechanism introduced by QEMU 4.2, addressing the issue of hot-plugging network cards failing during the VM startup phase. This problem arises from a race condition in the QEMU code that sets the PCIe slot’s state. The provided QEMU patch resolves the issue:</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/qemu/qemu/commit/df72184ec15829053b3bb5a0d5801773b6d9ec25">QEMU Patch Link</a></p>
+<p>The title of this patch is: ‘pcie: don’t set link state active if the slot is empty.’</p>
+<p>Upon reviewing its content, it appears that during PCIe initialization and the hot-plug phase, the ‘reset’ is called, potentially causing inconsistencies in the slot’s state. This patch addresses the problem by preventing the setting of the link state to active if the slot is empty, eliminating the observed issue.”</p>
+<p>TIPs:</p>
+<p>Search for changes related to the virtual machine process using <code>ausearch</code>:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ausearch -m <span class="string">&quot;VIRT_RESOURCE&quot;</span> -p 63259</span><br></pre></td></tr></table></figure>
+
+<p>Libvirt’s XML and QEMU event update mechanism: Details can be found in TIC-1360 - Cloud VM disk does not exist, capacity inconsistency between UI interface and underlying view (Closed).</p>
+<p>Quick reference for PCIe events:</p>
+<p>From linux pci_regs.h:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PCI_EXP_SLTCTL      24  <span class="comment">/* Slot Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ABPE    0x0001  <span class="comment">/* Attention Button Pressed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PFDE    0x0002  <span class="comment">/* Power Fault Detected Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_MRLSCE  0x0004  <span class="comment">/* MRL Sensor Changed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PDCE    0x0008  <span class="comment">/* Presence Detect Changed Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_CCIE    0x0010  <span class="comment">/* Command Completed Interrupt Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_HPIE    0x0020  <span class="comment">/* Hot-Plug Interrupt Enable */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_AIC 0x00c0  <span class="comment">/* Attention Indicator Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_SHIFT 6      <span class="comment">/* Attention Indicator shift */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 <span class="comment">/* Attention Indicator on */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 <span class="comment">/* Attention Indicator blinking */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_OFF   0x00c0 <span class="comment">/* Attention Indicator off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PIC 0x0300  <span class="comment">/* Power Indicator Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 <span class="comment">/* Power Indicator on */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 <span class="comment">/* Power Indicator blinking */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 <span class="comment">/* Power Indicator off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PCC 0x0400  <span class="comment">/* Power Controller Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_ON         0x0000 <span class="comment">/* Power On */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_OFF        0x0400 <span class="comment">/* Power Off */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_EIC 0x0800  <span class="comment">/* Electromechanical Interlock Control */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_DLLSCE  0x1000  <span class="comment">/* Data Link Layer State Changed Enable */</span></span></span><br></pre></td></tr></table></figure>
+
+<p>QEMU systemtap trace, refer to: <a target="_blank" rel="noopener" href="https://qemu-project.gitlab.io/qemu/devel/tracing.html">QEMU Tracing Documentation</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/usr/bin/qemu-trace-stap run /usr/libexec/qemu-kvm pci_cfg_write</span><br></pre></td></tr></table></figure>
+
+<p>Guest os pcie trace analysis:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Powering off due to button press</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_get_power_status: SLOTCTRL 6c value read 2f1</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_unconfigure_device: domain:bus:dev = 0000:08:00</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 40</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0018 from Slot Status</span><br><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300</span><br><span class="line"></span><br><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br></pre></td></tr></table></figure>
+
+<p>cmd 0x0100</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 &#x2F;* Power Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 &#x2F;* Attention Indicator blinking *&#x2F;</span><br><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 &#x2F;* Attention Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</p>
+<p>cmd 0x0200</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 &#x2F;* Power Indicator blinking *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 &#x2F;* Attention Indicator blinking *&#x2F;</span><br><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 &#x2F;* Attention Indicator on *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 400</p>
+<p>cmd 0x0400</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_OFF        0x0400 &#x2F;* Power Off *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300<br>cmd 0x0300</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 &#x2F;* Power Indicator off *&#x2F;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/12/06/2023-12-06/" data-id="clpte86eu0000aucafvj0077k" data-title="The disk in the guest OS is unmounted during the kernel startup process." class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/12/06/2023-12-06/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/12/06/2023-12-06/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-understanding-cpu-topology-for-improved-performance" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/" class="article-date">
+  <time class="dt-published" datetime="2023-05-26T05:44:12.000Z" itemprop="datePublished">2023-05-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/cpu/">cpu</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the performance of a system, as it determines the effectiveness and efficiency of the cores.</p>
+<h2 id="What-is-CPU-Topology"><a href="#What-is-CPU-Topology" class="headerlink" title="What is CPU Topology?"></a>What is CPU Topology?</h2><p>CPU topology comprises three primary levels:</p>
+<ul>
+<li><strong>Socket:</strong> A physical connector that holds a CPU. A system can have multiple sockets, each of which can hold multiple cores.</li>
+<li><strong>Core:</strong> A single processing unit within a CPU that can run multiple threads simultaneously.</li>
+<li><strong>Thread:</strong> A single flow of execution within a core.</li>
+</ul>
+<p>The CPU topology can be described using a tree-like structure, with the socket level at the top and the thread level at the bottom. The cores in a socket are connected to each other via a bus, and the threads in a core are connected to each other by a shared cache.</p>
+<h2 id="Importance-of-CPU-Topology"><a href="#Importance-of-CPU-Topology" class="headerlink" title="Importance of CPU Topology"></a>Importance of CPU Topology</h2><p>Understanding CPU topology is crucial for improving system performance. The topology can be used to optimize the performance of a system by assigning threads to cores in a way that minimizes the amount of communication between cores. This can enhance the performance of applications that are heavily multithreaded.</p>
+<p>Additionally, the CPU topology can be used to troubleshoot performance issues. For example, if an application is running slowly, the CPU topology can be used to identify which cores are being used the most. This information can help identify the source of the performance problem and take appropriate steps to improve it.</p>
+<p>Here are some benefits of understanding CPU topology:</p>
+<ul>
+<li>It helps to optimize system performance by assigning tasks to the most suitable cores.</li>
+<li>It helps to troubleshoot performance issues by identifying heavily used cores.</li>
+<li>It helps to understand how the system will scale as more cores are added.</li>
+</ul>
+<h2 id="Tools-to-Display-CPU-Topology"><a href="#Tools-to-Display-CPU-Topology" class="headerlink" title="Tools to Display CPU Topology"></a>Tools to Display CPU Topology</h2><p>There are several tools available to display CPU topology, and one of the most commonly used tools is <code>lscpu</code>. Here is an example of using <code>lscpu</code> to display CPU topology:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">[root@172-20-1-220 ~]# lscpu</span><br><span class="line">Architecture:          x86_64</span><br><span class="line">CPU op-mode(s):        32-bit, 64-bit</span><br><span class="line">Byte Order:            Little Endian</span><br><span class="line">CPU(s):                80</span><br><span class="line">On-line CPU(s) list:   0-79</span><br><span class="line">Thread(s) per core:    2</span><br><span class="line">Core(s) per socket:    20</span><br><span class="line">Socket(s):             2</span><br><span class="line">NUMA node(s):          2</span><br><span class="line">Vendor ID:             GenuineIntel</span><br><span class="line">CPU family:            6</span><br><span class="line">Model:                 85</span><br><span class="line">Model name:            Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz</span><br><span class="line">Stepping:              7</span><br><span class="line">CPU MHz:               2100.000</span><br><span class="line">BogoMIPS:              4200.00</span><br><span class="line">Virtualization:        VT-x</span><br><span class="line">L1d cache:             32K</span><br><span class="line">L1i cache:             32K</span><br><span class="line">L2 cache:              1024K</span><br><span class="line">L3 cache:              28160K</span><br><span class="line">NUMA node0 CPU(s):     0-19,40-59</span><br><span class="line">NUMA node1 CPU(s):     20-39,60-79</span><br><span class="line">Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch epb cat_l3 cdp_l3 intel_ppin intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts hwp_epp pku ospke avx512_vnni md_clear spec_ctrl intel_stibp flush_l1d arch_capabilities</span><br></pre></td></tr></table></figure>
+
+<p><code>hwloc-ls</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br></pre></td><td class="code"><pre><span class="line">[root@172-20-1-220 ~]<span class="comment"># hwloc-ls</span></span><br><span class="line">Machine (767GB total)</span><br><span class="line">  NUMANode L<span class="comment">#0 (P#0 383GB)</span></span><br><span class="line">    Package L<span class="comment">#0 + L3 L#0 (28MB)</span></span><br><span class="line">      L2 L<span class="comment">#0 (1024KB) + L1d L#0 (32KB) + L1i L#0 (32KB) + Core L#0</span></span><br><span class="line">        PU L<span class="comment">#0 (P#0)</span></span><br><span class="line">        PU L<span class="comment">#1 (P#40)</span></span><br><span class="line">      L2 L<span class="comment">#1 (1024KB) + L1d L#1 (32KB) + L1i L#1 (32KB) + Core L#1</span></span><br><span class="line">        PU L<span class="comment">#2 (P#1)</span></span><br><span class="line">        PU L<span class="comment">#3 (P#41)</span></span><br><span class="line">      L2 L<span class="comment">#2 (1024KB) + L1d L#2 (32KB) + L1i L#2 (32KB) + Core L#2</span></span><br><span class="line">        PU L<span class="comment">#4 (P#2)</span></span><br><span class="line">        PU L<span class="comment">#5 (P#42)</span></span><br><span class="line">      L2 L<span class="comment">#3 (1024KB) + L1d L#3 (32KB) + L1i L#3 (32KB) + Core L#3</span></span><br><span class="line">        PU L<span class="comment">#6 (P#3)</span></span><br><span class="line">        PU L<span class="comment">#7 (P#43)</span></span><br><span class="line">      L2 L<span class="comment">#4 (1024KB) + L1d L#4 (32KB) + L1i L#4 (32KB) + Core L#4</span></span><br><span class="line">        PU L<span class="comment">#8 (P#4)</span></span><br><span class="line">        PU L<span class="comment">#9 (P#44)</span></span><br><span class="line">      L2 L<span class="comment">#5 (1024KB) + L1d L#5 (32KB) + L1i L#5 (32KB) + Core L#5</span></span><br><span class="line">        PU L<span class="comment">#10 (P#5)</span></span><br><span class="line">        PU L<span class="comment">#11 (P#45)</span></span><br><span class="line">      L2 L<span class="comment">#6 (1024KB) + L1d L#6 (32KB) + L1i L#6 (32KB) + Core L#6</span></span><br><span class="line">        PU L<span class="comment">#12 (P#6)</span></span><br><span class="line">        PU L<span class="comment">#13 (P#46)</span></span><br><span class="line">      L2 L<span class="comment">#7 (1024KB) + L1d L#7 (32KB) + L1i L#7 (32KB) + Core L#7</span></span><br><span class="line">        PU L<span class="comment">#14 (P#7)</span></span><br><span class="line">        PU L<span class="comment">#15 (P#47)</span></span><br><span class="line">      L2 L<span class="comment">#8 (1024KB) + L1d L#8 (32KB) + L1i L#8 (32KB) + Core L#8</span></span><br><span class="line">        PU L<span class="comment">#16 (P#8)</span></span><br><span class="line">        PU L<span class="comment">#17 (P#48)</span></span><br><span class="line">      L2 L<span class="comment">#9 (1024KB) + L1d L#9 (32KB) + L1i L#9 (32KB) + Core L#9</span></span><br><span class="line">        PU L<span class="comment">#18 (P#9)</span></span><br><span class="line">        PU L<span class="comment">#19 (P#49)</span></span><br><span class="line">      L2 L<span class="comment">#10 (1024KB) + L1d L#10 (32KB) + L1i L#10 (32KB) + Core L#10</span></span><br><span class="line">        PU L<span class="comment">#20 (P#10)</span></span><br><span class="line">        PU L<span class="comment">#21 (P#50)</span></span><br><span class="line">      L2 L<span class="comment">#11 (1024KB) + L1d L#11 (32KB) + L1i L#11 (32KB) + Core L#11</span></span><br><span class="line">        PU L<span class="comment">#22 (P#11)</span></span><br><span class="line">        PU L<span class="comment">#23 (P#51)</span></span><br><span class="line">      L2 L<span class="comment">#12 (1024KB) + L1d L#12 (32KB) + L1i L#12 (32KB) + Core L#12</span></span><br><span class="line">        PU L<span class="comment">#24 (P#12)</span></span><br><span class="line">        PU L<span class="comment">#25 (P#52)</span></span><br><span class="line">      L2 L<span class="comment">#13 (1024KB) + L1d L#13 (32KB) + L1i L#13 (32KB) + Core L#13</span></span><br><span class="line">        PU L<span class="comment">#26 (P#13)</span></span><br><span class="line">        PU L<span class="comment">#27 (P#53)</span></span><br><span class="line">      L2 L<span class="comment">#14 (1024KB) + L1d L#14 (32KB) + L1i L#14 (32KB) + Core L#14</span></span><br><span class="line">        PU L<span class="comment">#28 (P#14)</span></span><br><span class="line">        PU L<span class="comment">#29 (P#54)</span></span><br><span class="line">      L2 L<span class="comment">#15 (1024KB) + L1d L#15 (32KB) + L1i L#15 (32KB) + Core L#15</span></span><br><span class="line">        PU L<span class="comment">#30 (P#15)</span></span><br><span class="line">        PU L<span class="comment">#31 (P#55)</span></span><br><span class="line">      L2 L<span class="comment">#16 (1024KB) + L1d L#16 (32KB) + L1i L#16 (32KB) + Core L#16</span></span><br><span class="line">        PU L<span class="comment">#32 (P#16)</span></span><br><span class="line">        PU L<span class="comment">#33 (P#56)</span></span><br><span class="line">      L2 L<span class="comment">#17 (1024KB) + L1d L#17 (32KB) + L1i L#17 (32KB) + Core L#17</span></span><br><span class="line">        PU L<span class="comment">#34 (P#17)</span></span><br><span class="line">        PU L<span class="comment">#35 (P#57)</span></span><br><span class="line">      L2 L<span class="comment">#18 (1024KB) + L1d L#18 (32KB) + L1i L#18 (32KB) + Core L#18</span></span><br><span class="line">        PU L<span class="comment">#36 (P#18)</span></span><br><span class="line">        PU L<span class="comment">#37 (P#58)</span></span><br><span class="line">      L2 L<span class="comment">#19 (1024KB) + L1d L#19 (32KB) + L1i L#19 (32KB) + Core L#19</span></span><br><span class="line">        PU L<span class="comment">#38 (P#19)</span></span><br><span class="line">        PU L<span class="comment">#39 (P#59)</span></span><br><span class="line">    HostBridge L<span class="comment">#0</span></span><br><span class="line">      PCI 8086:a1d2</span><br><span class="line">      PCI 8086:a182</span><br><span class="line">      PCIBridge</span><br><span class="line">        PCIBridge</span><br><span class="line">          PCI 1a03:2000</span><br><span class="line">            GPU L<span class="comment">#0 &quot;card0&quot;</span></span><br><span class="line">            GPU L<span class="comment">#1 &quot;controlD64&quot;</span></span><br><span class="line">    HostBridge L<span class="comment">#3</span></span><br><span class="line">      PCIBridge</span><br><span class="line">        PCI 1000:0097</span><br><span class="line">          Block(Disk) L<span class="comment">#2 &quot;sda&quot;</span></span><br><span class="line">  NUMANode L<span class="comment">#1 (P#1 384GB)</span></span><br><span class="line">    Package L<span class="comment">#1 + L3 L#1 (28MB)</span></span><br><span class="line">      L2 L<span class="comment">#20 (1024KB) + L1d L#20 (32KB) + L1i L#20 (32KB) + Core L#20</span></span><br><span class="line">        PU L<span class="comment">#40 (P#20)</span></span><br><span class="line">        PU L<span class="comment">#41 (P#60)</span></span><br><span class="line">      L2 L<span class="comment">#21 (1024KB) + L1d L#21 (32KB) + L1i L#21 (32KB) + Core L#21</span></span><br><span class="line">        PU L<span class="comment">#42 (P#21)</span></span><br><span class="line">        PU L<span class="comment">#43 (P#61)</span></span><br><span class="line">      L2 L<span class="comment">#22 (1024KB) + L1d L#22 (32KB) + L1i L#22 (32KB) + Core L#22</span></span><br><span class="line">        PU L<span class="comment">#44 (P#22)</span></span><br><span class="line">        PU L<span class="comment">#45 (P#62)</span></span><br><span class="line">      L2 L<span class="comment">#23 (1024KB) + L1d L#23 (32KB) + L1i L#23 (32KB) + Core L#23</span></span><br><span class="line">        PU L<span class="comment">#46 (P#23)</span></span><br><span class="line">        PU L<span class="comment">#47 (P#63)</span></span><br><span class="line">      L2 L<span class="comment">#24 (1024KB) + L1d L#24 (32KB) + L1i L#24 (32KB) + Core L#24</span></span><br><span class="line">        PU L<span class="comment">#48 (P#24)</span></span><br><span class="line">        PU L<span class="comment">#49 (P#64)</span></span><br><span class="line">      L2 L<span class="comment">#25 (1024KB) + L1d L#25 (32KB) + L1i L#25 (32KB) + Core L#25</span></span><br><span class="line">        PU L<span class="comment">#50 (P#25)</span></span><br><span class="line">        PU L<span class="comment">#51 (P#65)</span></span><br><span class="line">      L2 L<span class="comment">#26 (1024KB) + L1d L#26 (32KB) + L1i L#26 (32KB) + Core L#26</span></span><br><span class="line">        PU L<span class="comment">#52 (P#26)</span></span><br><span class="line">        PU L<span class="comment">#53 (P#66)</span></span><br><span class="line">      L2 L<span class="comment">#27 (1024KB) + L1d L#27 (32KB) + L1i L#27 (32KB) + Core L#27</span></span><br><span class="line">        PU L<span class="comment">#54 (P#27)</span></span><br><span class="line">        PU L<span class="comment">#55 (P#67)</span></span><br><span class="line">      L2 L<span class="comment">#28 (1024KB) + L1d L#28 (32KB) + L1i L#28 (32KB) + Core L#28</span></span><br><span class="line">        PU L<span class="comment">#56 (P#28)</span></span><br><span class="line">        PU L<span class="comment">#57 (P#68)</span></span><br><span class="line">      L2 L<span class="comment">#29 (1024KB) + L1d L#29 (32KB) + L1i L#29 (32KB) + Core L#29</span></span><br><span class="line">        PU L<span class="comment">#58 (P#29)</span></span><br><span class="line">        PU L<span class="comment">#59 (P#69)</span></span><br><span class="line">      L2 L<span class="comment">#30 (1024KB) + L1d L#30 (32KB) + L1i L#30 (32KB) + Core L#30</span></span><br><span class="line">        PU L<span class="comment">#60 (P#30)</span></span><br><span class="line">        PU L<span class="comment">#61 (P#70)</span></span><br><span class="line">      L2 L<span class="comment">#31 (1024KB) + L1d L#31 (32KB) + L1i L#31 (32KB) + Core L#31</span></span><br><span class="line">        PU L<span class="comment">#62 (P#31)</span></span><br><span class="line">        PU L<span class="comment">#63 (P#71)</span></span><br><span class="line">      L2 L<span class="comment">#32 (1024KB) + L1d L#32 (32KB) + L1i L#32 (32KB) + Core L#32</span></span><br><span class="line">        PU L<span class="comment">#64 (P#32)</span></span><br><span class="line">        PU L<span class="comment">#65 (P#72)</span></span><br><span class="line">      L2 L<span class="comment">#33 (1024KB) + L1d L#33 (32KB) + L1i L#33 (32KB) + Core L#33</span></span><br><span class="line">        PU L<span class="comment">#66 (P#33)</span></span><br><span class="line">        PU L<span class="comment">#67 (P#73)</span></span><br><span class="line">      L2 L<span class="comment">#34 (1024KB) + L1d L#34 (32KB) + L1i L#34 (32KB) + Core L#34</span></span><br><span class="line">        PU L<span class="comment">#68 (P#34)</span></span><br><span class="line">        PU L<span class="comment">#69 (P#74)</span></span><br><span class="line">      L2 L<span class="comment">#35 (1024KB) + L1d L#35 (32KB) + L1i L#35 (32KB) + Core L#35</span></span><br><span class="line">        PU L<span class="comment">#70 (P#35)</span></span><br><span class="line">        PU L<span class="comment">#71 (P#75)</span></span><br><span class="line">      L2 L<span class="comment">#36 (1024KB) + L1d L#36 (32KB) + L1i L#36 (32KB) + Core L#36</span></span><br><span class="line">        PU L<span class="comment">#72 (P#36)</span></span><br><span class="line">        PU L<span class="comment">#73 (P#76)</span></span><br><span class="line">      L2 L<span class="comment">#37 (1024KB) + L1d L#37 (32KB) + L1i L#37 (32KB) + Core L#37</span></span><br><span class="line">        PU L<span class="comment">#74 (P#37)</span></span><br><span class="line">        PU L<span class="comment">#75 (P#77)</span></span><br><span class="line">      L2 L<span class="comment">#38 (1024KB) + L1d L#38 (32KB) + L1i L#38 (32KB) + Core L#38</span></span><br><span class="line">        PU L<span class="comment">#76 (P#38)</span></span><br><span class="line">        PU L<span class="comment">#77 (P#78)</span></span><br><span class="line">      L2 L<span class="comment">#39 (1024KB) + L1d L#39 (32KB) + L1i L#39 (32KB) + Core L#39</span></span><br><span class="line">        PU L<span class="comment">#78 (P#39)</span></span><br><span class="line">        PU L<span class="comment">#79 (P#79)</span></span><br><span class="line">    HostBridge L<span class="comment">#5</span></span><br><span class="line">      PCIBridge</span><br><span class="line">        PCI 8086:1521</span><br><span class="line">          Net L<span class="comment">#3 &quot;enp175s0f0&quot;</span></span><br><span class="line">        PCI 8086:1521</span><br><span class="line">          Net L<span class="comment">#4 &quot;enp175s0f1&quot;</span></span><br><span class="line">        PCI 8086:1521</span><br><span class="line">          Net L<span class="comment">#5 &quot;enp175s0f2&quot;</span></span><br><span class="line">        PCI 8086:1521</span><br><span class="line">          Net L<span class="comment">#6 &quot;enp175s0f3&quot;</span></span><br><span class="line">      PCIBridge</span><br><span class="line">        PCI 8086:10fb</span><br><span class="line">          Net L<span class="comment">#7 &quot;enp176s0f0&quot;</span></span><br><span class="line">        PCI 8086:10fb</span><br><span class="line">          Net L<span class="comment">#8 &quot;enp176s0f1&quot;</span></span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br><span class="line">  Misc(MemoryModule)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Virtual-Machines-and-CPU-Topology"><a href="#Virtual-Machines-and-CPU-Topology" class="headerlink" title="Virtual Machines and CPU Topology"></a>Virtual Machines and CPU Topology</h2><p>Virtual machines (VMs) are software programs that create an isolated environment for running operating systems and applications. VMs are often used to run various operating systems on the same physical machine or to run applications that require more resources than are available on the host machine.</p>
+<p>When a VM is created, the hypervisor, which manages the VMs, assigns a single thread to the VM. This is because assigning multiple threads to a VM can lead to performance issues. Threads share the same resources on a core, and multiple threads can compete for resources, leading to contention and slowdowns. Furthermore, threads may interfere with each other, causing further slowdowns.</p>
+<p>To optimize VM performance, it’s generally best to assign a single thread to a VM. However, there are exceptions to this rule. For example, if a VM is running an application that is specifically designed to take advantage of multiple threads, it may be beneficial to assign multiple threads to the VM.</p>
+<p>To take advantage of multiple threads in a virtual machine, it’s essential to use a hypervisor that supports thread pinning, an operating system that supports thread scheduling, and an application that is designed to take advantage of multiple threads. Multithreaded applications such as web servers, database servers, and media transcoders are good examples of applications that can take advantage of multiple threads.</p>
+<h2 id="Why-thread-of-cpu-toplogy-always-1-or-2"><a href="#Why-thread-of-cpu-toplogy-always-1-or-2" class="headerlink" title="Why thread of cpu toplogy always 1 or 2"></a>Why thread of cpu toplogy always 1 or 2</h2><p>There are two main reasons why the number of threads in a CPU topology is usually limited to 1 or 2:</p>
+<ul>
+<li><strong>Physical constraints:</strong> A CPU core can only run a single thread at a time due to having a single instruction pointer (IP) and a single set of registers. When two threads run on the same core, they compete for the same resources, leading to performance degradation.</li>
+<li><strong>Scheduling overhead:</strong> Scheduling threads on different cores can be expensive, as the operating system has to switch between threads and this may cause context switches. Context switches are costly, as they require the operating system to save the state of the current thread and restore the state of the next.</li>
+</ul>
+<p>In some cases, having more than two threads per core may be beneficial. For instance, heavily multithreaded applications may take advantage of the extra threads. However, in most cases, the costs of having more than two threads per core outweigh the benefits.</p>
+<p>There are a few exceptions to the rule that the number of threads in a CPU topology is usually limited to 1 or 2. For example, some CPUs support hyper-threading, which allows a single core to run two threads simultaneously. However, hyper-threading is not always a good idea, as it can sometimes lead to performance degradation.</p>
+<p>Overall, the number of threads in a CPU topology is usually limited to 1 or 2 due to physical constraints and scheduling overhead. While there are exceptions, in most cases, the costs of having more than two threads per core outweigh the benefits.</p>
+<h2 id="Sockets-and-cores-with-performance"><a href="#Sockets-and-cores-with-performance" class="headerlink" title="Sockets and cores with performance"></a>Sockets and cores with performance</h2><p>Sockets and cores do have an impact on performance.</p>
+<ul>
+<li><strong>Sockets:</strong> A socket is a physical connector that holds a CPU. A system can have multiple sockets, each of which can hold multiple cores. The more sockets a system has, the more cores it can have, which can lead to better performance.</li>
+<li><strong>Cores:</strong> A core is a single processing unit within a CPU. A core can run multiple threads simultaneously. The more cores a system has, the more threads it can run, which can also lead to better performance.</li>
+</ul>
+<p>However, it’s important to note that the number of sockets and cores is not the only factor that affects performance. Other factors, such as the clock speed of the CPU, the amount of cache memory, and the type of memory, can also have a significant impact.</p>
+<p>In general, systems with more sockets and cores will have better performance than systems with fewer sockets and cores. However, it’s important to choose a system that has the right balance of sockets, cores, clock speed, cache memory, and memory type for your needs.</p>
+<p>Here are some examples of how sockets and cores can impact performance:</p>
+<ul>
+<li>A system with two sockets and four cores will have better performance than a system with one socket and two cores. This is because the system with two sockets can run more threads simultaneously.</li>
+<li>A system with a higher clock speed will have better performance than a system with a lower clock speed. This is because the system with a higher clock speed can execute instructions faster.</li>
+<li>A system with more cache memory will have better performance than a system with less cache memory. This is because the system with more cache memory can store more data in memory, which reduces the number of times the CPU has to access slower memory.</li>
+<li>A system with faster memory will have better performance than a system with slower memory. This is because the system with faster memory can transfer data to the CPU faster, which reduces the amount of time the CPU has to wait for data.</li>
+</ul>
+<h2 id="Why-aws-only-offer-single-sockets-instance"><a href="#Why-aws-only-offer-single-sockets-instance" class="headerlink" title="Why aws only offer single sockets instance?"></a>Why aws only offer single sockets instance?</h2><p>There are a few reasons why cloud providers like AWS do not offer multi-socket instances.</p>
+<ul>
+<li><strong>Cost:</strong> Multi-socket instances are more expensive than single-socket instances. This is because they require more hardware, such as more CPUs and more memory.</li>
+<li><strong>Complexity:</strong> Multi-socket instances are more complex to manage than single-socket instances. This is because they have more components, such as more CPUs, more memory, and more storage.</li>
+<li><strong>Performance:</strong> Multi-socket instances do not always offer better performance than single-socket instances. This is because the performance of a multi-socket instance can be limited by the speed of the interconnect between the sockets.</li>
+</ul>
+<p>For these reasons, cloud providers like AWS choose to offer single-socket instances. Single-socket instances are less expensive, easier to manage, and offer the same or better performance than multi-socket instances.</p>
+<p>However, there are some cases where multi-socket instances may be a good choice. For example, if you need a lot of CPU power, or if you need to run applications that are not well-optimized for multi-threading, then a multi-socket instance may be a good option.</p>
+<p>If you are considering using a multi-socket instance, it is important to weigh the costs and benefits carefully. You should also make sure that your applications are well-optimized for multi-threading.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/" data-id="cli452qai00005qca451qe2yh" data-title="Understanding CPU Topology for Improved Performance" class="article-share-link">Share</a>
+      
+      
+        <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/#comments" class="article-comment-link">
+          <span class="post-comments-count valine-comment-count" data-xid="/2023/05/26/understanding-cpu-topology-for-improved-performance/" itemprop="commentCount"></span>
+          Comments
+        </a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+
+
+  <nav id="page-nav">
+    
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+  </nav>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.86px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.57px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 11.43px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">February 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+          </li>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2024 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

@@ -2118,3 +2118,11 @@ a.article-title:hover,
     font-size: 26px;
   }
 }
+
+/* Keep the shared navigation inside its grid, including the Tools entry. */
+#header-inner { box-sizing: border-box; }
+@media screen and (max-width: 479px) {
+  #header-inner { padding: 0 6px; }
+  #header-inner:before { display: none; }
+  .main-nav-link, .nav-icon { padding-left: 8px; padding-right: 8px; }
+}

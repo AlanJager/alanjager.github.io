@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2">
+<meta property="og:url" content="http://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2026-09-20T08:00:00.000Z">
+<meta property="article:modified_time" content="2026-09-20T06:15:50.225Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="perf">
+<meta property="article:tag" content="performance">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+        <a class="main-nav-link" href="/tools/" title="开源工具">Tools</a>
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-deepseek-v32-bw1100-profiler-analysis" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" class="article-date">
+  <time class="dt-published" datetime="2026-09-20T08:00:00.000Z" itemprop="datePublished">2026-09-20</time>
+</a>
+  <div class="article-category"><a class="article-category-link" href="/categories/arch-notes/">arch-notes</a></div>
+  </div>
+  <div class="article-inner">
+    <header class="article-header"><h1 class="p-name article-title" itemprop="headline name">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</h1></header>
+    <div class="e-content article-entry" itemprop="articleBody"><p>最近在 8 张 BW1100 上跑 DeepSeek-V3.2 W8A8，顺手做了一次 Profiler 分析练习。这篇文章主要记录分析过程：先看不同负载下的 kernel 时间分布，再根据热点整理后面值得继续确认的问题。</p>
+<p>它不是一份完整的性能报告，也不讨论跨平台排名。里面的数字只用于理解这套环境中的瓶颈变化。</p>
+<p>测试环境是 8 张 BW1100，TP=8，推理框架为 vLLM 0.18.1 + vllm-hcu 0.18.1。模型使用 W8A8 权重、BF16 激活、FP8 KV cache。基线已经启用了 chunked prefill、prefix cache、FlashMLA、global MoE cache、通信计算重叠和 NUMA 绑定。</p>
+<p>换句话说，这不是从一个完全没有优化过的配置开始捡低垂果实。</p>
+<h2 id="phenomenon"><a href="#phenomenon" class="headerlink" title="Phenomenon"></a>Phenomenon</h2>
+<p>基线的 1K 输入、1K 输出测试中：</p>
+<table>
+<thead>
+<tr>
+<th align="right">并发</th>
+<th align="right">输出吞吐</th>
+<th align="right">TTFT Avg</th>
+<th align="right">TPOT Avg</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">C1</td>
+<td align="right">35.04 Token/s</td>
+<td align="right">315.9 ms</td>
+<td align="right">28.25 ms</td>
+</tr>
+<tr>
+<td align="right">C8</td>
+<td align="right">168.55 Token/s</td>
+<td align="right">181.2 ms</td>
+<td align="right">40.39 ms</td>
+</tr>
+<tr>
+<td align="right">C32</td>
+<td align="right">457.97 Token/s</td>
+<td align="right">3083.5 ms</td>
+<td align="right">66.89 ms</td>
+</tr>
+</tbody></table>
+<p>从结果看，随着并发增加，总吞吐继续上升，但排队和单 token 延迟也在增加。这种场景下，直接问“哪个参数最快”没有意义。至少要先区分三个目标：</p>
+<ol>
+<li>单路或低并发 Decode 延迟。</li>
+<li>C8/C32 下的均衡吞吐。</li>
+<li>长上下文 Prefill 和严格 TTFT。</li>
+</ol>
+<p>它们很可能需要不同配置。</p>
+<h2 id="start-from-the-profiler"><a href="#start-from-the-profiler" class="headerlink" title="Start from the Profiler"></a>Start from the Profiler</h2>
+<p>这轮分析取 Rank0 设备 kernel 的累计时间，把算子粗分为通信、MoE、MLA/Attention、量化、GEMM 和 Norm/Activation。</p>
+<p><img src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/time-distribution.png" alt="不同负载下的 Rank0 kernel 累计时间分布"></p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th align="right">通信</th>
+<th align="right">MoE</th>
+<th align="right">MLA/Attention</th>
+<th align="right">量化</th>
+<th align="right">GEMM</th>
+<th align="right">Norm/Activation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Decode C1，128→16</td>
+<td align="right">11.8%</td>
+<td align="right">13.3%</td>
+<td align="right">12.4%</td>
+<td align="right">15.6%</td>
+<td align="right">30.5%</td>
+<td align="right">15.2%</td>
+</tr>
+<tr>
+<td>Prefill C1，16K→1</td>
+<td align="right">11.0%</td>
+<td align="right">20.8%</td>
+<td align="right">47.6%</td>
+<td align="right">5.6%</td>
+<td align="right">10.5%</td>
+<td align="right">3.3%</td>
+</tr>
+<tr>
+<td>Decode C32，1K→16</td>
+<td align="right">9.0%</td>
+<td align="right">28.2%</td>
+<td align="right">21.5%</td>
+<td align="right">10.6%</td>
+<td align="right">19.2%</td>
+<td align="right">10.8%</td>
+</tr>
+</tbody></table>
+<p>这里最重要的不是某个百分比，而是三个场景的形状完全不同。</p>
+<p>16K Prefill 明显由 Attention 主导。<code>sparse_attn_fwd_kernel</code> 占 29.5%，<code>mqa_logits_fp8</code> 占 17.3%。如果目标是长上下文 TTFT，应该优先看 Attention、长 Prefill 切分和调度，而不是盯着普通 GEMM。</p>
+<p><img src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/prefill-operator-heatmap.png" alt="16K Prefill 算子执行热力图"></p>
+<p>C32 Decode 中，MoE 占比上升到 28.2%，MLA/Attention 为 21.5%，GEMM 下降到 19.2%。高并发时，MoE、Attention 和跨卡归约共同决定结果，也不存在一个可以单独解决问题的“大算子”。</p>
+<p>C1 Decode 看起来 GEMM 最高，但展开时间轴后，会看到一条由大量量化、GEMM、Norm、Attention、MoE 和通信 kernel 组成的密集链。</p>
+<p><img src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/decode-operator-timeline.png" alt="Decode 算子执行时间轴"></p>
+<p>这给出的一个方向是：Decode 不一定缺少某个更快的 GEMM，更可能需要减少 launch、同步和重复计算。不过 Profiler 只能帮助提出问题，不能直接证明某种改法一定有效。</p>
+<h2 id="几个需要说明的地方"><a href="#几个需要说明的地方" class="headerlink" title="几个需要说明的地方"></a>几个需要说明的地方</h2>
+<p>上面的数字还有几处不能看得太满：</p>
+<ul>
+<li>Profiler 占比来自 Rank0 设备 kernel 累计时间；stream 重叠可能造成重复计时，不能把各项占比理解成严格的 wall-clock 分解。</li>
+<li>结果绑定于这套模型、W8A8 量化、KV cache、框架/插件版本和 8×BW1100 配置。模型、精度、tokenizer、缓存状态和请求分布没有对齐时，这些数字不适合拿去做横向比较。</li>
+</ul>
+<h2 id="后续工作"><a href="#后续工作" class="headerlink" title="后续工作"></a>后续工作</h2>
+<p>这次先停在 Profiler 分析。后面如果继续做，会先把测试方法固定下来，再逐项验证：</p>
+<ol>
+<li>补充不同输入长度和并发下的 trace，确认热点变化不是单个样本造成的。</li>
+<li>把 Prefill 和 Decode 分开看，分别记录 wall-clock、设备时间、TTFT、TPOT 和吞吐，避免混在一起解释。</li>
+<li>针对 Decode 的小 kernel 链测试融合、调度和 speculative decoding，但一次只改一个变量。</li>
+<li>针对长 Prefill 继续拆 Attention、MoE 和通信时间，确认优化空间到底落在哪一层。</li>
+<li>补齐请求数、正确性、显存和 P50/P95/P99 后，再决定哪些结果值得单独写。</li>
+</ol>
+<p>现在这些更多还是拿数据和熟悉工具，先不急着下结论。</p>
+</div>
+    <footer class="article-footer">
+      <a data-url="http://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" data-id="deepseek-v32-bw1100-profiler-analysis" data-title="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2" class="article-share-link">Share</a>
+      <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" itemprop="commentCount"></span>Comments</a>
+      <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li></ul>
+    </footer>
+  </div>
+  <nav id="article-nav"><a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" id="article-nav-older" class="article-nav-link-wrap"><strong class="article-nav-caption">Older</strong><div class="article-nav-title">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</div></a></nav>
+</article>
+
+
+
+  <section id="comments" class="vcomment">
+
+  </section>
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.86px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.43px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.86px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.43px;">ft</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.86px;">java</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.86px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.57px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 10px;">perf</a> <a href="/tags/performance/" style="font-size: 11.43px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.86px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.86px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">February 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">January 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">December 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">November 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">October 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">September 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">July 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">June 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">April 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">February 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">December 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+          </li>
+        
+          <li>
+            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+          </li>
+        
+          <li>
+            <a href="/2023/04/13/qemu-colo-details/">Qemu Colo Details</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+        <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+  <a class="mobile-nav-link" href="/tools/" title="开源工具">Tools</a>
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
+
+<script>
+    var GUEST_INFO = ['nick','mail','link'];
+    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+        return GUEST_INFO.indexOf(item) > -1
+    });
+    var notify = '' == true;
+    var verify = 'false' == true;
+    new Valine({
+        el: '.vcomment',
+        notify: notify,
+        verify: verify,
+        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
+        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
+        placeholder: "Just go go",
+        pageSize:'10',
+        avatar:'mm',
+        lang:'zh-cn'
+    });
+</script>
+
+  </div>
+</body>
+</html>

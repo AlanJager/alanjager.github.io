@@ -138,6 +138,18 @@ Disqus
 Google Analytics  
 Google Custom Search Engine[^1]
 
+## SEO / AEO / GEO
+
+Theme script `scripts/seo-geo-aeo.js` runs on `hexo generate` and writes
+`robots.txt`, `sitemap.xml`, `llms.txt`. Layout injects JSON-LD and https
+canonical tags. Set the **site** `_config.yml` (not this theme file):
+
+```
+url: https://hanayo.cn
+language: zh-CN
+author: Alan Jager
+```
+
 ## License
 The MIT License[^2]
 

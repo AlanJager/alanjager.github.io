@@ -1,0 +1,32 @@
+<%
+  var site = (config.url || 'https://hanayo.cn').replace(/\/$/, '').replace(/^http:/i, 'https:');
+  var lang = config.language || 'zh-CN';
+  var person = {
+    '@type': 'Person',
+    name: config.author || 'Alan Jager',
+    url: site + '/',
+    sameAs: ['https://github.com/AlanJager']
+  };
+  var graph = [{
+    '@type': 'WebSite',
+    name: config.title || '花の様に',
+    url: site + '/',
+    inLanguage: lang,
+    publisher: person
+  }];
+  if (page.layout === 'post' && page.title) {
+    var permalink = (page.permalink || (site + '/' + page.path)).replace(/^http:/i, 'https:');
+    graph.push({
+      '@type': 'BlogPosting',
+      headline: page.title,
+      description: page.description || undefined,
+      url: permalink,
+      datePublished: page.date ? page.date.toISOString() : undefined,
+      dateModified: (page.updated || page.date) ? (page.updated || page.date).toISOString() : undefined,
+      inLanguage: lang,
+      author: person,
+      mainEntityOfPage: permalink
+    });
+  }
+%>
+<script type="application/ld+json"><%- JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }) %></script>

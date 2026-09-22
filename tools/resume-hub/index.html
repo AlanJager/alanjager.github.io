@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>resume-hub | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="resume-hub | 花の様に">
+  <meta property="og:url" content="https://hanayo.cn/tools/resume-hub/">
+  <meta property="og:site_name" content="花の様に">
+  <meta property="article:author" content="Alan Jager">
+  <meta name="twitter:card" content="summary">
+  <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  <link rel="shortcut icon" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+  <meta name="generator" content="Hexo 5.1.1">
+  <meta name="description" content="Codex 限额后，从本机 session 文件切到 Grok 或 Claude 继续。本地 Python 脚本写 handoff.md，不消耗模型额度。">
+  <link rel="canonical" href="https://hanayo.cn/tools/resume-hub/">
+</head>
+<body><div id="container"><div id="wrap"><header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        <a class="main-nav-link" href="/">Home</a>
+        <a class="main-nav-link" href="/archives">Archives</a>
+        <a class="main-nav-link" href="/tools/" title="开源工具">Tools</a>
+      </nav>
+      <nav id="sub-nav">
+        <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header><div class="outer"><section id="main">
+<article class="article article-type-page">
+  <div class="article-inner">
+    <header class="article-header"><h1 class="article-title">resume-hub</h1></header>
+    <div class="article-entry">
+      <p>Codex / Claude / Cursor / Grok 的 session 交接。限额用尽时，从本机已经落盘的 transcript 挑最近一条，换 Grok 接着干，或写出 <code>handoff.md</code> 交给 Claude。</p>
+      <p>写文件的是本地 Python 脚本，不调用模型，不消耗额度。</p>
+      <h2>一句话用法</h2>
+      <p>在 Grok 里说：</p>
+      <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span></pre></td><td class="code"><pre><span class="line">Codex 限额了，用 Grok 继续</span><br><span class="line">切到 Claude 继续</span></pre></td></tr></table></figure>
+      <p>人还卡在 Codex、终端可用时：</p>
+      <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span></pre></td><td class="code"><pre><span class="line">python3 scripts/resume_hub.py switch --from codex --to claude</span></pre></td></tr></table></figure>
+      <h2>安装</h2>
+      <p>Python 3，无第三方包。</p>
+      <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span></pre></td><td class="code"><pre><span class="line">git clone https://github.com/AlanJager/alanjager.github.io.git</span><br><span class="line">cd alanjager.github.io</span><br><span class="line">cp -R tools/resume-hub ~/.grok/skills/resume-hub</span><br><span class="line">cp -R tools/resume-hub ~/.claude/skills/resume-hub</span></pre></td></tr></table></figure>
+      <p>源码与说明：<a href="./README.md">README.md</a> · <a href="./SKILL.md">SKILL.md</a> · <a href="./LICENSE">MIT License</a></p>
+      <p><a href="https://github.com/AlanJager/alanjager.github.io/tree/github_pages/tools/resume-hub" rel="noopener" target="_blank">GitHub 上的源码</a> · <a href="/tools/">返回 Tools</a></p>
+      <hr>
+      <p lang="ja"><strong>resume-hub</strong><br>Codex の上限に達したら、ディスク上の session から最新の作業を拾い、Grok か Claude で続けます。<code>handoff.md</code> はローカルの Python が書き、モデル課金は使いません。</p>
+    </div>
+  </div>
+</article>
+</section></div><footer id="footer">
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a></br>
+      Tool source under <a href="./LICENSE">MIT</a>. Blog content remains CC BY-NC 4.0.<br>
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer></div><nav id="mobile-nav">
+  <a href="/" class="mobile-nav-link">Home</a>
+  <a href="/archives" class="mobile-nav-link">Archives</a>
+  <a class="mobile-nav-link" href="/tools/" title="开源工具">Tools</a>
+</nav></div><script src="/js/jquery-3.4.1.min.js"></script><script src="/js/script.js"></script></body></html>

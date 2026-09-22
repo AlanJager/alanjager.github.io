@@ -100,47 +100,8 @@
 
       </header>
     
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet following blue screen issue:</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/image-2022-10-09-21-15-41-292.png" class="">
-
-<p>with code 0x0000007B.</p>
-<p>So I write a hands-on blog to help fix this issue.</p>
-<p>When search for this error on vmware kb or MSDN, we can find out that, wrong driver is the main reason cause this problem.</p>
-<p>Usually, it’s recommanded to do following check for the v2v vm:</p>
-<ol>
-<li>Confirm the vm running well on original host, if its already error check configuration first.</li>
-<li>Check if virt-v2v failed to install virtio driver to guest during virt-v2v convert.</li>
-<li>Check kvm configuration, that root disk use ide to keep compitable.</li>
-<li>Check if windows disabled driver installatin by its group policy.</li>
-</ol>
-<p>Besides those issues, if you migrate a windows 2003 with cd-rom you will also met this blue screen issue. Due to windows will change device order after v2v and root disk not work as expected.</p>
-<p>So I write this practical blog to resolve device changed issue on windows 2003 v2v.</p>
-<ol>
-<li><p>Uninstall vmware guest tools and drivers (avoid failed to install driver issue)</p>
-</li>
-<li><p>Change the disk controller to ide and reboot guest</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.33.png" class="">
-</li>
-<li><p>Attach MergeIde.iso to guest</p>
-<img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.43.png" class="">
-<p>the iso contains a .reg and a .bat file. Run the .reg first and run the .bat. The device will be recorded and prepare for hypervisor change.</p>
-</li>
-<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.14.29.png" class="">
-<p>export ovf template or use virt-v2v to export the vm the kvm.</p>
-</li>
-<li><img src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.10.01.png" class="">
-<p>check the vm started without blue screen.</p>
-</li>
-</ol>
-<p>For windows, it seems that with cd-rom or disk order changed guest, after hypervisor migration, windows can not identify the original order of thoes devices due to hardware change. So record the device seems a easy solution for v2v case.</p>
-<p>Note: this solution is also useful for Windows XP v2v</p>
-<p>Download MergeIDE.iso from: <a target="_blank" rel="noopener" href="https://www.virtualbox.org/wiki/Migrate_Windows">https://www.virtualbox.org/wiki/Migrate_Windows</a></p>
-<p>Refer to Microsoft commands: <a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting">https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting</a></p>
-
-      
-    </div>
+    <div class="e-content article-entry" itemprop="articleBody"><p>When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet fol...</p>
+<p class="article-more-link"><a href="/2022/10/27/windows-2003-vmware-v2v-hands-on/">Read More</a></p></div>
     <footer class="article-footer">
       <a data-url="https://hanayo.cn/2022/10/27/windows-2003-vmware-v2v-hands-on/" data-id="cld1mheb6001lyuwb9nbs97t5" data-title="Windows 2003 vmware v2v hands-on" class="article-share-link">Share</a>
       
@@ -185,90 +146,8 @@
 
       </header>
     
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p>Software’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on customizing features for some commercial reasons which pushed us to think about how to get rid of customizing feature efforts and focus   on core function to earn more technical advantages.</p>
-<p>Generallly, customizing features is harmful when compared to normal features (but maybe it can get commercial benifits so do not take this as absolute     rule), because more customers use normal features.</p>
-<p>But because some integration requests already designed which not only require maintainance but also need development for new integration. For example, a feature for security is desing to use third-part machine to do encryption，but when customer use the feature, they all use different machine which caused lots of development cost for us to do the integrations.</p>
-<p>In these cases, a plugable architecture is required to cut down the cost and this is the reason to write this blog to record related design and make it a repeatable practice.</p>
-<h2 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements"></a>Requirements</h2><p>For existing systems which need to support multi types of resources, typically use a register way to connect the management layer and application layers. And the application layers use a couple of standard interfaces to keep consistency and seperate implementation from mechanism.</p>
-<p>So for the aim of delveloping a plugable module architecture if we still follows the pattern, easily we will be distrubed by the change of core codes from the mechanism. For example, if the core changes the mechanism as a result, application should change all of the interfaces as expected, so development is required which is not satisfied with out target.</p>
-<p>Just after that small think, list all requirements before starting design. Following points are the aim of this architecture:</p>
-<ul>
-<li>Low development efforts or configuration as a service.</li>
-<li>No core code dependency. Any changes to mechanism should be avoid.</li>
-<li>Security. Plugin module should not cause any security issue.</li>
-</ul>
-<p>Base on those points, the architecture should be changed to expose its mechanism by interfaces.</p>
-<p>For example</p>
-<ol>
-<li>read plugin configuration and verify it</li>
-<li>generate code proxy according to the configuration</li>
-<li>limited db access controled by the code proxy</li>
-<li>Invokations can be verified by unit test to check the plugin can work as expected</li>
-<li>change the configuration the refresh it could update the code proxy</li>
-<li>plugin configurations use a specified syntax</li>
-<li>if code proxy support runtime refresh can be configured</li>
-</ol>
-<p>From writing configurations, functional features can be easily supported.</p>
-<p>If any requests need data structure support, a configuration map shoud be support for more customize and in this way we can easily create a http client to support some modules.</p>
-<p>But if customize feature use any third-part libs, only configuration is not enough to support.</p>
-<p>For code level, maybe open source interfaces is still needed.</p>
-<p>We should offer read only data structure and functional interfaces but should not involve core codes of Java which in most cases, are aspectj support, spring containers and so on. Only pure java should be used for all plugin modules.</p>
-<p>In next section, we will raise examples of two module, one is not suitable for plugable module and other one is suitable for plugable.</p>
-<h2 id="Login-module"><a href="#Login-module" class="headerlink" title="Login module"></a>Login module</h2><p>Multiple login methods should be supported because many standard third-part authentication is already exists for example, CAS, oauth2, ldap and so on.</p>
-<p>If you already have a customized system for authentication, I seems diffcult to integrate another system with existing one. Because the authentication actually need to transfer sensitive information to do authenticate but which is not safe enough to expose those data for plugin exactly.</p>
-<p>From the usage of CAS, oauth2 we can see a generally authentication service just redirect authentication to itself and returns a authentication result and finally redirect to the right page. So sensitive information do not transferred but use a token to verify client’s response instead. </p>
-<p>For ldap, just access its database directly to verify if the user is exists and finish authentication. Because ldap just integrated with ZStack so also no data transferred but ldap module itself need to care about the security issue which already resolve by third-part libs.</p>
-<p>So when we tries to support plugin for login, password or any key liked information need to be exposed which is quite unsafe and have potential security risks. Compared to ldap verification, password is used directly and also faces the same problem.</p>
-<p>For login module integration, two ways are recommended. One is using open-source authentication like CAS or oauth2. Another is integrating ZStack API to use account/user directly.</p>
-<p>Following figure shows the flows of login module</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure1.png" class="">
-
-<ul>
-<li>Support plugable system, main auth or additinal auth should be exposed</li>
-<li>Sensitive information go through the whole flow</li>
-<li>CAS and oauth2 use their own authentication which is not related the current architecture</li>
-</ul>
-<h2 id="Alarm-Event-system"><a href="#Alarm-Event-system" class="headerlink" title="Alarm/Event system"></a>Alarm/Event system</h2><p>For alarm event system, only expose monitor messages which seems more suitable to be developed as a plugable system.</p>
-<p>When have lots of endpoint support, some use stantard libs like dingtalk and microsoft teams, offers api for message sending. But when sms system require integration, this became diffcult due to the lack of stantard apis.</p>
-<p>So a plugable system can be powerful to reduce development efforts.</p>
-<p>For example, sms systems all have their own apis the usages, so the interation of api is the first step. But actually the business scenarios are not only limited on send message. Maybe message distribution strategy is required, and message format is required.</p>
-<p>So seperate those parts as followings:</p>
-<ul>
-<li>Send sms message</li>
-<li>Distribution strategy</li>
-<li>Message format</li>
-<li>….</li>
-</ul>
-<p>When design plugable system, the most important thing is that we should seperate mechanism requirements and strategy requirements. </p>
-<p>For message format, actually, all kinds of message required this feature and can be noted as general feature and mechanism and we can also call it customize message format. The format change do not influence how the message send or comsumed.</p>
-<p>Distribution strategy, from the name, we can known that no specific rules or format could be announced because the strategy always changes from one the another.</p>
-<p>Send sms message. also the integration part but the message with a format is what we can offered and only how to send the message should be defined and which is I think can be seperated from the system.</p>
-<p>And more informations maybe, endpoint type, status and those ZStack defined fields also need to be involved in the plugable system so we get a architecture like following:</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure2.png" class="">
-
-<p>A plugable endpoint in designed to manage endpoint plugins and plugin should obey following rules: </p>
-<ul>
-<li>Offer endpoint type</li>
-<li>Implement interface to send message</li>
-<li>Unit test for endpoint plugin</li>
-</ul>
-<p>And the design of plugable endpoint may like following:</p>
-<img src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure3.png" class="">
-
-<p>So plugable endpoint should define a interface require type and send() method’s implementation for the usage. Take the interface to a seperate open source package and publish to maven repository, its easy for develop and easy to use. By reflections, endpoint could be initialized from jar so just add jar to your dependency directory is ok.</p>
-<p>To develop a plugin for new sns endpoint no need to known the logic or usage of orignal application system but developer could focus on the send method itself.</p>
-<p>On the other hand, application level should extend orignal CURD api to suitable for those plugin definition and keep compitable with other endpoints.</p>
-<h2 id="TODO"><a href="#TODO" class="headerlink" title="TODO"></a>TODO</h2><ul>
-<li>Database access is not limited which should add limited on database service itself.</li>
-<li>Rules for all kind of plugins so that plugins can be managed together and distribution can keep consistency</li>
-<li>More examples</li>
-<li>For exsiting modules, try to refactor the plugin types to get rid of module dependency</li>
-</ul>
-
-      
-    </div>
+    <div class="e-content article-entry" itemprop="articleBody"><p>Software’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on cus...</p>
+<p class="article-more-link"><a href="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/">Read More</a></p></div>
     <footer class="article-footer">
       <a data-url="https://hanayo.cn/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/" data-id="cld1mheas0011yuwbeb60edrj" data-title="Plugable module architecture design and thoughts about its implementation" class="article-share-link">Share</a>
       
@@ -313,107 +192,8 @@
 
       </header>
     
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h2 id="Background"><a href="#Background" class="headerlink" title="Background"></a>Background</h2><p>Out system became unavailable due to <code>java.lang.OutOfMemoryError: Metaspace</code> and according to a stackoverflow answer: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/36051813/java8-java-lang-outofmemoryerror-metaspace">https://stackoverflow.com/questions/36051813/java8-java-lang-outofmemoryerror-metaspace</a>, I started to figure out what wrong with the system.</p>
-<p>Before finding start analysis jvm memory dump, we need to known what means memory leak. In this case, we found thread failed to execution because create task failed due to OOM. But there are two typical reason.</p>
-<ul>
-<li>Too many classes need to be loaded</li>
-<li>Memory leak causes some classes not unloaded</li>
-</ul>
-<p>Everytime you new a object, metaspace will be allocated to store metadata of the object. </p>
-<p>Following code could reproduce this issue:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; ; i++) &#123;</span><br><span class="line">            Class c = cp.makeClass(<span class="string">&quot;eu.plumbr.demo.Generated&quot;</span> + i).toClass();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>pom.xml</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.javassist<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>javassist<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>3.27.0-GA<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>so dynamic created class will add new class information into metaspace but if there is no class loader reference to the class, the class will be cleared after GC.</p>
-<p>So it’s clear that if memory leak happened to your metaspace, you can find your application no problem when just started and oom happens after it runs for a period of time.</p>
-<h2 id="Tools"><a href="#Tools" class="headerlink" title="Tools"></a>Tools</h2><p>A couple of tools are available for memory leak analysis and only refer to what I have used when I figure out this issue.</p>
-<h3 id="JConsole"><a href="#JConsole" class="headerlink" title="JConsole"></a>JConsole</h3><blockquote>
-<p> <strong>JConsole</strong> is a graphical monitoring tool to monitor <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Virtual_Machine">Java Virtual Machine</a> (JVM) and Java applications both on a local or remote machine.</p>
-<p> JConsole uses underlying features of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Virtual_Machine">Java Virtual Machine</a> to provide information on performance and resource consumption of applications running on the Java platform using <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Management_Extensions">Java Management Extensions</a> (JMX) technology. JConsole comes as part of <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Java_Development_Kit">Java Development Kit</a> (JDK) and the graphical console can be started using “jconsole” command. </p>
-</blockquote>
-<p>As JConsole is a part of JDK, you can easily find it. On macOS, you can use commandline directly</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jconsole</span><br></pre></td></tr></table></figure>
-
-<p>or find your java_home by </p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/usr/libexec/java_home -V</span><br></pre></td></tr></table></figure>
-
-<p>the jconsole is under</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/Library/Java/JavaVirtualMachines/jdk1.8.0_271.jdk/Contents/Home/bin/jconsole</span><br></pre></td></tr></table></figure>
-
-<p>and then connect to local or remote application.</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1000.00.54.png" class="">
-
-<p>Note: </p>
-<p>In order to use JConsole, jmx need to be enabled for your application’s jvm options</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=10000 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=your_ip_address</span><br></pre></td></tr></table></figure>
-
-<p>make sure your ip adress and port is available for remote access.</p>
-<p>From JConsole we can monitor loaded class number, unloaded class number, perform gc and check if metaspace is continuously increasing.</p>
-<h3 id="VisualVM"><a href="#VisualVM" class="headerlink" title=" VisualVM"></a> VisualVM</h3><p>A replacement for JConsole except jvm monitor, heap dump, application snapshot is available which is quite efficient for memory leak analysis.</p>
-<h3 id="Memory-Analyzer-MAT"><a href="#Memory-Analyzer-MAT" class="headerlink" title="Memory Analyzer (MAT)"></a>Memory Analyzer (MAT)</h3><p>The Eclipse Memory Analyzer is a fast and feature-rich <strong>Java heap analyzer</strong> that helps you find memory leaks and reduce memory consumption.Use the Memory Analyzer to analyze productive heap dumps with hundreds of millions of objects, quickly calculate the retained sizes of objects, see who is preventing the Garbage Collector from collecting objects, run a report to automatically extract leak suspects.</p>
-<p>My application use openjdk-1.8, so only MemoryAnalyzer-1.11.0.20201202-macosx.cocoa.x86_64.dmg</p>
-<p>could be used. After that MAT only support java11.</p>
-<h2 id="Start-debug"><a href="#Start-debug" class="headerlink" title="Start debug"></a>Start debug</h2><p>Combining background and tools, finding continuously increasing memory is easy but how to get to the code seems more diffcult.</p>
-<p>But we could seperate debug procedure to several steps</p>
-<ul>
-<li>Do heap dump during a period to known always in memory classes and dynamic classes</li>
-<li>Compare heap dump to figure out what increase metaspace</li>
-<li>Find a operation that causes the leak</li>
-</ul>
-<p>Use visualVM connect to java application and monitor for a time</p>
-<p>Metaspace leak can be monitored because after manually perforce GC, it still not decrease.</p>
-<p>GC performed we have 72246 loaded classes.</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.07.29.png" class="">
-
-<p>after aboubt 1minutes, GC performed but loaded class increased to 72262</p>
-<p>![截屏2022-10-11 16.08.23](/Users/kayo/Desktop/blog/JVM metaspace memory leak analysis/截屏2022-10-11 16.08.23.png)</p>
-<p>Aboviously there are some leak problems, so still use 1 minute as period and collect two heap dump for next step analysis.</p>
-<p>Open the heap dumps with MAT to do compare, from heap dump’s dominator tree</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.17.40.png" class="">
-
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.17.44.png" class="">
-
-<p>Luckily, we found the increased class at first glance. The SessionFactoryImpl seems to blame.</p>
-<p>Except this we found another issue with Groovy’s GStringTemplateEngine which causes groovy.reflection.ClassInfo increases and we will tell the details in next section.</p>
-<p>Expand the suspects to get more details about it. By list all objects, query plan cache increased, so just google for this value</p>
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.30.49.png" class="">
-
-<img src="/2022/10/11/jvm-metaspace-memory-leak-analysis/%E6%88%AA%E5%B1%8F2022-10-1116.30.58.png" class="">
-
-<p>from <a target="_blank" rel="noopener" href="https://docs.jboss.org/hibernate/orm/5.0/javadocs/org/hibernate/engine/query/spi/QueryPlanCache.html">https://docs.jboss.org/hibernate/orm/5.0/javadocs/org/hibernate/engine/query/spi/QueryPlanCache.html</a>:  Acts as a cache for compiled query plans, as well as query-parameter metadata.</p>
-<p>And check its source code:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * the cache of the actual plans...</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> BoundedConcurrentHashMap queryPlanCache;</span><br></pre></td></tr></table></figure>
-
-<p>it seems a bounded hashmap and created like below:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">queryPlanCache = <span class="keyword">new</span> BoundedConcurrentHashMap( maxQueryPlanCount, <span class="number">20</span>, BoundedConcurrentHashMap.Eviction.LIRS );</span><br></pre></td></tr></table></figure>
-
-<p>and hibernate use default 2048 as maxQueryPlanCount and LIRS as eviction strategy. So no need to solve a cache increasing.</p>
-<h2 id="GStringTemplateEngine"><a href="#GStringTemplateEngine" class="headerlink" title="GStringTemplateEngine"></a>GStringTemplateEngine</h2><p>By debug steps, we find GStringTemplateScript occupied metaspace and thousands of classes are created.</p>
-<p>Check its implements, </p>
-<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">groovyClass = loader.parseClass(<span class="keyword">new</span> GroovyCodeSource(templateExpressions.toString(), <span class="string">&quot;GStringTemplateScript&quot;</span> + GStringTemplateEngine.counter.incrementAndGet() + <span class="string">&quot;.groovy&quot;</span>, <span class="string">&quot;x&quot;</span>));</span><br></pre></td></tr></table></figure>
-
-<p>GStringTemplateScript will be created every GStringTemplate created. So for template creation, will cause dynamic class creation and finally let jvm run out of memory.</p>
-<p>According to some related fix, <a target="_blank" rel="noopener" href="https://issues.apache.org/jira/browse/GROOVY-7017">https://issues.apache.org/jira/browse/GROOVY-7017</a> this fix use a seperate class loader to make sure gstring template could be gced from heap but metaspace is still occupied.</p>
-<p>And another article talk about: <a target="_blank" rel="noopener" href="https://tigase.net/how-aws-helped-us-optimize-memory-usage-tigase-http-api/">https://tigase.net/how-aws-helped-us-optimize-memory-usage-tigase-http-api/</a> AWS improve Tigase HTTP API Memory usage, following fix is suggested: </p>
-<ul>
-<li>We load all templates at once using single <code>GStringTemplateEngine</code> and cache generate templates. <strong>No more automatic reloading of templates.</strong></li>
-<li>When manual reload of templates is initiated we release old instance of <code>GStringTemplateEngine</code> and parse templates using the new one.</li>
-</ul>
-<p>So do some test before change our code:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> groovy.text.GStringTemplateEngine;</span><br><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.StringReader;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.ManagementFactory;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.MemoryPoolMXBean;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GroovyMetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">final</span> String EVENT_CHINESE_TEMPLATE = <span class="string">&quot;事件 发生了 事件详情: 名称:&quot;</span>;</span><br><span class="line"></span><br><span class="line">        GStringTemplateEngine engine = <span class="keyword">new</span> GStringTemplateEngine();</span><br><span class="line">        HashMap&lt;Integer, groovy.text.Template&gt; templateHashMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            groovy.text.Template template = templateHashMap.get(EVENT_CHINESE_TEMPLATE.hashCode());</span><br><span class="line">            <span class="keyword">if</span> (template == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    template = (groovy.text.Template) engine.createTemplate(<span class="keyword">new</span> StringReader(EVENT_CHINESE_TEMPLATE));</span><br><span class="line">                &#125; <span class="keyword">catch</span> (ClassNotFoundException | IOException e) &#123;</span><br><span class="line">                    <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                templateHashMap.put(EVENT_CHINESE_TEMPLATE.hashCode(), template);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.out.println(template.make().toString());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (MemoryPoolMXBean memoryMXBean : (ManagementFactory.getMemoryPoolMXBeans())) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="string">&quot;Metaspace&quot;</span>.equals(memoryMXBean.getName())) &#123;</span><br><span class="line">                    System.out.println(memoryMXBean.getUsage().getUsed()/<span class="number">1024</span>/<span class="number">1024</span> + <span class="string">&quot; mb&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.gc();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>by use templateHashMap as cache to avoid duplicate template creation, we can see Metaspace memory usage not changed</p>
-<p>but if change the code without templateHashMap:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> groovy.text.GStringTemplateEngine;</span><br><span class="line"><span class="keyword">import</span> javassist.ClassPool;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.StringReader;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.ManagementFactory;</span><br><span class="line"><span class="keyword">import</span> java.lang.management.MemoryPoolMXBean;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GroovyMetaspaceOOM</span> </span>&#123;</span><br><span class="line">    <span class="keyword">static</span> ClassPool cp = ClassPool.getDefault();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception</span>&#123;</span><br><span class="line">        <span class="keyword">final</span> String EVENT_CHINESE_TEMPLATE = <span class="string">&quot;事件 发生了 事件详情: 名称:&quot;</span>;</span><br><span class="line"></span><br><span class="line">        GStringTemplateEngine engine = <span class="keyword">new</span> GStringTemplateEngine();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            groovy.text.Template template;</span><br><span class="line">            <span class="comment">//= templateHashMap.get(EVENT_CHINESE_TEMPLATE.hashCode());</span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                template = (groovy.text.Template) engine.createTemplate(<span class="keyword">new</span> StringReader(EVENT_CHINESE_TEMPLATE));</span><br><span class="line">            &#125; <span class="keyword">catch</span> (ClassNotFoundException | IOException e) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.out.println(template.make().toString());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (MemoryPoolMXBean memoryMXBean : (ManagementFactory.getMemoryPoolMXBeans())) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="string">&quot;Metaspace&quot;</span>.equals(memoryMXBean.getName())) &#123;</span><br><span class="line">                    System.out.println(memoryMXBean.getUsage().getUsed()/<span class="number">1024</span>/<span class="number">1024</span> + <span class="string">&quot; mb&quot;</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.gc();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>the metaspace will increase until oom.</p>
-
-      
-    </div>
+    <div class="e-content article-entry" itemprop="articleBody"><p>Out system became unavailable due to java.lang.OutOfMemoryError: Metaspace and according to a stackoverflow answer: https://stackoverflow.com/questions/36051813/java8-java-lang-...</p>
+<p class="article-more-link"><a href="/2022/10/11/jvm-metaspace-memory-leak-analysis/">Read More</a></p></div>
     <footer class="article-footer">
       <a data-url="https://hanayo.cn/2022/10/11/jvm-metaspace-memory-leak-analysis/" data-id="cld1mhead000kyuwb98bvg0mn" data-title="JVM metaspace memory leak analysis" class="article-share-link">Share</a>
       

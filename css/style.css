@@ -2341,18 +2341,15 @@ html {
   }
 }
 
-/* Sidebar height follows the excerpted article column. */
+/* Compact sidebar to match excerpted homepage listings. */
 @media screen and (min-width: 768px) {
   #sidebar .widget-wrap:has(.tag-list) {
     display: none;
   }
   #sidebar .widget-wrap {
-    margin: 14px 0;
+    margin: 12px 0;
   }
   #sidebar .widget-wrap:first-child {
     margin-top: 0;
-  }
-  #sidebar {
-    overflow-y: auto;
   }
 }

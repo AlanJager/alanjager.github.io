@@ -229,3 +229,58 @@ hexo.extend.filter.register('after_render:html', function (str) {
   const tag = '<script type="application/ld+json">' + JSON.stringify(payload) + '</script>';
   return str.replace('</head>', tag + '\n</head>');
 });
+
+function excerptFromInner(inner) {
+  const cleaned = String(inner)
+    .replace(/<figure[\s\S]*?<\/figure>/gi, ' ')
+    .replace(/<pre[\s\S]*?<\/pre>/gi, ' ');
+  const paras = cleaned.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) || [];
+  for (let i = 0; i < paras.length; i++) {
+    if (paras[i].indexOf('article-more-link') !== -1) continue;
+    let text = paras[i].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (text.length < 20) continue;
+    if (text.length > 180) text = text.slice(0, 177).replace(/\s+\S*$/, '') + '...';
+    return '<p>' + text + '</p>';
+  }
+  let text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'Read more';
+  if (text.length > 180) text = text.slice(0, 177).replace(/\s+\S*$/, '') + '...';
+  return '<p>' + text + '</p>';
+}
+
+function compactListHtml(html) {
+  return html.replace(/<article\b[\s\S]*?<\/article>/g, function (article) {
+    if (article.indexOf('article-type-post') === -1) return article;
+    const m = article.match(
+      /(<div class="e-content article-entry"[^>]*>)([\s\S]*?)(<\/div>\s*<footer class="article-footer">)/
+    );
+    if (!m) return article;
+    if (m[2].indexOf('article-more-link') !== -1 && m[2].length < 800) return article;
+    const hrefMatch = article.match(/class="p-name article-title" href="([^"]+)"/);
+    const href = hrefMatch ? hrefMatch[1] : '/';
+    const inner = excerptFromInner(m[2]) +
+      '\n<p class="article-more-link"><a href="' + href + '">Read More</a></p>';
+    return article.slice(0, m.index) + m[1] + inner + m[3] + article.slice(m.index + m[0].length);
+  });
+}
+
+hexo.extend.filter.register('after_generate', function () {
+  const fs = hexo.render ? require('fs') : require('fs');
+  const path = require('path');
+  const publicDir = hexo.public_dir;
+  const files = ['index.html'];
+  try {
+    const pages = fs.readdirSync(path.join(publicDir, 'page'));
+    pages.forEach(function (name) {
+      files.push(path.join('page', name, 'index.html'));
+    });
+  } catch (err) {
+    /* no pagination */
+  }
+  files.forEach(function (rel) {
+    const full = path.join(publicDir, rel);
+    if (!fs.existsSync(full)) return;
+    const old = fs.readFileSync(full, 'utf8');
+    const next = compactListHtml(old);
+    if (next !== old) fs.writeFileSync(full, next);
+  });
+});

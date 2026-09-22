@@ -1,0 +1,36 @@
+# 花の様に
+
+> Alan Jager 的 KVM / virtio / Linux 内核排查笔记。
+
+- 站点: https://hanayo.cn/
+- 作者: Alan Jager
+- GitHub: https://github.com/AlanJager
+
+## 工具
+
+- [resume-hub](https://hanayo.cn/tools/resume-hub/): Codex 限额后从本机 session 切到 Grok / Claude。
+
+## 近期文章
+
+- [在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2](https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/) — 在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。
+- [XFS 报错但根因不在 XFS：一次 uprobe 越界写排查](https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/) — 两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。
+- [Linux guest could not access tsc clocksource](https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/) — Phenomenoncheck TSC disabled from guest 12[    0.000004] tsc: Detected 1999.999 MHz processor[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized
+- [The disk in the guest OS is unmounted during the kernel startup process.](https://hanayo.cn/2023/12/06/2023-12-06/) — Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a 
+- [Understanding CPU Topology for Improved Performance](https://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/) — The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the performance of a system, as it de
+- [Understand virtio memory balloon](https://hanayo.cn/2023/04/27/virtio-memory-balloon/) — IntroductionVirtio memory ballooning is a technique that adjusts memory allocation in virtualized environments. The hypervisor can add or remove memory from a v
+- [Qemu Colo Details](https://hanayo.cn/2023/04/13/qemu-colo-details/) — qemu quorum block filterBased on the code design of blkverify.c and blkmirror.c, the main purpose is to mirror write requests to all the qcow images hanging in 
+- [Cpu features about kvm hidden](https://hanayo.cn/2023/03/09/cpu-features-about-kvm-hidden/) — [TOC] What kvm hidden did to qemuBased on last blog, we can see how libvirt cpu feature configuration changes qemu cpuid. And we figure out hypervisor disable c
+- [KVM虚拟化性能分析](https://hanayo.cn/2023/03/13/KVM虚拟化性能分析/) — KVM虚拟化是一种常用的虚拟化技术，它可以将一台物理服务器划分为多个虚拟机，从而提高服务器的利用率和灵活性。然而，由于虚拟化带来的额外开销，KVM虚拟化的性能问题是一个常见的挑战。为了解决这些问题，我们需要使用一些性能诊断工具来分析和优化KVM虚拟化的性能。 以下是一些常用的KVM虚拟化性能诊断工具： PerfPerf
+- [Virtio on Linux](https://hanayo.cn/2023/03/03/virtio-on-linux/) — Introduction Virtio is an open standard that defines a protocol for communication between drivers and devices of different types, see Chapter 5 (“Device Types”)
+- [Python ElementTree notes](https://hanayo.cn/2022/07/01/python-elementtree-notes/) — Develop with libvrt python API, xml parse and operation is frequently required. ElementTree (stantard python library) is introduced in python-xml-parse come int
+- [Cpu feature configuration code diving](https://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/) — If disable a feature in libvirt domain xml configuration, what will happen? General code about libvirt cpu confRead cpu_conf.c main entrance is virCPUDefFormatB
+- [Packed virtqueue: How to reduce overhead with virtio](https://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/) — This is the final post of a three-post series, the previous posts are “Virtio devices and drivers overview: The headjack and the phone,” and “Virtqueues and vir
+- [Virtio devices and drivers overview: The headjack and the phone](https://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/) — This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed virtqueue. This is the basis for the communi
+- [Virtqueues and virtio ring: How the data travels](https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/) — This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the m
+- [Windows install virtio then reboot met BSOD](https://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/) — ScopeThis blog is a practice search about windows virtio driver installation. BackgroudFor virtualization software, normally guest will install virtio related d
+- [Live migration failed due to libvirt keepalive timeout](https://hanayo.cn/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/) — Live migration is a important part of kvm virtualization at the first day it was designed. However when dive into control plane of libvirt live migration, it be
+- [JVM loaded classes rapidly increased issue](https://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/) — Rapidly increased JVM loaded classesWhen debug a oom issue on new version of application. I noticed that  Old version:   New version:   The classes increased al
+- [Plugable system in practice 00](https://hanayo.cn/2022/11/09/plugable-system-in-practice-00/) — IntroductionThis blog used to introduce a practice of plugin system implementation of zstack. I will finish base of plugin load, metadate definition, capability
+- [UEFI Windows guest hang after live migration](https://hanayo.cn/2022/11/16/uefi-windows-guest-hang-after-live-migration/) — Notes about debug windows hang issue. Test caseIf qemu guest need to use nvidia GPU,  according to https:&#x2F;&#x2F;wiki.archlinux.org&#x2F;title&#x2F;PCI_pass
+
+本文快照与 hexo-seo/scripts/seo-geo-aeo.js 对应；源项目接上后由 hexo generate 覆盖。

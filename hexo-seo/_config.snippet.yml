@@ -1,0 +1,27 @@
+# Paste into the Hexo *site* _config.yml (not the theme file).
+# Docs: https://hexo.io/docs/configuration.html
+
+# Site
+title: 花の様に
+description: Alan Jager 的 KVM / virtio / Linux 内核排查笔记
+author: Alan Jager
+language: zh-CN
+timezone: Asia/Shanghai
+
+# URL — https, otherwise Open Graph / atom / canonical stay on http
+url: https://hanayo.cn
+root: /
+permalink: :year/:month/:day/:title/
+
+# Keep hand-written tool pages as static files across `hexo g`
+skip_render:
+  - tools/**
+
+seo_geo_aeo:
+  sameAs:
+    - https://github.com/AlanJager
+  llms_limit: 20
+  # block_training: true
+
+# After copying hexo-seo/scripts/seo-geo-aeo.js into <site>/scripts/,
+# `hexo generate` emits robots.txt, sitemap.xml, llms.txt and injects JSON-LD.

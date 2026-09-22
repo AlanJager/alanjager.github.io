@@ -3,8 +3,8 @@
 /**
  * Hexo generator + HTML filter for SEO / AEO / GEO.
  *
- * Install: copy this file to <hexo-root>/scripts/seo-geo-aeo.js
- * Hexo auto-loads scripts/*.js on `hexo generate`.
+ * Lives in this theme as scripts/seo-geo-aeo.js (Hexo loads theme scripts
+ * on `hexo generate`). Can also be copied to the site's scripts/.
  *
  * Config (site _config.yml):
  *

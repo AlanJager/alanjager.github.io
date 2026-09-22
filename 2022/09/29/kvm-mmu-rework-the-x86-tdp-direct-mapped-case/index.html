@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="123456789101112Over the years, the needs for KVM&#39;s x86 MMU have grown from running smallguests to live migrating multi-terabyte VMs with hundreds of vCPUs. Wherewe previously depended upon shadow">
 <meta property="og:type" content="article">
 <meta property="og:title" content="kvm: mmu: Rework the x86 TDP direct mapped case">
-<meta property="og:url" content="http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html">
+<meta property="og:url" content="https://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="123456789101112Over the years, the needs for KVM&#39;s x86 MMU have grown from running smallguests to live migrating multi-terabyte VMs with hundreds of vCPUs. Wherewe previously depended upon shadow">
 <meta property="og:locale">
@@ -41,7 +41,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "kvm: mmu: Rework the x86 TDP direct mapped case", "description": "123456789101112Over the years, the needs for KVM's x86 MMU have grown from running smallguests to live migrating multi-terabyte VMs with hundreds of vCPUs. Wherewe previously depended upon shadow", "url": "https://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html", "datePublished": "2022-09-29T04:03:02.000Z", "dateModified": "2022-09-29T04:05:03.969Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -72,7 +75,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -169,7 +172,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" data-id="cld1mhecc0066yuwba332a3x4" data-title="kvm: mmu: Rework the x86 TDP direct mapped case" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/" data-id="cld1mhecc0066yuwba332a3x4" data-title="kvm: mmu: Rework the x86 TDP direct mapped case" class="article-share-link">Share</a>
       
       
         <a href="/2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/#comments" class="article-comment-link">

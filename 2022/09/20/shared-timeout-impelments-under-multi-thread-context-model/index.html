@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Shared timeout implements under multi-thread context model">
-<meta property="og:url" content="http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html">
+<meta property="og:url" content="https://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service">
 <meta property="og:locale">
@@ -38,7 +38,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "Shared timeout implements under multi-thread context model", "description": "This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service", "url": "https://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html", "datePublished": "2022-09-20T05:38:16.000Z", "dateModified": "2022-09-28T01:19:10.379Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -69,7 +72,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -148,7 +151,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/" data-id="cld1mheax0017yuwbfudbeuxv" data-title="Shared timeout implements under multi-thread context model" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/" data-id="cld1mheax0017yuwbfudbeuxv" data-title="Shared timeout implements under multi-thread context model" class="article-share-link">Share</a>
       
       
         <a href="/2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/#comments" class="article-comment-link">

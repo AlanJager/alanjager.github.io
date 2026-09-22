@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,11 +9,11 @@
   <meta name="description" content="What happened?Our CI&#x2F;CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not fin">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Go through KVM code due to a tdp_page_fault">
-<meta property="og:url" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html">
+<meta property="og:url" content="https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="What happened?Our CI&#x2F;CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not fin">
 <meta property="og:locale">
-<meta property="og:image" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
+<meta property="og:image" content="https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
 <meta property="article:published_time" content="2022-07-15T02:23:14.000Z">
 <meta property="article:modified_time" content="2022-09-28T01:19:10.306Z">
 <meta property="article:author" content="Alan Jager">
@@ -21,7 +21,7 @@
 <meta property="article:tag" content="virt">
 <meta property="article:tag" content="kvm">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
+<meta name="twitter:image" content="https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/2022-07-15-kvm-figure1.png">
   
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
   
@@ -41,7 +41,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "Go through KVM code due to a tdp_page_fault", "description": "What happened?Our CI/CD system ran integration test for every pull request but suddenly it met performance issue. Usually one round of integration test need 1h but this time almost all test do not fin", "url": "https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html", "datePublished": "2022-07-15T02:23:14.000Z", "dateModified": "2022-09-28T01:19:10.306Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -72,7 +75,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -178,7 +181,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" data-id="cld1mhe9x0003yuwb8g646w4b" data-title="Go through KVM code due to a tdp_page_fault" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/" data-id="cld1mhe9x0003yuwb8g646w4b" data-title="Go through KVM code due to a tdp_page_fault" class="article-share-link">Share</a>
       
       
         <a href="/2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/#comments" class="article-comment-link">

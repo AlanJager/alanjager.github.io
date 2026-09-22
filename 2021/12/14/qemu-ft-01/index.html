@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="背景因为对qemu的fault tolerance技术颇有兴趣，在查询资料时找到了一个IBM实现的MicroCheckpointing方案实现的ft查看文档并整理了一下这个ft方案的原理 MicroCheckpointing基本概念 Micro-Checkpoints (MC)  默认工作在QEMU虚拟机热迁移的逻辑上，可以被简单的理解为“在执行不会结束的热迁移”。比如，在一个确定的周期譬如0.0">
 <meta property="og:type" content="article">
 <meta property="og:title" content="QEMU FT方案">
-<meta property="og:url" content="http://hanayo.cn/2021/12/14/qemu-ft-01/index.html">
+<meta property="og:url" content="https://hanayo.cn/2021/12/14/qemu-ft-01/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="背景因为对qemu的fault tolerance技术颇有兴趣，在查询资料时找到了一个IBM实现的MicroCheckpointing方案实现的ft查看文档并整理了一下这个ft方案的原理 MicroCheckpointing基本概念 Micro-Checkpoints (MC)  默认工作在QEMU虚拟机热迁移的逻辑上，可以被简单的理解为“在执行不会结束的热迁移”。比如，在一个确定的周期譬如0.0">
 <meta property="og:locale">
@@ -38,7 +38,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2021/12/14/qemu-ft-01/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "QEMU FT方案", "description": "背景因为对qemu的fault tolerance技术颇有兴趣，在查询资料时找到了一个IBM实现的MicroCheckpointing方案实现的ft查看文档并整理了一下这个ft方案的原理 MicroCheckpointing基本概念 Micro-Checkpoints (MC)  默认工作在QEMU虚拟机热迁移的逻辑上，可以被简单的理解为“在执行不会结束的热迁移”。比如，在一个确定的周期譬如0.0", "url": "https://hanayo.cn/2021/12/14/qemu-ft-01/index.html", "datePublished": "2021-12-13T16:00:58.000Z", "dateModified": "2022-09-28T01:19:10.378Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2021/12/14/qemu-ft-01/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -69,7 +72,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -140,7 +143,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2021/12/14/qemu-ft-01/" data-id="cld1mheau0014yuwb8dke0ejw" data-title="QEMU FT方案" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2021/12/14/qemu-ft-01/" data-id="cld1mheau0014yuwb8dke0ejw" data-title="QEMU FT方案" class="article-share-link">Share</a>
       
       
         <a href="/2021/12/14/qemu-ft-01/#comments" class="article-comment-link">

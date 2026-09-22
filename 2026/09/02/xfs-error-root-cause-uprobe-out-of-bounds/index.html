@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查">
-<meta property="og:url" content="http://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html">
+<meta property="og:url" content="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。">
 <meta property="og:locale">
@@ -39,7 +39,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "XFS 报错但根因不在 XFS：一次 uprobe 越界写排查", "description": "两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。", "url": "https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html", "datePublished": "2026-09-02T08:00:00.000Z", "dateModified": "2026-09-03T03:07:48.001Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -70,7 +73,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -136,7 +139,7 @@
 <h3 id="Keep-the-last-unverified-link-visible"><a href="#Keep-the-last-unverified-link-visible" class="headerlink" title="Keep the last unverified link visible"></a>Keep the last unverified link visible</h3>
 <p>当日志、数据签名、源码和上游补丁已经相互吻合时，也不要把暂未直接验证的物理页相邻关系写成既成事实。把缺口和验证方法留下来，事故结论才方便复查。</p></div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" data-id="xfs-error-root-cause-uprobe-out-of-bounds" data-title="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" data-id="xfs-error-root-cause-uprobe-out-of-bounds" data-title="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查" class="article-share-link">Share</a>
       <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" itemprop="commentCount"></span> 条评论</a>
       <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/security/" rel="tag">security</a></li></ul>
     </footer>

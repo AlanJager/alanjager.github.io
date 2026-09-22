@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Hands on vhost-user: A warm welcome to DPDK">
-<meta property="og:url" content="http://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html">
+<meta property="og:url" content="https://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能">
 <meta property="og:locale">
@@ -41,7 +41,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "Hands on vhost-user: A warm welcome to DPDK", "description": "这片文章里我们将会配置一个环境，然后在虚拟机里运行一个基于DPDK应用。我们将介绍所有用来在host系统上配置一个虚拟交换机需要的步骤，并通过这个虚拟交换机连接到虚拟机的应用。正文包括描述如何创建，安装和运行虚拟机，以及安装里面的应用。你将会学习到如何创建并设置一个简单的通过guest内的应用发送并接收网络数据包到host的虚拟交换机。基于这些设置，你将会学习到如何如何调整设置来获得最优的吞吐性能", "url": "https://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html", "datePublished": "2022-04-14T07:33:37.000Z", "dateModified": "2022-09-28T01:19:10.309Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -72,7 +75,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -206,7 +209,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" data-id="cld1mhea00006yuwb46p57oqf" data-title="Hands on vhost-user: A warm welcome to DPDK" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/" data-id="cld1mhea00006yuwb46p57oqf" data-title="Hands on vhost-user: A warm welcome to DPDK" class="article-share-link">Share</a>
       
       
         <a href="/2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/#comments" class="article-comment-link">

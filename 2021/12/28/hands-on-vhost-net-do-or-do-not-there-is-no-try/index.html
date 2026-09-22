@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,11 +9,11 @@
   <meta name="description" content="Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。 在之前的文章里介绍了网络架构的组成：Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-net">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Hands on vhost-net: Do. Or do not. There is no try">
-<meta property="og:url" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html">
+<meta property="og:url" content="https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。 在之前的文章里介绍了网络架构的组成：Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-net">
 <meta property="og:locale">
-<meta property="og:image" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
+<meta property="og:image" content="https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
 <meta property="article:published_time" content="2021-12-28T13:55:31.000Z">
 <meta property="article:modified_time" content="2022-09-28T01:19:10.350Z">
 <meta property="article:author" content="Alan Jager">
@@ -23,7 +23,7 @@
 <meta property="article:tag" content="qemu">
 <meta property="article:tag" content="architecture">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
+<meta name="twitter:image" content="https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/lantency.png">
   
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
   
@@ -43,7 +43,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "Hands on vhost-net: Do. Or do not. There is no try", "description": "Vhost-net利用标准的virtio网络接口悄悄地成为了基于qemu-kvm的虚拟化环境的默认流量卸载机制。这个机制允许通过内核模块执行网络处理，解放了qemu进程，改进了网络性能。 在之前的文章里介绍了网络架构的组成：Post not found: introduction-virtio-networking-and-vhost-net [Introduction to virtio-net", "url": "https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html", "datePublished": "2021-12-28T13:55:31.000Z", "dateModified": "2022-09-28T01:19:10.350Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -74,7 +77,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -275,7 +278,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" data-id="cld1mheca005zyuwb5nnk6dee" data-title="Hands on vhost-net: Do. Or do not. There is no try" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/" data-id="cld1mheca005zyuwb5nnk6dee" data-title="Hands on vhost-net: Do. Or do not. There is no try" class="article-share-link">Share</a>
       
       
         <a href="/2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/#comments" class="article-comment-link">

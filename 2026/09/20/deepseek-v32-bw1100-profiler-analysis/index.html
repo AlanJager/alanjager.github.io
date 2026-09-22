@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,7 +9,7 @@
   <meta name="description" content="在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2">
-<meta property="og:url" content="http://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html">
+<meta property="og:url" content="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。">
 <meta property="og:locale">
@@ -38,7 +38,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2", "description": "在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。", "url": "https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html", "datePublished": "2026-09-20T08:00:00.000Z", "dateModified": "2026-09-20T06:15:50.225Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -69,7 +72,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -194,7 +197,7 @@
 <p>现在这些更多还是拿数据和熟悉工具，先不急着下结论。</p>
 </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" data-id="deepseek-v32-bw1100-profiler-analysis" data-title="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" data-id="deepseek-v32-bw1100-profiler-analysis" data-title="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2" class="article-share-link">Share</a>
       <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" itemprop="commentCount"></span> 条评论</a>
       <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li></ul>
     </footer>

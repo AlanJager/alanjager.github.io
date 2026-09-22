@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,19 +9,19 @@
   <meta name="description" content="This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Virtqueues and virtio ring: How the data travels">
-<meta property="og:url" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html">
+<meta property="og:url" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro">
 <meta property="og:locale">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig2.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig3.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig4.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig5.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig6.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig7.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig8.png">
-<meta property="og:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig9.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig2.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig3.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig4.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig5.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig6.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig7.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig8.png">
+<meta property="og:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig9.png">
 <meta property="article:published_time" content="2023-02-22T15:48:33.000Z">
 <meta property="article:modified_time" content="2023-02-22T15:49:00.364Z">
 <meta property="article:author" content="Alan Jager">
@@ -29,7 +29,7 @@
 <meta property="article:tag" content="architecture">
 <meta property="article:tag" content="virtio">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
+<meta name="twitter:image" content="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/2020-07-08-virtio-fig1.png">
   
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
   
@@ -49,7 +49,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "Virtqueues and virtio ring: How the data travels", "description": "This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro", "url": "https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html", "datePublished": "2023-02-22T15:48:33.000Z", "dateModified": "2023-02-22T15:49:00.364Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -80,7 +83,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -369,7 +372,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" data-id="clefunqbh0000l2wb9oyqhw88" data-title="Virtqueues and virtio ring: How the data travels" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/" data-id="clefunqbh0000l2wb9oyqhw88" data-title="Virtqueues and virtio ring: How the data travels" class="article-share-link">Share</a>
       
       
         <a href="/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/#comments" class="article-comment-link">

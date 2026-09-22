@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   
@@ -9,20 +9,20 @@
   <meta name="description" content="See notation of virt&#x2F;kvm&#x2F;kvm_main.c in linux kernel 1234567891011121314151617&#x2F;* * Kernel-based Virtual Machine driver for Linux * * This module enables machines with Intel VT-x extensions to run">
 <meta property="og:type" content="article">
 <meta property="og:title" content="KVM introduction 00">
-<meta property="og:url" content="http://hanayo.cn/2022/06/30/kvm-introduction-00/index.html">
+<meta property="og:url" content="https://hanayo.cn/2022/06/30/kvm-introduction-00/index.html">
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="See notation of virt&#x2F;kvm&#x2F;kvm_main.c in linux kernel 1234567891011121314151617&#x2F;* * Kernel-based Virtual Machine driver for Linux * * This module enables machines with Intel VT-x extensions to run">
 <meta property="og:locale">
-<meta property="og:image" content="http://hanayo.cn/2022/06/30/kvm-introduction-00/cpu_executino_loop.png">
-<meta property="og:image" content="http://hanayo.cn/2022/06/30/kvm-introduction-00/hardware_assisted_virtualization.png">
-<meta property="og:image" content="http://hanayo.cn/2022/06/30/kvm-introduction-00/full_virtualization.png">
+<meta property="og:image" content="https://hanayo.cn/2022/06/30/kvm-introduction-00/cpu_executino_loop.png">
+<meta property="og:image" content="https://hanayo.cn/2022/06/30/kvm-introduction-00/hardware_assisted_virtualization.png">
+<meta property="og:image" content="https://hanayo.cn/2022/06/30/kvm-introduction-00/full_virtualization.png">
 <meta property="article:published_time" content="2022-06-30T15:47:07.000Z">
 <meta property="article:modified_time" content="2022-09-28T01:19:10.359Z">
 <meta property="article:author" content="Alan Jager">
 <meta property="article:tag" content="kvm">
 <meta property="article:tag" content="kernel">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hanayo.cn/2022/06/30/kvm-introduction-00/cpu_executino_loop.png">
+<meta name="twitter:image" content="https://hanayo.cn/2022/06/30/kvm-introduction-00/cpu_executino_loop.png">
   
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
   
@@ -42,7 +42,10 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"></head>
+<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/2022/06/30/kvm-introduction-00/index.html">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}, {"@type": "BlogPosting", "headline": "KVM introduction 00", "description": "See notation of virt/kvm/kvm_main.c in linux kernel 1234567891011121314151617/* * Kernel-based Virtual Machine driver for Linux * * This module enables machines with Intel VT-x extensions to run", "url": "https://hanayo.cn/2022/06/30/kvm-introduction-00/index.html", "datePublished": "2022-06-30T15:47:07.000Z", "dateModified": "2022-09-28T01:19:10.359Z", "inLanguage": "zh-CN", "author": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}, "mainEntityOfPage": "https://hanayo.cn/2022/06/30/kvm-introduction-00/index.html"}]}</script>
+</head>
 
 <body>
   <div id="container">
@@ -73,7 +76,7 @@
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://hanayo.cn"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
       </div>
     </div>
   </div>
@@ -194,7 +197,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://hanayo.cn/2022/06/30/kvm-introduction-00/" data-id="cld1mheai000nyuwb2orxc0lk" data-title="KVM introduction 00" class="article-share-link">Share</a>
+      <a data-url="https://hanayo.cn/2022/06/30/kvm-introduction-00/" data-id="cld1mheai000nyuwb2orxc0lk" data-title="KVM introduction 00" class="article-share-link">Share</a>
       
       
         <a href="/2022/06/30/kvm-introduction-00/#comments" class="article-comment-link">

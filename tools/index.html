@@ -33,9 +33,8 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
   
-<meta name="generator" content="Hexo 5.1.1"><meta name="description" content="Alan Jager 的开源工具项目入口。关注推理测试条件检查与虚拟化迁移核对，当前处于需求调研阶段。">
+<meta name="generator" content="Hexo 5.1.1"><meta name="description" content="Alan Jager 的开源工具：resume-hub（跨 Codex / Claude / Grok 的 session 交接）等。">
 <link rel="canonical" href="https://hanayo.cn/tools/">
-<meta name="robots" content="noindex,follow">
 </head>
 
 <body><div id="container"><div id="wrap"><header id="header">
@@ -74,7 +73,10 @@
     <header class="article-header"><h1 class="article-title">开源工具 / Open-source Tools</h1></header>
     <div class="article-entry">
       <p>把实际工作中反复遇到的问题，整理成可以独立使用、检查和改进的开源工具。</p>
-      <blockquote><p><strong>当前状态：需求调研中。</strong>目前还没有可发布的工具。这里将汇总经过验证的项目、源码、使用文档与示例。</p></blockquote>
+      <h2>已发布</h2>
+      <h3><a href="/tools/resume-hub/">resume-hub</a></h3>
+      <p>Codex 限额后，从本机 session 文件切到 Grok 或 Claude 继续。handoff.md 由本地 Python 写出，不消耗模型额度。MIT。</p>
+      <p><a href="/tools/resume-hub/">使用说明</a> · <a href="/tools/resume-hub/README.md">README</a> · <a href="https://github.com/AlanJager/alanjager.github.io/tree/github_pages/tools/resume-hub" rel="noopener" target="_blank">源码</a></p>
       <h2>正在研究的方向</h2>
       <h3>推理测试条件检查</h3>
       <p>比较推理测试结果之前，检查实际输入输出长度、计时口径、版本与配置，标出需要解释的差异和缺失证据。优先复用现有评测工具。</p>
@@ -84,7 +86,7 @@
       <ul><li>以真实用途为起点，发布时提供完整源码、使用说明与测试样例。</li><li>优先支持本地运行，让使用者掌握自己的数据。</li><li>每个项目单独说明支持范围、数据处理方式与开源许可证。</li></ul>
       <p><a href="https://github.com/AlanJager" rel="noopener" target="_blank">查看我的 GitHub</a> · <a href="/">返回博客</a></p>
       <hr>
-      <p lang="ja"><strong>オープンソースツール — 公開準備中</strong><br>実際の作業に役立つツールを調査しています。公開後、ここにソースコード、使い方、サンプルを掲載します。現在、利用できるツールはありません。</p>
+      <p lang="ja"><strong>オープンソースツール</strong><br>公開中：<a href="/tools/resume-hub/">resume-hub</a>。Codex の上限後、ローカルの session から Grok / Claude へ引き継ぎます。</p>
     </div>
   </div>
 </article>

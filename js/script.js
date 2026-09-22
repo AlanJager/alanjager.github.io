@@ -135,4 +135,19 @@
 
     $container.removeClass('mobile-nav-on');
   });
+
+  var fitSidebarToMain = function(){
+    var main = document.getElementById('main');
+    var side = document.getElementById('sidebar');
+    if (!main || !side) return;
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      side.style.maxHeight = '';
+      side.style.overflowY = '';
+      return;
+    }
+    side.style.maxHeight = main.offsetHeight + 'px';
+    side.style.overflowY = 'auto';
+  };
+  $(fitSidebarToMain);
+  $(window).on('resize', fitSidebarToMain);
 })(jQuery);

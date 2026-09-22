@@ -2340,3 +2340,19 @@ html {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Sidebar height follows the excerpted article column. */
+@media screen and (min-width: 768px) {
+  #sidebar .widget-wrap:has(.tag-list) {
+    display: none;
+  }
+  #sidebar .widget-wrap {
+    margin: 14px 0;
+  }
+  #sidebar .widget-wrap:first-child {
+    margin-top: 0;
+  }
+  #sidebar {
+    overflow-y: auto;
+  }
+}

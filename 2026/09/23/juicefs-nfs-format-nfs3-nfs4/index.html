@@ -21,7 +21,7 @@
 <body><div id="container"><div id="wrap">
 <header id="header"><div id="banner"></div><div id="header-outer" class="outer"><div id="header-title" class="inner"><h1 id="logo-wrap"><a href="/" id="logo">花の様に</a></h1></div><div id="header-inner" class="inner"><nav id="main-nav"><a class="main-nav-link" href="/">首页</a><a class="main-nav-link" href="/archives">归档</a><a class="main-nav-link" href="/tools/">工具</a></nav></div></div></header>
 <div class="outer"><section id="main"><article class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-<div class="article-meta"><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" class="article-date"><time class="dt-published" datetime="2026-09-23T08:00:00.000Z">2026-09-23</time></a><div class="article-category"><a class="article-category-link" href="/categories/linux/">linux</a></div></div>
+<div class="article-meta"><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" class="article-date"><time class="dt-published" datetime="2026-09-23T08:00:00.000Z">2026-09-23</time></a><div class="article-category"><a class="article-category-link" href="/categories/arch-notes/">arch-notes</a></div></div>
 <div class="article-inner"><header class="article-header"><h1 class="p-name article-title">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</h1></header><div class="e-content article-entry" itemprop="articleBody">
 <p>在一个 NFS 导出上执行 <code>juicefs format --storage nfs</code>，本来应该得到一个挂载错误，进程却先 panic 了：</p>
 <pre><code>panic: runtime error: invalid memory address or nil pointer dereference

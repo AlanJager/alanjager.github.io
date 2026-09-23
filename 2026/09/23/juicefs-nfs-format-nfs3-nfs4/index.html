@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="一次 JuiceFS NFS object storage 的空指针排查：分开理解错误处理缺陷、NFSv3 MOUNT、RPC 错误和 NFSv4 协议边界。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4">
+  <meta property="og:url" content="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">
+  <meta property="og:site_name" content="花の様に">
+  <meta property="article:published_time" content="2026-09-23T08:00:00.000Z">
+  <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  <link rel="shortcut icon" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <meta name="generator" content="Hexo 5.1.1">
+  <link rel="canonical" href="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4","url":"https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/","datePublished":"2026-09-23T08:00:00.000Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager"}}</script>
+</head>
+<body><div id="container"><div id="wrap">
+<header id="header"><div id="banner"></div><div id="header-outer" class="outer"><div id="header-title" class="inner"><h1 id="logo-wrap"><a href="/" id="logo">花の様に</a></h1></div><div id="header-inner" class="inner"><nav id="main-nav"><a class="main-nav-link" href="/">首页</a><a class="main-nav-link" href="/archives">归档</a><a class="main-nav-link" href="/tools/">工具</a></nav></div></div></header>
+<div class="outer"><section id="main"><article class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+<div class="article-meta"><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" class="article-date"><time class="dt-published" datetime="2026-09-23T08:00:00.000Z">2026-09-23</time></a><div class="article-category"><a class="article-category-link" href="/categories/linux/">linux</a></div></div>
+<div class="article-inner"><header class="article-header"><h1 class="p-name article-title">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</h1></header><div class="e-content article-entry" itemprop="articleBody">
+<p>在一个 NFS 导出上执行 <code>juicefs format --storage nfs</code>，本来应该得到一个挂载错误，进程却先 panic 了：</p>
+<pre><code>panic: runtime error: invalid memory address or nil pointer dereference
+github.com/juicedata/juicefs/pkg/object.newNFSStore
+    pkg/object/nfs.go:469</code></pre>
+<p>同一台机器直接挂载这个导出时，内核协商成了 <code>nfs4</code>；显式指定 <code>vers=3</code> 则报 <code>Protocol not supported</code>。这看起来像一个问题，实际是两层：JuiceFS 有一个错误处理顺序的 bug；而它的 NFS object storage 客户端走的是 NFSv3 的 MOUNT 协议，不能因为内核能挂 NFSv4 就自动获得 v3 能力。</p>
+<h2 id="phenomenon"><a href="#phenomenon" class="headerlink"></a>Phenomenon</h2>
+<p>JuiceFS 1.3.0 的 <code>newNFSStore</code> 路径大致是：</p>
+<pre><code class="language-go">target, err := mount.Mount(path, auth.Auth())
+target.Config.DirCount = 1 &lt;&lt; 17
+target.Config.MaxCount = 1 &lt;&lt; 20
+if err != nil { return nil, fmt.Errorf("unable to mount %s: %v", addr, err) }</code></pre>
+<p><code>mount.Mount</code> 在 NFSv3 的 <code>MNT</code> 调用失败时会返回空的 <code>target</code>。两次读取 <code>target.Config</code> 已经解引用空指针，根本到不了 <code>if err != nil</code>。Go 不强制“必须先检查 <code>err</code>，才能读取同一调用返回的其他值”；这是一条需要主动遵守的资源有效性边界。</p>
+<p>上游的 <a href="https://github.com/juicedata/juicefs/pull/7573">PR #7573</a> 已合入主干，修复就是把错误检查移到解引用之前：</p>
+<pre><code class="language-go">target, err := mount.Mount(path, auth.Auth())
+if err != nil { return nil, fmt.Errorf("unable to mount %s: %v", addr, err) }
+target.Config.DirCount = 1 &lt;&lt; 17
+target.Config.MaxCount = 1 &lt;&lt; 20</code></pre>
+<p>补丁改变的是失败时的表现：从 panic 变成带有底层 MOUNT 错误的正常退出。它不会让一个不支持 NFSv3、或不允许当前客户端访问的导出忽然变得可用。</p>
+<h2 id="layers"><a href="#layers" class="headerlink"></a>两种失败，不在同一层</h2>
+<table><thead><tr><th>现象</th><th>失败位置</th><th>含义</th></tr></thead><tbody><tr><td><code>MNT3ERR_ACCES</code></td><td>MOUNT v3 过程已经被服务端执行</td><td>服务端支持 v3，但导出规则拒绝该客户端</td></tr><tr><td><code>rpc: PROG_MISMATCH</code></td><td>ONC RPC 的程序/版本分发</td><td>客户端请求 MOUNT program 100005、版本 3；服务端没有这个版本</td></tr><tr><td><code>mount.nfs: Protocol not supported</code></td><td>Linux 内核 NFS 客户端</td><td>内核强制使用 v3 时协商失败；这不是 JuiceFS 的原始错误文案</td></tr></tbody></table>
+<p><code>PROG_MISMATCH</code> 先于 <code>MNT3ERR_ACCES</code>。前者说明 RPC 请求连 MOUNT v3 过程都没有进入；后者则说明版本已经匹配，服务端开始按 export 规则授权。因此，不能从 panic 本身推断是 export 权限、路径拼写、服务端未开启 v3，还是网络故障；先升级到包含该修复的版本，把真实错误露出来。</p>
+<h2 id="nfs3"><a href="#nfs3" class="headerlink"></a>NFSv3：挂载不是 NFS 读写本身</h2>
+<p>NFSv3 由多个 ONC RPC 程序配合。挂载时，客户端先通过 <code>rpcbind</code> 找服务端口，再调用 MOUNT v3 的 <code>MNT(路径)</code> 获取文件句柄，随后才对 NFS v3 程序做 <code>LOOKUP</code>、<code>READ</code>、<code>WRITE</code>。文件锁由独立的 NLM 协议处理。</p>
+<pre><code>client
+  ├─ rpcbind (100000, 通常是 111)：找到服务端口
+  ├─ mountd  (100005 v3)：MNT("/export/path") → file handle
+  ├─ nfsd    (100003 v3, 通常是 2049)：LOOKUP / READ / WRITE
+  └─ NLM     (100021)：LOCK</code></pre>
+<p>NFSv3 规范明确把 MOUNT 作为辅助协议：它负责把远端目录树附着到本地文件系统，并按 export control 向受限客户端授予访问；NLM 则把有状态的文件锁单列为一个协议。<a href="https://www.rfc-editor.org/rfc/rfc1813.html">RFC 1813</a> 的介绍与附录 I、II 定义了这条边界。</p>
+<p>JuiceFS 这里没有调用系统的 <code>mount.nfs</code>，而是直接通过 Go NFS 库拨 MOUNT 服务并调用 v3 <code>MNT</code>。所以系统命令不带 <code>vers</code> 时成功协商为 NFSv4，只能证明“内核客户端可以使用 v4”；不能证明 JuiceFS 要求的 MOUNT v3 存在。</p>
+<h2 id="nfs4"><a href="#nfs4" class="headerlink"></a>NFSv4：把多条控制路径收进 2049</h2>
+<p>NFSv4 不再依赖单独的 MOUNT 协议来取得导出目录的文件句柄。客户端连接 NFS program 100003 的 v4 服务（默认 TCP 2049），通过 <code>COMPOUND</code> 请求在服务器提供的伪文件系统内走路径：</p>
+<pre><code>COMPOUND { PUTROOTFH; LOOKUP "export"; LOOKUP "path"; GETFH; OPEN / READ / LOCK }</code></pre>
+<p><code>LOOKUP</code>、读写和锁没有消失，而是变成一个 <code>COMPOUND</code> 中的操作。NFSv4.1 规范规定 RPC 过程为 <code>NULL</code> 和 <code>COMPOUND</code>，并说明客户端不应再依赖 RPC binding protocol 发现 NFS 服务端口。<a href="https://www.rfc-editor.org/rfc/rfc8881.html#section-2.9.3">RFC 8881 §2.9.3</a></p>
+<table><thead><tr><th></th><th>NFSv3</th><th>NFSv4</th></tr></thead><tbody><tr><td>获取导出根</td><td>MOUNT <code>MNT(路径)</code> 返回 file handle</td><td><code>PUTROOTFH</code> + <code>LOOKUP</code></td></tr><tr><td>服务发现</td><td><code>rpcbind</code>、MOUNT 等多个程序</td><td>NFS v4 固定服务路径，默认 2049</td></tr><tr><td>锁</td><td>独立 NLM</td><td><code>COMPOUND</code> 内的 <code>LOCK</code></td></tr></tbody></table>
+<p>这不只是“端口更少”。NFSv4 的设计动机是降低防火墙配置复杂度、减少广域网往返，并把锁与恢复纳入同一协议状态模型；<a href="https://www.rfc-editor.org/rfc/rfc2624.html">RFC 2624</a> 分别讨论了这三点。</p>
+<h2 id="resolution"><a href="#resolution" class="headerlink"></a>Resolution</h2>
+<ol><li>升级到包含 <a href="https://github.com/juicedata/juicefs/pull/7573">PR #7573</a> 的 JuiceFS 版本，或回合等价的空指针修复。验收条件是：NFSv3 MOUNT 失败时以非零退出返回 <code>unable to mount ...</code>，而不是 panic。</li><li>在运行 <code>format</code> 的客户端检查 v3：<code>showmount -e &lt;nfs-server&gt;</code>、<code>rpcinfo -p &lt;nfs-server&gt;</code>、<code>mount -t nfs -o vers=3,tcp &lt;nfs-server&gt;:/&lt;export-path&gt; /mnt/nfs-v3-test</code>。</li><li>在服务端确认 <code>cat /proc/fs/nfsd/versions</code> 输出包含 <code>+3</code>，并用 <code>exportfs -v</code> 确认导出规则。</li><li>如果服务端只提供 NFSv4，当前这条 JuiceFS NFS storage 路径并不兼容；需要提供 NFSv3 export，或选择与服务端协议能力匹配的对象存储/网关方案。</li></ol>
+<h2 id="debugging-notes"><a href="#debugging-notes" class="headerlink"></a>Debugging notes</h2>
+<ul><li>panic 是程序的错误处理 bug，不是协议错误码。</li><li><code>PROG_MISMATCH</code> 是 RPC 的程序版本不匹配；<code>MNT3ERR_ACCES</code> 才是 MOUNT 过程内的访问拒绝。</li><li><code>mount.nfs</code> 的报错是 Linux 内核客户端翻译后的文案，不能逐字套到 JuiceFS 的 Go 客户端上。</li><li>升级修复 panic 是为了恢复可诊断性；协议和授权问题仍要通过 v3 MOUNT 的真实结果分别确认。</li></ul>
+<p>把这几层拆开之后，排查路径就很短：先让程序不崩，再看 MOUNT v3 是否存在，最后看 export 是否允许当前客户端。</p>
+</div><footer class="article-footer"><ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li></ul></footer></div>
+</article></section></div>
+<footer id="footer"><div class="outer"><div id="footer-info" class="inner">© 2026 Alan Jager<br>Powered by <a href="https://hexo.io/" target="_blank">Hexo</a></div></div></footer>
+</div></div><script src="/js/jquery-3.4.1.min.js"></script><script src="/js/script.js"></script>
+</body>
+</html>

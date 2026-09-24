@@ -1,0 +1,73 @@
+---
+title: "Linux memory management(1)"
+date: "2022-06-04 23:22:23"
+permalink: "2022/06/04/linux-memory-management-1/"
+updated: "2022-09-28 09:19:10"
+description: "CPU aceess memoryCPU core -> MMU(TLBs, Table Walk Unit) -> Caches -> Memory(Translation tables) CPU VA -> MMU find PTE(Pysical table entry) -> TLB -> L1 cache -> L2 cache -> L3"
+categories: ["linux", "memory management"]
+tags: ["TLB", "linux", "reading notes"]
+disableNunjucks: true
+---
+
+<h2 id="CPU-aceess-memory"><a class="headerlink" href="#CPU-aceess-memory" title="CPU aceess memory"></a>CPU aceess memory</h2><p>CPU core -&gt; MMU(TLBs, Table Walk Unit) -&gt; Caches -&gt; Memory(Translation tables)</p>
+<p>CPU VA -&gt; MMU find PTE(Pysical table entry) -&gt; TLB -&gt; L1 cache -&gt; L2 cache -&gt; L3 cache</p>
+<p>note: pretend a architecture with TLB between CPU and L1 cache.</p>
+<p>TLB is a some cache form VA-to-PA translaction and formed by PTE blocks.</p>
+<p>if TLB miss, CPU find PA from L1 and so on until PA is find and then put the PTE into TLB.</p>
+<h3 id="what-is-TLB"><a class="headerlink" href="#what-is-TLB" title="what is TLB?"></a>what is TLB?</h3><p>TLB definition from wiki: A translation lookaside buffer (TLB) is a memory cache that is used to reduce the time taken to access a user memory location. It is a part of the chip’s memory-management unit (MMU). The TLB stores the recent translations of virtual memory to physical memory and can be called an address-translation cache. A TLB may reside between the CPU and the CPU cache, between CPU cache and the main memory or between the different levels of the multi-level cache. The majority of desktop, laptop, and server processors include one or more TLBs in the memory-management hardware, and it is nearly always present in any processor that utilizes paged or segmented virtual memory.</p>
+<p>note: </p>
+<ol>
+<li><p>TLB stores recent translations that means not all address translation entry is stored in TLB, take care about cache miss.</p>
+</li>
+<li><p>TLB may reside between the CPU and the CPU cache, between the CPU cache and primary storage memory, or between levels of a multi-level cache. </p>
+</li>
+<li><p>virtual addressing met cache miss or physical addressing, CPU always uses TLB to find and store it into cache.</p>
+</li>
+<li><p>cache strategy LRU or FIFO</p>
+</li>
+<li><p>The CPU has to access main memory for an instruction-cache miss, data-cache miss, or TLB miss, but compare to others the third case TLB miss is too expensive.</p>
+</li>
+<li><p>freqently TLB misses occur degrading performance, because each newly cached page displacing one that will soon be used again. Where the TLB acting as a cache for the memory management unit (MMU) which translates virtual addresses to physical addresses is too small for the working set of pages. TLB thrashing can occur even if instruction cache or data cache thrashing are not occurring, because these are cached in different sizes. Instructions and data are cached in small blocks (cache lines), not entire pages, but address lookup is done at the page level. Thus even if the code and data working sets fit into cache, if the working sets are fragmented across many pages, the virtual address working set may not fit into TLB, causing TLB thrashing.</p>
+</li>
+</ol>
+<h3 id="TLB-miss-handling"><a class="headerlink" href="#TLB-miss-handling" title="TLB-miss handling"></a>TLB-miss handling</h3><p>Two schemes for handling TLB misses are commonly found in modern architectures:</p>
+<ul>
+<li>With hardware TLB management, the CPU automatically walks the page tables . On x86 for example, use CR3 register to walks page tables if entry exists, bring back to TLB and TLB tries and access will hit. Or raise a page fault exception which need to be handled by operation system and load correct physical address to TLB(page swap in/out). CPU change do not cause loss of compatibility for the programs.</li>
+<li>With software-managed TLBs, a TLB miss generates a TLB miss exception, and operating system code is responsible for walking the page tables and performing the translation in software. The operating system then loads the translation into the TLB and restarts the program from the instruction that caused the TLB miss. As with hardware TLB management, if the OS finds no valid translation in the page tables, a page fault has occurred, and the OS must handle it accordingly. Instruction sets of CPUs that have software-managed TLBs have instructions that allow loading entries into any slot in the TLB. The format of the TLB entry is defined as a part of the instruction set architecture (ISA).</li>
+</ul>
+<p>note:</p>
+<ol>
+<li>hardware TLB management TLB handling the lifecycle of TLB entries. </li>
+<li>hardware TLB management throws page fault that OS must handling and OS should bring the missing table entry of physical address into TLB cache. And than the program resume.</li>
+<li>hardware TLB management maintain TLB enties is invisible to software. </li>
+<li>hardware TLB management can change from CPU to CPU, but without causing compatibility for the programs. In other words, CPU should obey the rules of TLB management so there is always any page fault exception require OS to handle</li>
+<li>software TLB management throws TLB miss exception and OS owns the responsibility to walk page tables and translation in software. Then OS loads TLB table and restart programs (attention! not resume but restart).</li>
+<li>compare hardware and software TLB management, according to 2 CPU finds TLB and throw page fault exception when hardware, but in sofware situation, the CPU’s instruction sets should have instruction to load TLB to anywhere and TLB entry can be used directly by CPU instruction</li>
+</ol>
+<p>In most cases, hardware TLB management is used. But according to wiki, some of the architectures using software TLB management.</p>
+<h2 id="Typical-TLB"><a class="headerlink" href="#Typical-TLB" title="Typical TLB"></a>Typical TLB</h2><p>These are typical performance levels of a TLB:</p>
+<ul>
+<li>Size: 12 bits – 4,096 entries</li>
+<li>Hit time: 0.5 – 1 clock cycle</li>
+<li>Miss penalty: 10 – 100 clock cycles</li>
+<li>Miss rate: 0.01 – 1% (20–40% for sparse/graph applications)</li>
+</ul>
+<p>The average effective memory cycle rate is defined as <code>m + (1-p)h + pm</code> cycles, where <code>m</code> is the number of cycles required for a memory read, <code>p</code> is the miss rate, and <code>h</code> is the hit time in cycles. If a TLB hit takes 1 clock cycle, a miss takes 30 clock cycles, a memory read takes 30 clock cycles, and the miss rate is 1%, the effective memory cycle rate is an average of 30 + 0.99 * 1 + 0.01 * 30 (31.29 clock cycles per memory access)</p>
+<p>note: research more of TLB performance</p>
+<p>use perf test TLB miss</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">perf stat -e dTLB-loads,dTLB-load-misses,iTLB-loads,iTLB-load-misses -p $PID</span><br/></pre></td></tr></table></figure>
+<p>if a high TLB missing rate exists in your OS, try to use huge page to decrease the table entries in TLB which will cut down the miss rate. But some application is not siutable for huge page and more details need to be change before use this solution.</p>
+<h2 id="Address-space-switch"><a class="headerlink" href="#Address-space-switch" title="Address-space switch"></a>Address-space switch</h2><p>After process context switches, some TLB entries’ virtual address to physical address mapping is invalid. In order to clean thoes invalid entires, some strategies is required. </p>
+<ol>
+<li>flush all entries after process context change</li>
+<li>mark the entries with its process so the process context change do not matter</li>
+<li>some architecture use a sinlge address space operating system, all process use the same virtual-to-pysical mapping</li>
+<li>some CPU have a process register and hardware uses TLB entries only the current process ID matches</li>
+</ol>
+<p>note:<br/>flushing TLB is an important security mechanism for memory isolation. Memory isolation is especially critical during switches between the privileged operating system kernel process and the user processes – as was highlighted by the Meltdown security vulnerability[2]. Mitigation strategies such as kernel page-table isolation (KPTI) rely heavily on performance-impacting TLB flushes and benefit greatly from hardware-enabled selective TLB entry management such as PCID.</p>
+<h2 id="Virtualization-and-x86-TLB"><a class="headerlink" href="#Virtualization-and-x86-TLB" title="Virtualization and x86 TLB"></a>Virtualization and x86 TLB</h2><p>With the advent of virtualization for server consolidation, a lot of effort has gone into making the x86 architecture easier to virtualize and to ensure better performance of virtual machines on x86 hardware</p>
+<p>EPT required.</p>
+<h2 id="reference"><a class="headerlink" href="#reference" title="reference"></a>reference</h2><ol>
+<li><a href="https://en.wikipedia.org/wiki/Translation_lookaside_buffer" rel="noopener" target="_blank">https://en.wikipedia.org/wiki/Translation_lookaside_buffer</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)" rel="noopener" target="_blank">https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)</a></li>
+</ol>

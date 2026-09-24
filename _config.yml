@@ -1,0 +1,49 @@
+title: 花の様に
+subtitle: ""
+description: Alan Jager 的 KVM / virtio / Linux 内核排查笔记
+keywords: ""
+author: Alan Jager
+language: zh-CN
+timezone: Asia/Shanghai
+url: https://hanayo.cn
+root: /
+permalink: :year/:month/:day/:title/
+permalink_defaults: {}
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+theme: landscape
+new_post_name: :title.md
+default_layout: post
+external_link:
+  enable: true
+  field: site
+  exclude: []
+highlight:
+  enable: true
+  line_number: false
+  auto_detect: false
+  tab_replace: ""
+index_generator:
+  path: ""
+  per_page: 10
+  order_by: -date
+archive_generator:
+  per_page: 10
+  yearly: true
+  monthly: true
+category_generator:
+  per_page: 10
+tag_generator:
+  per_page: 10
+skip_render:
+  - tools/**
+  - fancybox/**
+feed:
+  type: atom
+  path: atom.xml
+  limit: 20
+seo_geo_aeo:
+  sameAs:
+    - https://github.com/AlanJager
+  llms_limit: 20

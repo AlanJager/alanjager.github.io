@@ -1,0 +1,87 @@
+---
+title: "Plugable module architecture design and thoughts about its implementation"
+date: "2022-10-21 00:45:32"
+permalink: "2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/"
+updated: "2022-10-21 00:51:17"
+description: "IntroductionSoftware’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on customizing fe"
+categories: ["arch-notes"]
+tags: ["software-arch", "system-design"]
+disableNunjucks: true
+---
+
+<h2 id="Introduction"><a class="headerlink" href="#Introduction" title="Introduction"></a>Introduction</h2><p>Software’s complexity grows as time goes by which is suitable to describe ZStack now. Quantities of features has been integrated in the past years and developers suffered on customizing features for some commercial reasons which pushed us to think about how to get rid of customizing feature efforts and focus   on core function to earn more technical advantages.</p>
+<p>Generallly, customizing features is harmful when compared to normal features (but maybe it can get commercial benifits so do not take this as absolute     rule), because more customers use normal features.</p>
+<p>But because some integration requests already designed which not only require maintainance but also need development for new integration. For example, a feature for security is desing to use third-part machine to do encryption，but when customer use the feature, they all use different machine which caused lots of development cost for us to do the integrations.</p>
+<p>In these cases, a plugable architecture is required to cut down the cost and this is the reason to write this blog to record related design and make it a repeatable practice.</p>
+<h2 id="Requirements"><a class="headerlink" href="#Requirements" title="Requirements"></a>Requirements</h2><p>For existing systems which need to support multi types of resources, typically use a register way to connect the management layer and application layers. And the application layers use a couple of standard interfaces to keep consistency and seperate implementation from mechanism.</p>
+<p>So for the aim of delveloping a plugable module architecture if we still follows the pattern, easily we will be distrubed by the change of core codes from the mechanism. For example, if the core changes the mechanism as a result, application should change all of the interfaces as expected, so development is required which is not satisfied with out target.</p>
+<p>Just after that small think, list all requirements before starting design. Following points are the aim of this architecture:</p>
+<ul>
+<li>Low development efforts or configuration as a service.</li>
+<li>No core code dependency. Any changes to mechanism should be avoid.</li>
+<li>Security. Plugin module should not cause any security issue.</li>
+</ul>
+<p>Base on those points, the architecture should be changed to expose its mechanism by interfaces.</p>
+<p>For example</p>
+<ol>
+<li>read plugin configuration and verify it</li>
+<li>generate code proxy according to the configuration</li>
+<li>limited db access controled by the code proxy</li>
+<li>Invokations can be verified by unit test to check the plugin can work as expected</li>
+<li>change the configuration the refresh it could update the code proxy</li>
+<li>plugin configurations use a specified syntax</li>
+<li>if code proxy support runtime refresh can be configured</li>
+</ol>
+<p>From writing configurations, functional features can be easily supported.</p>
+<p>If any requests need data structure support, a configuration map shoud be support for more customize and in this way we can easily create a http client to support some modules.</p>
+<p>But if customize feature use any third-part libs, only configuration is not enough to support.</p>
+<p>For code level, maybe open source interfaces is still needed.</p>
+<p>We should offer read only data structure and functional interfaces but should not involve core codes of Java which in most cases, are aspectj support, spring containers and so on. Only pure java should be used for all plugin modules.</p>
+<p>In next section, we will raise examples of two module, one is not suitable for plugable module and other one is suitable for plugable.</p>
+<h2 id="Login-module"><a class="headerlink" href="#Login-module" title="Login module"></a>Login module</h2><p>Multiple login methods should be supported because many standard third-part authentication is already exists for example, CAS, oauth2, ldap and so on.</p>
+<p>If you already have a customized system for authentication, I seems diffcult to integrate another system with existing one. Because the authentication actually need to transfer sensitive information to do authenticate but which is not safe enough to expose those data for plugin exactly.</p>
+<p>From the usage of CAS, oauth2 we can see a generally authentication service just redirect authentication to itself and returns a authentication result and finally redirect to the right page. So sensitive information do not transferred but use a token to verify client’s response instead. </p>
+<p>For ldap, just access its database directly to verify if the user is exists and finish authentication. Because ldap just integrated with ZStack so also no data transferred but ldap module itself need to care about the security issue which already resolve by third-part libs.</p>
+<p>So when we tries to support plugin for login, password or any key liked information need to be exposed which is quite unsafe and have potential security risks. Compared to ldap verification, password is used directly and also faces the same problem.</p>
+<p>For login module integration, two ways are recommended. One is using open-source authentication like CAS or oauth2. Another is integrating ZStack API to use account/user directly.</p>
+<p>Following figure shows the flows of login module</p>
+<img class="" src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure1.png"/>
+<ul>
+<li>Support plugable system, main auth or additinal auth should be exposed</li>
+<li>Sensitive information go through the whole flow</li>
+<li>CAS and oauth2 use their own authentication which is not related the current architecture</li>
+</ul>
+<h2 id="Alarm-Event-system"><a class="headerlink" href="#Alarm-Event-system" title="Alarm/Event system"></a>Alarm/Event system</h2><p>For alarm event system, only expose monitor messages which seems more suitable to be developed as a plugable system.</p>
+<p>When have lots of endpoint support, some use stantard libs like dingtalk and microsoft teams, offers api for message sending. But when sms system require integration, this became diffcult due to the lack of stantard apis.</p>
+<p>So a plugable system can be powerful to reduce development efforts.</p>
+<p>For example, sms systems all have their own apis the usages, so the interation of api is the first step. But actually the business scenarios are not only limited on send message. Maybe message distribution strategy is required, and message format is required.</p>
+<p>So seperate those parts as followings:</p>
+<ul>
+<li>Send sms message</li>
+<li>Distribution strategy</li>
+<li>Message format</li>
+<li>….</li>
+</ul>
+<p>When design plugable system, the most important thing is that we should seperate mechanism requirements and strategy requirements. </p>
+<p>For message format, actually, all kinds of message required this feature and can be noted as general feature and mechanism and we can also call it customize message format. The format change do not influence how the message send or comsumed.</p>
+<p>Distribution strategy, from the name, we can known that no specific rules or format could be announced because the strategy always changes from one the another.</p>
+<p>Send sms message. also the integration part but the message with a format is what we can offered and only how to send the message should be defined and which is I think can be seperated from the system.</p>
+<p>And more informations maybe, endpoint type, status and those ZStack defined fields also need to be involved in the plugable system so we get a architecture like following:</p>
+<img class="" src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure2.png"/>
+<p>A plugable endpoint in designed to manage endpoint plugins and plugin should obey following rules: </p>
+<ul>
+<li>Offer endpoint type</li>
+<li>Implement interface to send message</li>
+<li>Unit test for endpoint plugin</li>
+</ul>
+<p>And the design of plugable endpoint may like following:</p>
+<img class="" src="/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/figure3.png"/>
+<p>So plugable endpoint should define a interface require type and send() method’s implementation for the usage. Take the interface to a seperate open source package and publish to maven repository, its easy for develop and easy to use. By reflections, endpoint could be initialized from jar so just add jar to your dependency directory is ok.</p>
+<p>To develop a plugin for new sns endpoint no need to known the logic or usage of orignal application system but developer could focus on the send method itself.</p>
+<p>On the other hand, application level should extend orignal CURD api to suitable for those plugin definition and keep compitable with other endpoints.</p>
+<h2 id="TODO"><a class="headerlink" href="#TODO" title="TODO"></a>TODO</h2><ul>
+<li>Database access is not limited which should add limited on database service itself.</li>
+<li>Rules for all kind of plugins so that plugins can be managed together and distribution can keep consistency</li>
+<li>More examples</li>
+<li>For exsiting modules, try to refactor the plugin types to get rid of module dependency</li>
+</ul>

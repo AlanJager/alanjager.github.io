@@ -1,0 +1,46 @@
+---
+title: "Windows 2003 vmware v2v hands-on"
+date: "2022-10-27 15:27:12"
+permalink: "2022/10/27/windows-2003-vmware-v2v-hands-on/"
+updated: "2022-10-27 15:48:29"
+description: "When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet following blue screen issu"
+categories: ["virtualization", "v2v"]
+tags: ["v2v", "virt"]
+disableNunjucks: true
+---
+
+<p>When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os version, typically windows 2003, may meet following blue screen issue:</p>
+<img class="" src="/2022/10/27/windows-2003-vmware-v2v-hands-on/image-2022-10-09-21-15-41-292.png"/>
+<p>with code 0x0000007B.</p>
+<p>So I write a hands-on blog to help fix this issue.</p>
+<p>When search for this error on vmware kb or MSDN, we can find out that, wrong driver is the main reason cause this problem.</p>
+<p>Usually, it’s recommanded to do following check for the v2v vm:</p>
+<ol>
+<li>Confirm the vm running well on original host, if its already error check configuration first.</li>
+<li>Check if virt-v2v failed to install virtio driver to guest during virt-v2v convert.</li>
+<li>Check kvm configuration, that root disk use ide to keep compitable.</li>
+<li>Check if windows disabled driver installatin by its group policy.</li>
+</ol>
+<p>Besides those issues, if you migrate a windows 2003 with cd-rom you will also met this blue screen issue. Due to windows will change device order after v2v and root disk not work as expected.</p>
+<p>So I write this practical blog to resolve device changed issue on windows 2003 v2v.</p>
+<ol>
+<li><p>Uninstall vmware guest tools and drivers (avoid failed to install driver issue)</p>
+</li>
+<li><p>Change the disk controller to ide and reboot guest</p>
+<img class="" src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.33.png"/>
+</li>
+<li><p>Attach MergeIde.iso to guest</p>
+<img class="" src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.13.43.png"/>
+<p>the iso contains a .reg and a .bat file. Run the .reg first and run the .bat. The device will be recorded and prepare for hypervisor change.</p>
+</li>
+<li><img class="" src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.14.29.png"/>
+<p>export ovf template or use virt-v2v to export the vm the kvm.</p>
+</li>
+<li><img class="" src="/2022/10/27/windows-2003-vmware-v2v-hands-on/%E6%88%AA%E5%B1%8F2022-10-25-11.10.01.png"/>
+<p>check the vm started without blue screen.</p>
+</li>
+</ol>
+<p>For windows, it seems that with cd-rom or disk order changed guest, after hypervisor migration, windows can not identify the original order of thoes devices due to hardware change. So record the device seems a easy solution for v2v case.</p>
+<p>Note: this solution is also useful for Windows XP v2v</p>
+<p>Download MergeIDE.iso from: <a href="https://www.virtualbox.org/wiki/Migrate_Windows" rel="noopener" target="_blank">https://www.virtualbox.org/wiki/Migrate_Windows</a></p>
+<p>Refer to Microsoft commands: <a href="https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting" rel="noopener" target="_blank">https://learn.microsoft.com/en-US/troubleshoot/windows-client/performance/stop-error-7b-or-inaccessible-boot-device-troubleshooting</a></p>

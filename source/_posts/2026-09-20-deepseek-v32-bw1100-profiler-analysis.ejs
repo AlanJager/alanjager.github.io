@@ -1,0 +1,118 @@
+---
+title: "在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2"
+date: "2026-09-20 16:00:00"
+permalink: "2026/09/20/deepseek-v32-bw1100-profiler-analysis/"
+updated: "2026-09-20 14:15:50"
+description: "在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。"
+categories: ["arch-notes"]
+tags: ["perf", "performance"]
+disableNunjucks: true
+---
+
+<p>最近在 8 张 BW1100 上跑 DeepSeek-V3.2 W8A8，顺手做了一次 Profiler 分析练习。这篇文章主要记录分析过程：先看不同负载下的 kernel 时间分布，再根据热点整理后面值得继续确认的问题。</p>
+<p>它不是一份完整的性能报告，也不讨论跨平台排名。里面的数字只用于理解这套环境中的瓶颈变化。</p>
+<p>测试环境是 8 张 BW1100，TP=8，推理框架为 vLLM 0.18.1 + vllm-hcu 0.18.1。模型使用 W8A8 权重、BF16 激活、FP8 KV cache。基线已经启用了 chunked prefill、prefix cache、FlashMLA、global MoE cache、通信计算重叠和 NUMA 绑定。</p>
+<p>换句话说，这不是从一个完全没有优化过的配置开始捡低垂果实。</p>
+<h2 id="phenomenon"><a class="headerlink" href="#phenomenon" title="Phenomenon"></a>Phenomenon</h2>
+<p>基线的 1K 输入、1K 输出测试中：</p>
+<table>
+<thead>
+<tr>
+<th align="right">并发</th>
+<th align="right">输出吞吐</th>
+<th align="right">TTFT Avg</th>
+<th align="right">TPOT Avg</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">C1</td>
+<td align="right">35.04 Token/s</td>
+<td align="right">315.9 ms</td>
+<td align="right">28.25 ms</td>
+</tr>
+<tr>
+<td align="right">C8</td>
+<td align="right">168.55 Token/s</td>
+<td align="right">181.2 ms</td>
+<td align="right">40.39 ms</td>
+</tr>
+<tr>
+<td align="right">C32</td>
+<td align="right">457.97 Token/s</td>
+<td align="right">3083.5 ms</td>
+<td align="right">66.89 ms</td>
+</tr>
+</tbody></table>
+<p>从结果看，随着并发增加，总吞吐继续上升，但排队和单 token 延迟也在增加。这种场景下，直接问“哪个参数最快”没有意义。至少要先区分三个目标：</p>
+<ol>
+<li>单路或低并发 Decode 延迟。</li>
+<li>C8/C32 下的均衡吞吐。</li>
+<li>长上下文 Prefill 和严格 TTFT。</li>
+</ol>
+<p>它们很可能需要不同配置。</p>
+<h2 id="start-from-the-profiler"><a class="headerlink" href="#start-from-the-profiler" title="Start from the Profiler"></a>Start from the Profiler</h2>
+<p>这轮分析取 Rank0 设备 kernel 的累计时间，把算子粗分为通信、MoE、MLA/Attention、量化、GEMM 和 Norm/Activation。</p>
+<p><img alt="不同负载下的 Rank0 kernel 累计时间分布" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/time-distribution.png"/></p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th align="right">通信</th>
+<th align="right">MoE</th>
+<th align="right">MLA/Attention</th>
+<th align="right">量化</th>
+<th align="right">GEMM</th>
+<th align="right">Norm/Activation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Decode C1，128→16</td>
+<td align="right">11.8%</td>
+<td align="right">13.3%</td>
+<td align="right">12.4%</td>
+<td align="right">15.6%</td>
+<td align="right">30.5%</td>
+<td align="right">15.2%</td>
+</tr>
+<tr>
+<td>Prefill C1，16K→1</td>
+<td align="right">11.0%</td>
+<td align="right">20.8%</td>
+<td align="right">47.6%</td>
+<td align="right">5.6%</td>
+<td align="right">10.5%</td>
+<td align="right">3.3%</td>
+</tr>
+<tr>
+<td>Decode C32，1K→16</td>
+<td align="right">9.0%</td>
+<td align="right">28.2%</td>
+<td align="right">21.5%</td>
+<td align="right">10.6%</td>
+<td align="right">19.2%</td>
+<td align="right">10.8%</td>
+</tr>
+</tbody></table>
+<p>这里最重要的不是某个百分比，而是三个场景的形状完全不同。</p>
+<p>16K Prefill 明显由 Attention 主导。<code>sparse_attn_fwd_kernel</code> 占 29.5%，<code>mqa_logits_fp8</code> 占 17.3%。如果目标是长上下文 TTFT，应该优先看 Attention、长 Prefill 切分和调度，而不是盯着普通 GEMM。</p>
+<p><img alt="16K Prefill 算子执行热力图" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/prefill-operator-heatmap.png"/></p>
+<p>C32 Decode 中，MoE 占比上升到 28.2%，MLA/Attention 为 21.5%，GEMM 下降到 19.2%。高并发时，MoE、Attention 和跨卡归约共同决定结果，也不存在一个可以单独解决问题的“大算子”。</p>
+<p>C1 Decode 看起来 GEMM 最高，但展开时间轴后，会看到一条由大量量化、GEMM、Norm、Attention、MoE 和通信 kernel 组成的密集链。</p>
+<p><img alt="Decode 算子执行时间轴" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/decode-operator-timeline.png"/></p>
+<p>这给出的一个方向是：Decode 不一定缺少某个更快的 GEMM，更可能需要减少 launch、同步和重复计算。不过 Profiler 只能帮助提出问题，不能直接证明某种改法一定有效。</p>
+<h2 id="几个需要说明的地方"><a class="headerlink" href="#几个需要说明的地方" title="几个需要说明的地方"></a>几个需要说明的地方</h2>
+<p>上面的数字还有几处不能看得太满：</p>
+<ul>
+<li>Profiler 占比来自 Rank0 设备 kernel 累计时间；stream 重叠可能造成重复计时，不能把各项占比理解成严格的 wall-clock 分解。</li>
+<li>结果绑定于这套模型、W8A8 量化、KV cache、框架/插件版本和 8×BW1100 配置。模型、精度、tokenizer、缓存状态和请求分布没有对齐时，这些数字不适合拿去做横向比较。</li>
+</ul>
+<h2 id="后续工作"><a class="headerlink" href="#后续工作" title="后续工作"></a>后续工作</h2>
+<p>这次先停在 Profiler 分析。后面如果继续做，会先把测试方法固定下来，再逐项验证：</p>
+<ol>
+<li>补充不同输入长度和并发下的 trace，确认热点变化不是单个样本造成的。</li>
+<li>把 Prefill 和 Decode 分开看，分别记录 wall-clock、设备时间、TTFT、TPOT 和吞吐，避免混在一起解释。</li>
+<li>针对 Decode 的小 kernel 链测试融合、调度和 speculative decoding，但一次只改一个变量。</li>
+<li>针对长 Prefill 继续拆 Attention、MoE 和通信时间，确认优化空间到底落在哪一层。</li>
+<li>补齐请求数、正确性、显存和 P50/P95/P99 后，再决定哪些结果值得单独写。</li>
+</ol>
+<p>现在这些更多还是拿数据和熟悉工具，先不急着下结论。</p>

@@ -1,0 +1,88 @@
+---
+title: "KVM introduction 00"
+date: "2022-06-30 23:47:07"
+permalink: "2022/06/30/kvm-introduction-00/"
+updated: "2022-09-28 09:19:10"
+description: "See notation of virt/kvm/kvm_main.c in linux kernel 1234567891011121314151617/* * Kernel-based Virtual Machine driver for Linux * * This module enables machines with Intel VT-x extensions to run"
+categories: ["virtualization"]
+tags: ["kernel", "kvm"]
+disableNunjucks: true
+---
+
+<p>See notation of <code>virt/kvm/kvm_main.c</code> in linux kernel</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/></pre></td><td class="code"><pre><span class="line">/*</span><br/><span class="line"> * Kernel-based Virtual Machine driver for Linux</span><br/><span class="line"> *</span><br/><span class="line"> * This module enables machines with Intel VT-x extensions to run virtual</span><br/><span class="line"> * machines without emulation or binary translation.</span><br/><span class="line"> *</span><br/><span class="line"> * Copyright (C) 2006 Qumranet, Inc.</span><br/><span class="line"> * Copyright 2010 Red Hat, Inc. and/or its affiliates.</span><br/><span class="line"> *</span><br/><span class="line"> * Authors:</span><br/><span class="line"> *   Avi Kivity   &lt;avi@qumranet.com&gt;</span><br/><span class="line"> *   Yaniv Kamay  &lt;yaniv@qumranet.com&gt;</span><br/><span class="line"> *</span><br/><span class="line"> * This work is licensed under the terms of the GNU GPL, version 2.  See</span><br/><span class="line"> * the COPYING file in the top-level directory.</span><br/><span class="line"> *</span><br/><span class="line"> *</span><br/></pre></td></tr></table></figure>
+<p>I got some questions</p>
+<ul>
+<li>what means kernel-based</li>
+<li>what is VT-x</li>
+<li>emulation? binary traslation?</li>
+<li>who is Avi Kivity</li>
+<li>is there any user-mode hypervisor?</li>
+</ul>
+<h2 id="Kernel-based"><a class="headerlink" href="#Kernel-based" title="Kernel-based"></a>Kernel-based</h2><blockquote>
+</blockquote>
+<p>Kernel-based Virtual Machine (KVM) is a virtualization module in the Linux kernel that allows the kernel to function as a hypervisor. It was merged into the mainline Linux kernel in version 2.6.20, which was released on February 5, 2007. <sup>[1]</sup></p>
+<p>its available under <code>linux/virt</code></p>
+<h2 id="VT-x"><a class="headerlink" href="#VT-x" title="VT-x"></a>VT-x</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">This module enables machines with Intel VT-x extensions to run virtual</span><br/><span class="line">machines without emulation or binary translation.</span><br/></pre></td></tr></table></figure>
+<p>According to the code notation, Intel VT-x extensions is metioned.</p>
+<blockquote>
+</blockquote>
+<p>Previously codenamed “Vanderpool”, VT-x represents Intel’s technology for virtualization on the x86 platform. On November 13, 2005, Intel released two models of Pentium 4 (Model 662 and 672) as the first Intel processors to support VT-x. The CPU flag for VT-x capability is “vmx”; in Linux, this can be checked via /proc/cpuinfo, or in macOS via sysctl machdep.cpu.features.<sup>[2]</sup></p>
+<p>for example, on centos 7.6</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">[root@test ~]# cat /proc/cpuinfo | grep vmx | head -1</span><br/><span class="line">flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology eagerfpu pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 arat</span><br/></pre></td></tr></table></figure>
+<p>or on Intel CPU MacBook Pro (2020)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">➜  ~ sysctl machdep.cpu.features | grep -i vmx</span><br/><span class="line">machdep.cpu.features: FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C</span><br/></pre></td></tr></table></figure>
+<p>vmx is available</p>
+<blockquote>
+</blockquote>
+<p>“VMX” stands for Virtual Machine Extensions, which adds 13 new instructions: VMPTRLD, VMPTRST, VMCLEAR, VMREAD, VMWRITE, VMCALL, VMLAUNCH, VMRESUME, VMXOFF, VMXON, INVEPT, INVVPID, and VMFUNC.[21] These instructions permit entering and exiting a virtual execution mode where the guest OS perceives itself as running with full privilege (ring 0), but the host OS remains protected.<sup>[2]</sup></p>
+<p>note: virtual execution mode is a important concept</p>
+<p>refer to paper <strong>kvm: the Linux Virtual Machine Monitor</strong> KVM is designed to add a guest mode, joining the existing <em>kernel mode</em> and <em>user mode</em> </p>
+<img class="" src="/2022/06/30/kvm-introduction-00/cpu_executino_loop.png"/>
+<p>In <em>guest-mode</em> CPU instruction executed natively but when I/O requests or signal(typically, network packets received or timeout), exit <em>guest-mode</em> is required and kvm than redirect those I/O or signal handling to <em>user-mode</em> process to emulation device and execute actual I/O. After I/O handling finished, KVM will enter guest mode to execute its CPU instructions again.</p>
+<p>For <em>kernel-mode</em> handling exit and enter is basic task. And <em>user-mode</em> process calls kernel to enter <em>guest-mode</em> until it interrupt.</p>
+<h2 id="Emulation-amp-Binary-translation"><a class="headerlink" href="#Emulation-amp-Binary-translation" title="Emulation &amp; Binary translation"></a>Emulation &amp; Binary translation</h2><blockquote>
+</blockquote>
+<p>In computing, binary translation is a form of binary recompilation where sequences of instructions are translated from a source instruction set to the target instruction set. In some cases such as instruction set simulation, the target instruction set may be the same as the source instruction set, providing testing and debugging features such as instruction trace, conditional breakpoints and hot spot detection.</p>
+<blockquote>
+</blockquote>
+<p>The two main types are static and dynamic binary translation. Translation can be done in hardware (for example, by circuits in a CPU) or in software (e.g. run-time engines, static recompiler, emulators).<sup>[3]</sup></p>
+<p>Emulators mostly used to run softwares or applications on current OS where those softwares or applications are not support. For example, <a href="https://github.com/OpenEmu/OpenEmu" rel="noopener" target="_blank">https://github.com/OpenEmu/OpenEmu</a> a multiple video game system. This is advantage of emulators.</p>
+<p>Disadvantage is that binary translation sometimes require instructino scan, if its used for CPU instruction translations, it spends more time than native instruction. More details in <a href="https://people.redhat.com/pbonzini/qemu-test-doc/_build/html/topics/Translator-Internals.html" rel="noopener" target="_blank">Translator-Internals</a> will be talked in next blogs.</p>
+<h2 id="Avi-Kivity"><a class="headerlink" href="#Avi-Kivity" title="Avi Kivity"></a>Avi Kivity</h2><p>Mad C++ developer, proud grandfather of KVM. Now working on @ScyllaDB, an open source drop-in replacement for Cassandra that’s 10X faster. Hiring (remotes too).</p>
+<p>from <a href="https://twitter.com/avikivity" rel="noopener" target="_blank">https://twitter.com/avikivity</a></p>
+<blockquote>
+</blockquote>
+<p>Avi Kivity began the development of KVM in mid-2006 at Qumranet, a technology startup company that was acquired by Red Hat in 2008. KVM surfaced in October, 2006 and was merged into the Linux kernel mainline in kernel version 2.6.20, which was released on 5 February 2007. </p>
+<blockquote>
+</blockquote>
+<p>KVM is maintained by Paolo Bonzini. <sup>[1]</sup></p>
+<h2 id="Virtualization"><a class="headerlink" href="#Virtualization" title="Virtualization"></a>Virtualization</h2><img class="" src="/2022/06/30/kvm-introduction-00/hardware_assisted_virtualization.png"/>
+<p>For hardware assisted virtualiztion, VMM running below ring0 Guest OS, user application can directly execute user requests, and sensitive OS call trap to VMM without binary translation or Paravirtualization so overhead is decreased.</p>
+<p>But for older full virtualization design</p>
+<img class="" src="/2022/06/30/kvm-introduction-00/full_virtualization.png"/>
+<p>Guest OS runs on Ring1 and VMM runs on Ring0, without hardware assist, OS requests trap to VMM and after binary translation the instruction finally executed.</p>
+<h2 id="KVM-Details"><a class="headerlink" href="#KVM-Details" title="KVM Details"></a>KVM Details</h2><h3 id="Memory-map"><a class="headerlink" href="#Memory-map" title="Memory map"></a>Memory map</h3><p>From perspective of Linux guest OS. Physical memory is already prepared and virtual memory is allocated depend on the physical memory. When guest OS require a virtual address(GVA), Guest OS need to translate is to guest physical address(GPA), this obey the prinsiple of Linux, and tlb, page cache will be involved. And no difference with a Linux Guest running on a real server.</p>
+<p>From perspective of host, start a Guest need to allocate a memory space as GPA space. So every GPA has a mapped host virtual address(HVA) and also a host physical address(HPA)</p>
+<p>So typically, if a guest need to access a virtual memory address</p>
+<p>GVA -&gt; GPA -&gt; HVA -&gt; GPA</p>
+<p>at least three times of translation is needed.</p>
+<p>Nowadays, CPU offer EPT(Intel) or NPT(AMD) to accelerate GPA -&gt; HVA translation. We will refer that in after blogs.</p>
+<h3 id="vMMU"><a class="headerlink" href="#vMMU" title="vMMU"></a>vMMU</h3><p>MMU consists of </p>
+<ul>
+<li>A radix tree ,the page table, encoding the virtual- to-physical translation. This tree is provided by system software on physical memory, but is rooted in a hardware register (the cr3 register)</li>
+<li>A mechanism to notify system software of missing translations (page faults)</li>
+<li>An on-chip cache(the translation lookaside buffer, or tlb) that accelerates lookups of the page table</li>
+<li>Instructions for switching the translation root inorder to provide independent address spaces</li>
+<li>Instructions for managing the tlb</li>
+</ul>
+<p>As referred in <strong>Memory map</strong> GPA -&gt; HVA should be offered by KVM.</p>
+<p>If no hardware assist, use shadow table to maintain the map between GPA and HVA, the good point of shadow table is that runtime address translation overhead is decrease but the major problem is how to synchronize guest page table with shadow page table, when guest writes page table, the shadow page table need to be changed together, so virtual MMU need offer hooks to implement this.</p>
+<p>Another question is context switch. Shadow page tables based on the fact that guest should sync its tlb with shadow page tables so that tlb management instruction will be trapped. But the most common tlb management instruction in context-switch is invalidates the entire tlb. So the shadow page tables need to be synced again. Causes bad performance when vm runs multi processes.</p>
+<p>vMMU is implement in order to improve guest performance which caches all page tables during context switch. This means context swtich could find its cache from vMMU directly, invdalidates tlb has no influence on context-switch.</p>
+<ul>
+<li>[1] <a href="https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine" rel="noopener" target="_blank">https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine</a></li>
+<li>[2] <a href="https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)" rel="noopener" target="_blank">https://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_(VT-x)</a></li>
+<li>[3] <a href="https://en.wikipedia.org/wiki/Binary_translation" rel="noopener" target="_blank">https://en.wikipedia.org/wiki/Binary_translation</a></li>
+<li>[4] <a href="https://www.kernel.org/doc/ols/2007/ols2007v1-pages-225-230.pdf" rel="noopener" target="_blank">https://www.kernel.org/doc/ols/2007/ols2007v1-pages-225-230.pdf</a></li>
+</ul>

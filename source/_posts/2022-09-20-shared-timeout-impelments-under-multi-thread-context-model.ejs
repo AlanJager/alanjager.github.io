@@ -1,0 +1,53 @@
+---
+title: "Shared timeout implements under multi-thread context model"
+date: "2022-09-20 13:38:16"
+permalink: "2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/"
+updated: "2022-09-28 09:19:10"
+description: "This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice. Why shared timeoutFor a complex micro service"
+categories: ["arch-notes"]
+tags: ["software-arch", "system-design"]
+disableNunjucks: true
+---
+
+<p>This blog shows timeout impelents under multi-thread Java application. Discuss its advantage and disadvantage, also tell difficulties we meet in practice.</p>
+<h2 id="Why-shared-timeout"><a class="headerlink" href="#Why-shared-timeout" title="Why shared timeout"></a>Why shared timeout</h2><p>For a complex micro service system, message is a basic way used for communication between all modules. So timeout is come into used, for every API or message, to avoid unfinished tasks.</p>
+<p>Let’s think if you what to do something without timeout, it may never finished with response. So timeout does the matter to help user and system get rid of those situations.</p>
+<p>But when we talk about shared timeout, what is it and what it does. </p>
+<p>For example, one API may sending several message to execute on different services and finally finished. During the process, if a timeout happen, API should return as timeouted as we expected. So the design of timeout mechanism should share a same period of timeout.</p>
+<p>Assume API timeout is T and three messages tend to be used for API’s execution, and message<sub>1</sub> use time T<sub>1</sub>, message<sub>2</sub> use time T<sub>2</sub> and message<sub>3</sub> use time T<sub>3</sub> , in shared timeout situation, message<sub>1</sub>‘s timeout is T , message<sub>2</sub>‘s timeout is T - T<sub>1</sub>,  message<sub>3</sub>‘s timeout is T - T<sub>1</sub> - T<sub>2</sub>. The remaining timeout should be used for next message to confirm all sub messages could be timeouted as expected.</p>
+<h2 id="Application-level-implements"><a class="headerlink" href="#Application-level-implements" title="Application level implements"></a>Application level implements</h2><p>For message level timeout, the easiest way to implement timeout management is on message bus. Every timeout the message received, check its timeout header and calculate its remaining timeout seems to make sense. </p>
+<p>But if we record its timeout by decrease message used time. The machanism became more complex, because every messages time usage need to be recorded but for most product the message profiling is disable to avoid any performance overhead. </p>
+<p>In order to solve this problem, we use message deadline as metadata for message lifecyle. Every new coming message should be set a deadline due to its configuration and every sub message calculate its remaining timeout by using the deadline time substract current time. So with a general service to get current time this timeout mechanism get more efficient.</p>
+<h2 id="More-challenges"><a class="headerlink" href="#More-challenges" title="More challenges"></a>More challenges</h2><p>In multi-thread application. Lifecyle maintanence of message’s timeout is really matter. </p>
+<p>Espacially, ZStack use in-process micro services architecture, messages pass through memory or http, for API message, the timeout always works well, but for internal messages more problems came out.</p>
+<p>For example, a async invoker util functios may send several messages but they shares the same thread before handling, so the thread’s context will be used as message’s initial context where the timeout stored.</p>
+<p>When thread context changed we can clear the context by thread pool’s thread lifecyle hook.</p>
+<p>But some user case the timeout do not work as expected.</p>
+<ul>
+<li>GC task (in memory task triggered by a fixed time rate or any system event)</li>
+<li>Thread level task (async and sync task queue)</li>
+</ul>
+<h3 id="GC-task"><a class="headerlink" href="#GC-task" title="GC task"></a>GC task</h3><p>GC task is used to handling some unexpected async operation or retry to delete some resource and so on. </p>
+<p>If a thread submit the task executes the task itself, the context will be used directly, and actually the context mess up the GC task’s execution. So always use a new thread to start GC job is a good choice.</p>
+<p>For multi-thread application, message dilevery and handling involves different threads, especially some task driver might be used to construct work flow and task execution. So the timeout context need be passed from one thread to another.</p>
+<p>Assume Thread1 do task1 and finished with submit a new task2, maybe sometimes after Thread2 start to handle task2 but at this time task2 is required to contain timeout. Or the timeout cannot be passed.</p>
+<h3 id="Fixed-thread-task"><a class="headerlink" href="#Fixed-thread-task" title="Fixed thread task"></a>Fixed thread task</h3><p>Same thread handling all tasks, so task should store its context when submitted to task queue.</p>
+<p>Execution need to recover task context before execution.</p>
+<h3 id="Benefits-of-the-concepts"><a class="headerlink" href="#Benefits-of-the-concepts" title="Benefits of the concepts"></a>Benefits of the concepts</h3><p>For a in-process arch, use a global level timeout during api or inner task lifecycle and the whole timeout can be managed.</p>
+<h2 id="Easy-implements"><a class="headerlink" href="#Easy-implements" title="Easy implements"></a>Easy implements</h2><p>In java program, use aop to maintain the timeout get/set seems a good choice.</p>
+<p>A typical ZStack task workflow, usually use api at the first step. A new coming api message, ZStack will set timeout to it, but in order to know parent messages timeout, we need to manage the timeout information to the message.</p>
+<p>So a design named TaskContext is created to contains the global variables during whole task lifecycle. Use aop, all async tasks will use its parent TaskContext and clear it before start. With TaskContext, the timeout can be managed.</p>
+<p>But some user scenarios still need to be discussed, list it before details:</p>
+<ul>
+<li>Inner message is used as the start of a task, it should support timeout.</li>
+<li>API use a inner message configured with timeout which should be supported.</li>
+<li>How did new coming mechanism aware of the timeout from task context</li>
+<li>How to avoid task context be messed</li>
+</ul>
+<h3 id="Inner-message"><a class="headerlink" href="#Inner-message" title="Inner message"></a>Inner message</h3><p>Inner message level timeout configuration need to be supported as some tasks is executed by GC task which we mentioned, may send inner message directly, so timeout maybe requested for those tasks</p>
+<h3 id="Duplicate-configuration"><a class="headerlink" href="#Duplicate-configuration" title="Duplicate configuration"></a>Duplicate configuration</h3><p>For api messages, it may use a workflow contains several inner messsages when those messages all have timeout configuration, we need to use the origin timeout but do not use new configured one.</p>
+<h3 id="Aware-of-timeout"><a class="headerlink" href="#Aware-of-timeout" title="Aware of timeout"></a>Aware of timeout</h3><p>It not practical, becamse task context is a in-memory variable and marked by thread-id, so everytime the thread switched the task context need to be copied to the new thread. If any mechanism do not support task context copy, it will result in timeout loss, if any inner message used, a new timeout will be set from timeout manager. And it seems no good solution to make the new mechanism aware of this. That’s the shortage of using aop.</p>
+<h3 id="Do-not-touch-task-context"><a class="headerlink" href="#Do-not-touch-task-context" title="Do not touch task context"></a>Do not touch task context</h3><p>Only timeout manager should use task context for timeout handling and other task context usage including     manually clear it or set value should be avoid.</p>
+<p>But for some reason the access of TaskContext supposed to be available to core module for timeout or other context usage (for example, task id), so only keep it cleared after thread context switch and only assign value to framework known fields to avoid any mess up operations from other developer.</p>
+<h2 id="Conclusion"><a class="headerlink" href="#Conclusion" title="Conclusion"></a>Conclusion</h2><p>Actually task context is more likely a global variable for every thread to use. Keep it from abuse and oom is the first task and aop in involved to resolve this problem. So how to trace task context seems the next valuable target of this version of code.</p>
+<h2 id="Check-the-code"><a class="headerlink" href="#Check-the-code" title="Check the code"></a>Check the code</h2><p><a href="https://github.com/zstackio/zstack" rel="noopener" target="_blank">https://github.com/zstackio/zstack</a> check the code if you are interested in this feature.</p>

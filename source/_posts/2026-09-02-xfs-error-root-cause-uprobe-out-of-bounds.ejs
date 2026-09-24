@@ -1,0 +1,60 @@
+---
+title: "XFS 报错但根因不在 XFS：一次 uprobe 越界写排查"
+date: "2026-09-02 16:00:00"
+permalink: "2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/"
+updated: "2026-09-03 11:07:48"
+description: "两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。"
+categories: ["linux"]
+tags: ["kernel", "linux", "security"]
+disableNunjucks: true
+---
+
+<h2 id="Phenomenon"><a class="headerlink" href="#Phenomenon" title="Phenomenon"></a>Phenomenon</h2>
+<p>一周内，两台配置相近的 Linux 虚拟机先后出现业务无响应。控制台最后的关键日志来自 XFS：文件系统发现 inode 元数据损坏，随后主动执行 forced shutdown。</p>
+<p><img alt="XFS console corruption log" src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/console-corruption.jpg"/></p>
+<p>从现象上看，这很像 XFS bug、虚拟磁盘写错位置，或者底层存储损坏。但这次真正写坏 XFS 元数据的并不是 XFS。</p>
+<p>最终定位到 Linux kernel 的 uprobe 参数抓取路径：第三方安全 Agent 注册的 uprobe 抓取了超过一页大小的参数，<code>store_trace_args()</code> 在边界检查前已经把数据写出 per-CPU buffer。溢出的内容落到相邻内存后，XFS write verifier 成了第一个发现损坏的组件。</p>
+<p>换句话说，XFS 是报警的人，不是制造问题的人。</p>
+<h2 id="Start-from-the-XFS-error"><a class="headerlink" href="#Start-from-the-XFS-error" title="Start from the XFS error"></a>Start from the XFS error</h2>
+<p>XFS 检测到元数据不符合预期时会主动关闭文件系统，防止错误继续扩大。因此，<code>xfs_do_force_shutdown</code> 说明 XFS 看到了损坏，但不能直接证明损坏由 XFS 产生。</p>
+<p>面对这种问题，最开始需要同时保留几条假设：</p>
+<ol><li>XFS 自身逻辑错误。</li><li>virtio-blk、宿主机或存储后端写错位置。</li><li>内存硬件或 DMA 写坏数据。</li><li>第三方内核模块破坏内存。</li><li>Linux 通用内核路径发生越界写或 use-after-free。</li></ol>
+<p>这里最容易犯的错误，是看到 XFS 日志就只沿着文件系统代码向下查。内存损坏问题里，打印错误的函数经常只是受害者。</p>
+<h2 id="Find-the-data-signature"><a class="headerlink" href="#Find-the-data-signature" title="Find the data signature"></a>Find the data signature</h2>
+<p>真正改变排查方向的是损坏数据的内容。</p>
+<p>在异常的 inode metadata buffer 中，可以看到类似路径和 JSON 结束符的数据片段。它们不像 XFS 元数据，也不像随机 bit flip，更像某个用户态程序正在处理的字符串。</p>
+<p>这个特征缩小了问题范围：</p>
+<ul><li>如果是硬件随机错误，数据通常不会形成可读的 JSON 结构。</li><li>如果是普通的 XFS 逻辑错误，也不应该把用户态字符串写进 inode metadata。</li><li>更合理的方向，是某条从用户态取字符串的内核路径越过了自己的 buffer 边界。</li></ul>
+<p>此时再向前检查控制台日志，可以找到 uprobe 相关 warning，并且触发进程来自第三方安全 Agent。warning、进程和损坏数据的内容开始形成同一条证据链。</p>
+<h2 id="The-uprobe-buffer"><a class="headerlink" href="#The-uprobe-buffer" title="The uprobe buffer"></a>The uprobe buffer</h2>
+<p>uprobe 可以在用户态程序的指定地址放置探针。探针触发时，内核会读取寄存器或用户态内存中的参数，再把结果写入 tracing buffer。</p>
+<p>相关路径使用一页大小的 per-CPU 临时 buffer。问题发生时，代码大致遵循下面的顺序：</p>
+<ol><li>根据 trace event 和动态参数计算 <code>dsize</code>。</li><li>调用 <code>store_trace_args()</code> 把参数写入 <code>ucb-&gt;buf</code>。</li><li>返回上层后才检查总长度是否超过 <code>PAGE_SIZE</code>。</li></ol>
+<p>这类检查虽然存在，但没有保护作用：当检查执行时，越界写已经发生。</p>
+<p>上游修复把检查移动到了 <code>store_trace_args()</code> 之前，并在长度超过一页时截断 <code>dsize</code>：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">#define MAX_UCB_BUFFER_SIZE PAGE_SIZE</span><br/><span class="line"></span><br/><span class="line">ucb-&gt;dsize = tu-&gt;tp.size + dsize;</span><br/><span class="line">if (WARN_ON_ONCE(ucb-&gt;dsize &gt; MAX_UCB_BUFFER_SIZE)) {</span><br/><span class="line">    ucb-&gt;dsize = MAX_UCB_BUFFER_SIZE;</span><br/><span class="line">    dsize = MAX_UCB_BUFFER_SIZE - tu-&gt;tp.size;</span><br/><span class="line">}</span><br/><span class="line"></span><br/><span class="line">store_trace_args(ucb-&gt;buf, &amp;tu-&gt;tp, regs, NULL, esize, dsize);</span></pre></td></tr></table></figure>
+<p>对应的上游提交是 <a href="https://git.kernel.org/stable/c/373b9338c9722a368925d83bc622c596896b328e" rel="noopener" target="_blank"><code>373b9338c972</code> - uprobe: avoid out-of-bounds memory access of fetching args</a>，该问题也被登记为 <a href="https://nvd.nist.gov/vuln/detail/CVE-2024-50067" rel="noopener" target="_blank">CVE-2024-50067</a>。</p>
+<p><img alt="uprobe out-of-bounds write mechanism" src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/uprobe-root-cause.png"/></p>
+<h2 id="Why-XFS-was-damaged"><a class="headerlink" href="#Why-XFS-was-damaged" title="Why XFS was damaged"></a>Why XFS was damaged</h2>
+<p>这次抓取的参数比一页 buffer 多出少量字节。这些字节不会停在 <code>ucb-&gt;buf</code> 的结尾，而是继续写入相邻内存。</p>
+<p>被覆盖的内存后来作为 XFS inode metadata buffer 使用。XFS 在 write verifier 中检查 magic、字段和结构一致性时发现内容已经损坏，于是执行 forced shutdown。</p>
+<p>目前的证据能够确认：</p>
+<ul><li>uprobe 参数长度超过一页。</li><li>旧代码先写入、后检查，存在确定的越界窗口。</li><li>损坏区中出现了与触发进程参数一致的用户态字符串特征。</li><li>上游存在与代码路径和现象匹配的修复。</li></ul>
+<p>还有一个可以继续补强的物证：从 vmcore 中取出触发 CPU 的 <code>uprobe_cpu_buffer</code> 物理页，再与受损 XFS buffer 的物理页比较，确认两者在故障现场是否直接相邻。它不改变修复方向，但能把最后一段内存落点推断变成可审计的现场证据。</p>
+<h2 id="Resolution"><a class="headerlink" href="#Resolution" title="Resolution"></a>Resolution</h2>
+<p>短期处理：</p>
+<ol><li>升级或停用会触发该路径的第三方 Agent 探针。</li><li>在受影响内核上回合上游补丁。</li><li>避免继续运行相同版本、相同探针配置的机器。</li></ol>
+<p>长期处理：</p>
+<ol><li>为生产虚拟机配置可用的 kdump，并验证 vmcore 确实可以写出。</li><li>保留串口或控制台日志，不能只依赖重启后仍存在的本地日志。</li><li>记录第三方安全、监控 Agent 的版本和变更时间。</li><li>将上游 commit、CVE 和内部内核版本建立对应关系。</li></ol>
+<h2 id="Debugging-notes"><a class="headerlink" href="#Debugging-notes" title="Debugging notes"></a>Debugging notes</h2>
+<p>这次问题留下几个比较有用的排查原则。</p>
+<h3 id="Error-reporter-is-not-always-the-root-cause"><a class="headerlink" href="#Error-reporter-is-not-always-the-root-cause" title="Error reporter is not always the root cause"></a>Error reporter is not always the root cause</h3>
+<p>文件系统、allocator 和 verifier 经常是最先发现内存损坏的组件。看到错误后，需要回答“谁发现了损坏”和“谁制造了损坏”两个不同的问题。</p>
+<h3 id="Read-before-the-fatal-line"><a class="headerlink" href="#Read-before-the-fatal-line" title="Read before the fatal line"></a>Read before the fatal line</h3>
+<p>fatal error 往往出现在证据链的末端。向前读取 50 到 200 行，重点寻找 warning、异常进程名、寄存器中的长度值以及第三方模块或 tracing 事件。</p>
+<h3 id="Read-corrupted-bytes-as-data"><a class="headerlink" href="#Read-corrupted-bytes-as-data" title="Read corrupted bytes as data"></a>Read corrupted bytes as data</h3>
+<p>不要只把损坏区域当作十六进制。尝试转成 ASCII、路径、JSON 或已知结构体。用户态字符串出现在内核元数据中，本身就是很强的方向性证据。</p>
+<h3 id="A-bounds-check-after-memcpy-is-not-a-bounds-check"><a class="headerlink" href="#A-bounds-check-after-memcpy-is-not-a-bounds-check" title="A bounds check after memcpy is not a bounds check"></a>A bounds check after memcpy is not a bounds check</h3>
+<p>检查存在不等于检查有效。代码审计时必须确认长度验证是在写入之前还是之后，以及动态字符串、数组的累计长度是否可能超过固定 buffer。</p>
+<h3 id="Keep-the-last-unverified-link-visible"><a class="headerlink" href="#Keep-the-last-unverified-link-visible" title="Keep the last unverified link visible"></a>Keep the last unverified link visible</h3>
+<p>当日志、数据签名、源码和上游补丁已经相互吻合时，也不要把暂未直接验证的物理页相邻关系写成既成事实。把缺口和验证方法留下来，事故结论才方便复查。</p>

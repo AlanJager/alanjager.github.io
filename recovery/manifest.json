@@ -1,0 +1,732 @@
+{
+  "source_commit": "8c57db6625056a49c8a6973b7e0f923f16439d38",
+  "articles": [
+    {
+      "page": "2021/12/13/new-start/index.html",
+      "source": "source/_posts/2021-12-13-new-start.ejs",
+      "sha256": "e657cd22570b9d79a123d9fd64e105ba7f443595f842f554ea4a4f554112d476",
+      "title": "新的博客内容",
+      "date": "2021-12-13 21:54:10",
+      "categories": [],
+      "tags": []
+    },
+    {
+      "page": "2021/12/14/qemu-ft-01/index.html",
+      "source": "source/_posts/2021-12-14-qemu-ft-01.ejs",
+      "sha256": "6f60e30ef087906ace4a11c543650461a474d67a928a4a21424f9064e6cbaedd",
+      "title": "QEMU FT方案",
+      "date": "2021-12-14 00:00:58",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "ft",
+        "qemu"
+      ]
+    },
+    {
+      "page": "2021/12/15/introduction-virtio-networking-and-vhost-net-md/index.html",
+      "source": "source/_posts/2021-12-15-introduction-virtio-networking-and-vhost-net-md.ejs",
+      "sha256": "57c2ecd530dac61e892db6d9d6af20e1d189231a6fc9c7fd9a2a6d6367488e2b",
+      "title": "Introduction to virtio-networking and vhost-net",
+      "date": "2021-12-15 14:42:40",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2021/12/22/deep-dive-virtio-networking-and-vhost-net/index.html",
+      "source": "source/_posts/2021-12-22-deep-dive-virtio-networking-and-vhost-net.ejs",
+      "sha256": "830c390900b96629a25bcb322eb9ecb4f6f8dacb56ccacaf673c1c0708a42823",
+      "title": "deep dive virtio networking and vhost net",
+      "date": "2021-12-22 19:17:19",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2021/12/28/hands-on-vhost-net-do-or-do-not-there-is-no-try/index.html",
+      "source": "source/_posts/2021-12-28-hands-on-vhost-net-do-or-do-not-there-is-no-try.ejs",
+      "sha256": "b5b8fe4267d4acfb207a7615bb0f194630d5aec2036a5cc839b82bf618f8d502",
+      "title": "Hands on vhost-net: Do. Or do not. There is no try",
+      "date": "2021-12-28 21:55:31",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2022/02/09/A-journey-to-the-vhost-users-realm/index.html",
+      "source": "source/_posts/2022-02-09-A-journey-to-the-vhost-users-realm.ejs",
+      "sha256": "46060d1b42f40b3ffe83b4d2138621f75d9b85978d6287385466ee79f7a7de4b",
+      "title": "A journey to the vhost-users realm",
+      "date": "2022-02-09 15:30:26",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "DPDK",
+        "architecture",
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/index.html",
+      "source": "source/_posts/2022-02-09-How-vhost-user-came-into-being-Virtio-networking-and-DPDK.ejs",
+      "sha256": "92ba1fed448aef7c22dcf45f934942f5c98cb5e49366f9653d1018957d47039b",
+      "title": "How vhost-user came into being Virtio-networking and DPDK",
+      "date": "2022-02-09 15:25:37",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "DPDK",
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2022/04/14/Hands-on-vhost-user-A-warm-welcome-to-DPDK/index.html",
+      "source": "source/_posts/2022-04-14-Hands-on-vhost-user-A-warm-welcome-to-DPDK.ejs",
+      "sha256": "7bc2981e20071ba4db34b088e1e6299ef13cc67c7f4d0b6d6d53d5fbddc49b36",
+      "title": "Hands on vhost-user: A warm welcome to DPDK",
+      "date": "2022-04-14 15:33:37",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "DPDK",
+        "qemu",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2022/06/04/linux-memory-management-1/index.html",
+      "source": "source/_posts/2022-06-04-linux-memory-management-1.ejs",
+      "sha256": "99940b29415e62ff0b67a2e424455a74662b646fdfd71de48a57a15ed3fcb19b",
+      "title": "Linux memory management(1)",
+      "date": "2022-06-04 23:22:23",
+      "categories": [
+        "linux",
+        "memory management"
+      ],
+      "tags": [
+        "TLB",
+        "linux",
+        "reading notes"
+      ]
+    },
+    {
+      "page": "2022/06/09/Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA/index.html",
+      "source": "source/_posts/2022-06-09-Achieving-network-wirespeed-in-an-open-standard-manner-introducing-vDPA.ejs",
+      "sha256": "db92c55be5fec4446269c10b847c38a06f5b5fb58bcd5147ef89368194ac8ca8",
+      "title": "Achieving network wirespeed in an open standard manner: introducing vDPA",
+      "date": "2022-06-09 22:22:56",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio-networking"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "vDPA",
+        "vhost-net",
+        "virtio-net",
+        "virtio-networking"
+      ]
+    },
+    {
+      "page": "2022/06/30/kvm-introduction-00/index.html",
+      "source": "source/_posts/2022-06-30-kvm-introduction-00.ejs",
+      "sha256": "db1ef2f00aa32f0afd86603a80f558ae5bc6e891afcee3c2fc8f474155bc5bdd",
+      "title": "KVM introduction 00",
+      "date": "2022-06-30 23:47:07",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "kernel",
+        "kvm"
+      ]
+    },
+    {
+      "page": "2022/07/01/python-elementtree-notes/index.html",
+      "source": "source/_posts/2022-07-01-python-elementtree-notes.ejs",
+      "sha256": "683edbbeeccb0643195d50a92b3db7ba19efa35bea3e44bd3e9d5246976225e1",
+      "title": "Python ElementTree notes",
+      "date": "2022-07-01 15:13:28",
+      "categories": [
+        "languages",
+        "python"
+      ],
+      "tags": [
+        "ElementTree",
+        "python"
+      ]
+    },
+    {
+      "page": "2022/07/15/Go-through-KVM-code-due-to-a-tdp-page-fault/index.html",
+      "source": "source/_posts/2022-07-15-Go-through-KVM-code-due-to-a-tdp-page-fault.ejs",
+      "sha256": "058bfbb95857bc35751b75db5bfc50a532742c4f3b9685003433729e7259a20e",
+      "title": "Go through KVM code due to a tdp_page_fault",
+      "date": "2022-07-15 10:23:14",
+      "categories": [
+        "virtualization",
+        "kvm"
+      ],
+      "tags": [
+        "kvm",
+        "linux",
+        "virt"
+      ]
+    },
+    {
+      "page": "2022/07/27/Dive-into-edk2-ovmf-fisrt-debug-trip/index.html",
+      "source": "source/_posts/2022-07-27-Dive-into-edk2-ovmf-fisrt-debug-trip.ejs",
+      "sha256": "5ee407b5fe1d4c581f393df6310b02045709beee346644ea650dcc572bfa3b94",
+      "title": "Dive into edk2-ovmf fisrt debug trip",
+      "date": "2022-07-27 20:02:47",
+      "categories": [
+        "virtualization",
+        "edk2-ovmf"
+      ],
+      "tags": [
+        "edk2-ovmf"
+      ]
+    },
+    {
+      "page": "2022/09/04/guest-free-page-hinting-notes-01/index.html",
+      "source": "source/_posts/2022-09-04-guest-free-page-hinting-notes-01.ejs",
+      "sha256": "c9dd73f4979c9a9376c2aa4b5625166494204dd2abf95c2dad23e84027f7374e",
+      "title": "Guest Free Page Hinting notes 01",
+      "date": "2022-09-04 21:41:09",
+      "categories": [
+        "virtualization",
+        "virtio-balloon"
+      ],
+      "tags": [
+        "others",
+        "qemu",
+        "virtio",
+        "virtio-balloon"
+      ]
+    },
+    {
+      "page": "2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/index.html",
+      "source": "source/_posts/2022-09-04-java-class-getname-and-getsimplename-get-me-confuse.ejs",
+      "sha256": "5598c31f05b5f724fe7feb174278736277bf4a7b84dc610a50a9ce35b9e94fc3",
+      "title": "Java Class getName() vs getSimpleName()",
+      "date": "2022-09-04 21:37:27",
+      "categories": [
+        "languages",
+        "java"
+      ],
+      "tags": [
+        "java"
+      ]
+    },
+    {
+      "page": "2022/09/20/shared-timeout-impelments-under-multi-thread-context-model/index.html",
+      "source": "source/_posts/2022-09-20-shared-timeout-impelments-under-multi-thread-context-model.ejs",
+      "sha256": "1bfa01ecbbd0e9b2de5a0e9d589bbf3d016478816b72cc3f8b41816b3d2e1054",
+      "title": "Shared timeout implements under multi-thread context model",
+      "date": "2022-09-20 13:38:16",
+      "categories": [
+        "arch-notes"
+      ],
+      "tags": [
+        "software-arch",
+        "system-design"
+      ]
+    },
+    {
+      "page": "2022/09/22/build-internal-maven-repos/index.html",
+      "source": "source/_posts/2022-09-22-build-internal-maven-repos.ejs",
+      "sha256": "972e9d218d42ab36f0200e21bd7d0d9a970c01e97380ef7befa0d9d517bb0505",
+      "title": "Build internal maven repositories",
+      "date": "2022-09-22 13:58:26",
+      "categories": [
+        "project-related-works"
+      ],
+      "tags": [
+        "maven",
+        "nexus"
+      ]
+    },
+    {
+      "page": "2022/09/23/some-thought-about-software-engineer-interview/index.html",
+      "source": "source/_posts/2022-09-23-some-thought-about-software-engineer-interview.ejs",
+      "sha256": "5f9252a41752f36edc92a410d2f970d56d6f5544ff210649df3286c5f9814718",
+      "title": "Some thought about software engineer interview",
+      "date": "2022-09-23 15:40:26",
+      "categories": [
+        "management"
+      ],
+      "tags": [
+        "interview"
+      ]
+    },
+    {
+      "page": "2022/09/27/a-simplified-TDP-with-large-tables/index.html",
+      "source": "source/_posts/2022-09-27-a-simplified-TDP-with-large-tables.ejs",
+      "sha256": "922bf9e556abeccc0454ac1293d9808c581cbbdfe46e6359ce8c9a81351e9e12",
+      "title": "A Simplified TDP with Large Tables",
+      "date": "2022-09-27 21:34:44",
+      "categories": [
+        "virtualization",
+        "kvm"
+      ],
+      "tags": [
+        "TDP",
+        "kvm",
+        "linux",
+        "paper-reading",
+        "virt"
+      ]
+    },
+    {
+      "page": "2022/09/28/libvirt-memory-snapshot/index.html",
+      "source": "source/_posts/2022-09-28-libvirt-memory-snapshot.ejs",
+      "sha256": "d05b8fe232a25a5c234a707d32a53c0c27ba5364c555eb2f1aec8ed939150506",
+      "title": "花の様に",
+      "date": "2022-09-28 09:19:10",
+      "categories": [],
+      "tags": []
+    },
+    {
+      "page": "2022/09/29/kvm-mmu-rework-the-x86-tdp-direct-mapped-case/index.html",
+      "source": "source/_posts/2022-09-29-kvm-mmu-rework-the-x86-tdp-direct-mapped-case.ejs",
+      "sha256": "9653d62b874fd55461793f3581eb52bb0b4c355b5298a00e3a15592f19e04495",
+      "title": "kvm: mmu: Rework the x86 TDP direct mapped case",
+      "date": "2022-09-29 12:03:02",
+      "categories": [
+        "virtualization",
+        "kvm"
+      ],
+      "tags": [
+        "TDP",
+        "code-reading",
+        "kvm",
+        "linux",
+        "virt"
+      ]
+    },
+    {
+      "page": "2022/10/06/iommu/index.html",
+      "source": "source/_posts/2022-10-06-iommu.ejs",
+      "sha256": "7cb09927a169d206810817636d8299b2088307c1bbb5b6be7035a17102a4e72a",
+      "title": "Input–output memory management unit",
+      "date": "2022-10-06 14:55:56",
+      "categories": [
+        "linux",
+        "memory management"
+      ],
+      "tags": [
+        "linux"
+      ]
+    },
+    {
+      "page": "2022/10/11/jvm-metaspace-memory-leak-analysis/index.html",
+      "source": "source/_posts/2022-10-11-jvm-metaspace-memory-leak-analysis.ejs",
+      "sha256": "78c643500396d2c06c3074ce34eac1c9f385b15a879d3841e5dca8d8da0977cc",
+      "title": "JVM metaspace memory leak analysis",
+      "date": "2022-10-11 17:13:39",
+      "categories": [
+        "languages",
+        "java"
+      ],
+      "tags": [
+        "java"
+      ]
+    },
+    {
+      "page": "2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/index.html",
+      "source": "source/_posts/2022-10-21-plugable-architecture-design-and-thoughts-about-implementation.ejs",
+      "sha256": "ad9da668b03fbbd2cd71997b56faadfd3565155be96545343b92a9f11e7f7f7e",
+      "title": "Plugable module architecture design and thoughts about its implementation",
+      "date": "2022-10-21 00:45:32",
+      "categories": [
+        "arch-notes"
+      ],
+      "tags": [
+        "software-arch",
+        "system-design"
+      ]
+    },
+    {
+      "page": "2022/10/27/windows-2003-vmware-v2v-hands-on/index.html",
+      "source": "source/_posts/2022-10-27-windows-2003-vmware-v2v-hands-on.ejs",
+      "sha256": "421a570e8a034854cd856878b0cd001d71ccab77e0659ffebaff9dc8a4d79cae",
+      "title": "Windows 2003 vmware v2v hands-on",
+      "date": "2022-10-27 15:27:12",
+      "categories": [
+        "virtualization",
+        "v2v"
+      ],
+      "tags": [
+        "v2v",
+        "virt"
+      ]
+    },
+    {
+      "page": "2022/10/31/jvm-loaded-classes-rapidly-increased-issue/index.html",
+      "source": "source/_posts/2022-10-31-jvm-loaded-classes-rapidly-increased-issue.ejs",
+      "sha256": "c95911b466a38bb6188c52488a399fb17c9d14c9d5c77308ea9de0fadaa58292",
+      "title": "JVM loaded classes rapidly increased issue",
+      "date": "2022-10-31 14:59:31",
+      "categories": [
+        "languages",
+        "java"
+      ],
+      "tags": [
+        "java"
+      ]
+    },
+    {
+      "page": "2022/11/09/plugable-system-in-practice-00/index.html",
+      "source": "source/_posts/2022-11-09-plugable-system-in-practice-00.ejs",
+      "sha256": "342d9d99bfab90fd434c0e78002241984d3ac4276c557a74c225f8ce5432ec75",
+      "title": "Plugable system in practice 00",
+      "date": "2022-11-09 01:43:05",
+      "categories": [
+        "arch-notes"
+      ],
+      "tags": [
+        "software-arch",
+        "system-design"
+      ]
+    },
+    {
+      "page": "2022/11/16/uefi-windows-guest-hang-after-live-migration/index.html",
+      "source": "source/_posts/2022-11-16-uefi-windows-guest-hang-after-live-migration.ejs",
+      "sha256": "fa4b1df1f700938fa3af20bb7eb55b45a701374f163e56233f79c7389451432c",
+      "title": "UEFI Windows guest hang after live migration",
+      "date": "2022-11-16 20:12:22",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "kernel",
+        "kvm",
+        "perf",
+        "qemu"
+      ]
+    },
+    {
+      "page": "2022/12/15/nessus-on-centos-7/index.html",
+      "source": "source/_posts/2022-12-15-nessus-on-centos-7.ejs",
+      "sha256": "e95d56444a5668861753c0dc15fd6ccbbfcf58bffe1001dfae79b7194c0fad8e",
+      "title": "Nessus on centos 7",
+      "date": "2022-12-15 16:27:49",
+      "categories": [
+        "devops"
+      ],
+      "tags": [
+        "nessus",
+        "security"
+      ]
+    },
+    {
+      "page": "2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/index.html",
+      "source": "source/_posts/2023-01-13-live-migration-failed-due-to-libvirt-keepalive-timeout.ejs",
+      "sha256": "4823c7154fd63d3b3979b634092a2ccbc9005cf868bc1166dca6a0d9b401a2aa",
+      "title": "Live migration failed due to libvirt keepalive timeout",
+      "date": "2023-01-13 16:16:33",
+      "categories": [
+        "virtualization",
+        "libvirt"
+      ],
+      "tags": [
+        "architecture",
+        "libvirt",
+        "live-migration"
+      ]
+    },
+    {
+      "page": "2023/02/03/windows-install-virtio-then-reboot-met-BSOD/index.html",
+      "source": "source/_posts/2023-02-03-windows-install-virtio-then-reboot-met-BSOD.ejs",
+      "sha256": "fdc5986b14745ea40189f60104668d0f87bb8caff9f0cbcc33b60877f431b09d",
+      "title": "Windows install virtio then reboot met BSOD",
+      "date": "2023-02-03 10:05:19",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "BSOD",
+        "virtio",
+        "windows"
+      ]
+    },
+    {
+      "page": "2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/index.html",
+      "source": "source/_posts/2023-02-22-virtio-devices-and-drivers-overview-the-headjack-and-the-phone.ejs",
+      "sha256": "dc02da24160ca766104ddeef6c3d539d5ed5cc4387c7b21e4cf61b01b7a32cc3",
+      "title": "Virtio devices and drivers overview: The headjack and the phone",
+      "date": "2023-02-22 22:12:09",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "virtio"
+      ]
+    },
+    {
+      "page": "2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/index.html",
+      "source": "source/_posts/2023-02-22-virtqueues-and-virtio-ring-how-the-data-travels.ejs",
+      "sha256": "1f66fd5a74efeae3f7ad43d06a237d26af86edcb57c71f332010065cb5edb902",
+      "title": "Virtqueues and virtio ring: How the data travels",
+      "date": "2023-02-22 23:48:33",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "virtio"
+      ]
+    },
+    {
+      "page": "2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/index.html",
+      "source": "source/_posts/2023-02-23-packed-virtqueue-how-to-reduce-overhead-with-virtio.ejs",
+      "sha256": "853edeca3778ab5e60f5441e757c941f26f44fcc1ef7f99c74ee04aed4f94d90",
+      "title": "Packed virtqueue: How to reduce overhead with virtio",
+      "date": "2023-02-23 23:13:20",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio"
+      ],
+      "tags": [
+        "architecture",
+        "qemu",
+        "virtio"
+      ]
+    },
+    {
+      "page": "2023/03/01/cpu-feature-configuration-code-diving/index.html",
+      "source": "source/_posts/2023-03-01-cpu-feature-configuration-code-diving.ejs",
+      "sha256": "af32f4907006abcea2b4fca8ab458f2f9c3542a37e2e7ccaf64353bd600a7d11",
+      "title": "Cpu feature configuration code diving",
+      "date": "2023-03-01 20:48:22",
+      "categories": [
+        "virtualization",
+        "libvirt"
+      ],
+      "tags": [
+        "cpu",
+        "kernel",
+        "libvirt"
+      ]
+    },
+    {
+      "page": "2023/03/03/virtio-on-linux/index.html",
+      "source": "source/_posts/2023-03-03-virtio-on-linux.ejs",
+      "sha256": "2df8c709821a7f7e8b327886a81a69fe18e16c91ae61419d5779e9f4e304d845",
+      "title": "Virtio on Linux",
+      "date": "2023-03-03 22:38:09",
+      "categories": [
+        "virtualization",
+        "translation",
+        "virtio"
+      ],
+      "tags": [
+        "linux",
+        "virtio"
+      ]
+    },
+    {
+      "page": "2023/03/09/cpu-features-about-kvm-hidden/index.html",
+      "source": "source/_posts/2023-03-09-cpu-features-about-kvm-hidden.ejs",
+      "sha256": "54954b1fe05b2f931b1b1991489e09ddd377d35015b20bf146021236af98c152",
+      "title": "Cpu features about kvm hidden",
+      "date": "2023-03-09 21:48:22",
+      "categories": [
+        "virtualization",
+        "kvm"
+      ],
+      "tags": [
+        "cpu",
+        "kernel",
+        "libvirt",
+        "linux"
+      ]
+    },
+    {
+      "page": "2023/03/13/KVM虚拟化性能分析/index.html",
+      "source": "source/_posts/2023-03-13-KVM虚拟化性能分析.ejs",
+      "sha256": "5d879616021cf3016a70c54080f4cfb8ab4bd66d04e865b3e0d33a71ea908c36",
+      "title": "KVM虚拟化性能分析",
+      "date": "2023-03-13 22:36:38",
+      "categories": [
+        "virtualization",
+        "kvm"
+      ],
+      "tags": [
+        "kvm",
+        "performance",
+        "sysstat",
+        "virt-top"
+      ]
+    },
+    {
+      "page": "2023/04/13/qemu-colo-details/index.html",
+      "source": "source/_posts/2023-04-13-qemu-colo-details.ejs",
+      "sha256": "0a8f08da58d3cbb4c443fe3f573b6d4f7a8c99af3711cc59456ffa29da5c0103",
+      "title": "Qemu Colo Details",
+      "date": "2023-04-13 23:49:38",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "colo",
+        "ft",
+        "qemu"
+      ]
+    },
+    {
+      "page": "2023/04/27/virtio-memory-balloon/index.html",
+      "source": "source/_posts/2023-04-27-virtio-memory-balloon.ejs",
+      "sha256": "c9a86b39048ad1e14cf939e4d9936731916ad69f6e8b06d85c94f20631b9afd6",
+      "title": "Understand virtio memory balloon",
+      "date": "2023-04-27 14:20:37",
+      "categories": [
+        "virtualization",
+        "virtio-balloon"
+      ],
+      "tags": [
+        "memory balloon",
+        "qemu",
+        "virtio"
+      ]
+    },
+    {
+      "page": "2023/05/26/understanding-cpu-topology-for-improved-performance/index.html",
+      "source": "source/_posts/2023-05-26-understanding-cpu-topology-for-improved-performance.ejs",
+      "sha256": "e44d5a4f3550d3978dac0392637b8a2ef95706e72b277aa5bebd12376593ae0e",
+      "title": "Understanding CPU Topology for Improved Performance",
+      "date": "2023-05-26 13:44:12",
+      "categories": [
+        "virtualization",
+        "cpu"
+      ],
+      "tags": [
+        "cpu",
+        "performance",
+        "virtualization"
+      ]
+    },
+    {
+      "page": "2023/12/06/2023-12-06/index.html",
+      "source": "source/_posts/2023-12-06-2023-12-06.ejs",
+      "sha256": "c2c3d91a2b351a1897bbbd7b32500bf78bd740a2ad8589844ab10a55ca927e58",
+      "title": "The disk in the guest OS is unmounted during the kernel startup process.",
+      "date": "2023-12-06 14:14:17",
+      "categories": [],
+      "tags": []
+    },
+    {
+      "page": "2024/02/04/linux-guest-could-not-access-tsc-clocksource/index.html",
+      "source": "source/_posts/2024-02-04-linux-guest-could-not-access-tsc-clocksource.ejs",
+      "sha256": "56f843dfb39805180055955480b1da4466dd8c906d8c9e2aa3ada5570a7c82ba",
+      "title": "Linux guest could not access tsc clocksource",
+      "date": "2024-02-04 13:18:56",
+      "categories": [
+        "virtualization"
+      ],
+      "tags": [
+        "clocksource",
+        "linux",
+        "tsc"
+      ]
+    },
+    {
+      "page": "2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/index.html",
+      "source": "source/_posts/2026-09-02-xfs-error-root-cause-uprobe-out-of-bounds.ejs",
+      "sha256": "bc3a4a3b3a2fdd6ea7d3ed630d599311e4c0d59e15631a6d13a7a868ef4df67c",
+      "title": "XFS 报错但根因不在 XFS：一次 uprobe 越界写排查",
+      "date": "2026-09-02 16:00:00",
+      "categories": [
+        "linux"
+      ],
+      "tags": [
+        "kernel",
+        "linux",
+        "security"
+      ]
+    },
+    {
+      "page": "2026/09/20/deepseek-v32-bw1100-profiler-analysis/index.html",
+      "source": "source/_posts/2026-09-20-deepseek-v32-bw1100-profiler-analysis.ejs",
+      "sha256": "c4883236598fe0c2bace78192e049d4b40baaa764be970e99a1c901fa25a4512",
+      "title": "在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2",
+      "date": "2026-09-20 16:00:00",
+      "categories": [
+        "arch-notes"
+      ],
+      "tags": [
+        "perf",
+        "performance"
+      ]
+    },
+    {
+      "page": "2026/09/23/juicefs-nfs-format-nfs3-nfs4/index.html",
+      "source": "source/_posts/2026-09-23-juicefs-nfs-format-nfs3-nfs4.ejs",
+      "sha256": "d388181b7f79d64fb11d6f2ae367cc22c223fb80aeb905e31b15021540730943",
+      "title": "JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4",
+      "date": "2026-09-23 16:00:00",
+      "categories": [
+        "arch-notes"
+      ],
+      "tags": [
+        "linux",
+        "nfs",
+        "juicefs"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+---
+title: "Nessus on centos 7"
+date: "2022-12-15 16:27:49"
+permalink: "2022/12/15/nessus-on-centos-7/"
+updated: "2023-01-10 18:15:20"
+description: "First find download command from official page: https://www.tenable.com/downloads/nessus?loginAttempted=true and I get 10.4.1 rpm with curl command: 123curl --request GET \\  --url &#x27;https://www.te"
+categories: ["devops"]
+tags: ["nessus", "security"]
+disableNunjucks: true
+---
+
+<p>First find download command from official page: <a href="https://www.tenable.com/downloads/nessus?loginAttempted=true" rel="noopener" target="_blank">https://www.tenable.com/downloads/nessus?loginAttempted=true</a> and I get 10.4.1 rpm with curl command:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/></pre></td><td class="code"><pre><span class="line">curl --request GET \</span><br/><span class="line">  --url 'https://www.tenable.com/downloads/api/v2/pages/nessus/files/Nessus-10.4.1-es7.x86_64.rpm' \</span><br/><span class="line">  --output 'Nessus-10.4.1-es7.x86_64.rpm'</span><br/></pre></td></tr></table></figure>
+<p>and before installation need to disable firewalld and selinux:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/></pre></td><td class="code"><pre><span class="line">systemctl stop firewalld</span><br/><span class="line"></span><br/><span class="line">systemctl disable firewalld</span><br/><span class="line"></span><br/><span class="line">setenforce 0</span><br/><span class="line"></span><br/><span class="line"><span class="meta">#</span><span class="bash"><span class="built_in">set</span> SELINUX=disabled <span class="keyword">in</span> below file</span></span><br/><span class="line"></span><br/><span class="line">vim /etc/sysconfig/selinux</span><br/></pre></td></tr></table></figure>
+<p>then install the rpm:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">yum localinstall Nessus-10.4.1-es7.x86_64.rpm</span><br/></pre></td></tr></table></figure>
+<p>and start the service:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/></pre></td><td class="code"><pre><span class="line">systemctl start nessusd</span><br/><span class="line"></span><br/><span class="line">systemctl enable nessusd  #Gives error</span><br/></pre></td></tr></table></figure>
+<p>access nessus through 8443</p>
+<p>before active access:</p>
+<p><a href="https://www.tenable.com/products/nessus/nessus-essentials" rel="noopener" target="_blank">https://www.tenable.com/products/nessus/nessus-essentials</a> to get a activate code and go ahead for your trial of Nessus.</p>

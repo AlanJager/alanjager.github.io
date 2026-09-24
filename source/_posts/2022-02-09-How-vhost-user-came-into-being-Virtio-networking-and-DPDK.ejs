@@ -1,0 +1,42 @@
+---
+title: "How vhost-user came into being Virtio-networking and DPDK"
+date: "2022-02-09 15:25:37"
+permalink: "2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/"
+updated: "2022-09-28 09:19:10"
+description: "在这篇文章里我们将会通过一个宏观的视角介绍一个基于DPDK（Data Plane Development Kit）在host和guest之间的解决方案。这篇文章将会附带一篇面向架构师/研发人员的详细介绍以及一篇提供实际操作帮助的文章。 之前的文章里面包括解决方案，技术介绍以及实践的文章，引导读者了解virtio-networking的生态，包括了基本的组件，kvm，qemu，libvirt，以及v"
+categories: ["virtualization", "translation", "virtio-networking"]
+tags: ["DPDK", "qemu", "vhost-net", "virtio-net", "virtio-networking"]
+disableNunjucks: true
+---
+
+<p>在这篇文章里我们将会通过一个宏观的视角介绍一个基于DPDK（Data Plane Development Kit）在host和guest之间的解决方案。这篇文章将会附带一篇面向架构师/研发人员的详细介绍以及一篇提供实际操作帮助的文章。</p>
+<p>之前的文章里面包括解决方案，技术介绍以及实践的文章，引导读者了解virtio-networking的生态，包括了基本的组件，kvm，qemu，libvirt，以及vhost protocol和vhost-net/virtio-net架构。这个架构是给予host kernel的vhost-net（后端）和guest kernel的virtio-net（前端）组成的。</p>
+<p>vhost-net/virtio-net架构提供了一个这些年来被广泛部署使用的生产解决方案。一部分是因为这个方案对用户开发应用并在虚拟机里运行因为它是用的是标准的Linux sockets来连接到网络的（通过host）。另一方面这个解决方案并不是那么完美，里面还是包含了一些性能开销的，这个问题在后面会被详细解释。</p>
+<p>为了讲清楚性能问题，我们将会介绍vhost-user/virtio-pmd架构。为了了解细节，我们会先回顾一下DPDK，如何将OVS连接到DPDK以及virtio是如何适配到这个架构的前端和后端里去的。</p>
+<p>在这篇文章的最后，你会对vhost-user/virtio-pmd架构以及这个架构与vhost-net/virtio-net的不同有牢固的认识。</p>
+<h2 id="DPDK-overview"><a class="headerlink" href="#DPDK-overview" title="DPDK overview"></a>DPDK overview</h2><p>DPDK目标是提供一个简单和完善的用于数据面应用快速包处理的架构。它实现了一个数据包处理的运行时完成模型，意思是说，所有资源都需要在运行数据面应用之前分配好。这些专门的资源只会被专门的逻辑处理核心处理。</p>
+<p>这个设计和Linux kernel通过调度器+中断在进程间上下文切换的机制不同，DPDK架构中设备是被一个定时的polling访问的。这个设计去除了上先问切换以及进程中断带来的开销，保证CPU核心100%都在做包处理。</p>
+<p>在实践中，DPDK提供了一系列poll模式的驱动（PMDs）是的包传输能够直接在用户态和物理接口之间进行，完全跳过了kernel网络栈。这个方法提供了一个重要的通过排除中断处理以及kernel网络协议栈提升kernel转发性能的方法。</p>
+<p>DPDK是一系列库。因此为了使用它们，你需要一个link到这些库并且调用相关api的应用。</p>
+<p>下面的图标展示了之前的virtio构件和一个DPDK应用使用PMD驱动来访问物理网卡（跳过了kernel）：</p>
+<img class="" src="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/2019-09-20-virtio-and-dpdk-fig1.jpeg"/>
+<h2 id="OVS-DPDK-overview"><a class="headerlink" href="#OVS-DPDK-overview" title="OVS-DPDK overview"></a>OVS-DPDK overview</h2><p>在之前的文章中介绍过，open vSwtich通常在内核空间的数据路径做包转发，这意味着OVS kernel模块包含了一个简单的记录收到的转发包的flow table。然后一小部分的包我们可以称为异常包（比如第一个打开Openflow flow的包）并不匹配任何内核空间中已经存在的条目，而是发送到用户态的OVS守护进程（ovs-vswitchd）来处理。守护进程会分析这个包然后更新OVS的kernell里的flow table然后后面的发送到这个flow的包就能够直接通过OVS的内核态转发表直接发走了。</p>
+<p>这个方法排除了大部分流量的用户态内核态的上下文切换，然而我们仍然被linux的网络协议栈限制，因为它并不适合高频率包的用户场景。</p>
+<p>如果我们把OVS和DPDK集成在一起，把前面提到的PMD驱动当作杠杆然后移动OVS内核模块转发表到用户态。</p>
+<p>下面的图展示了OVS-DPDK应用，所有的OVS组件都在用户态运行，并通过PMD驱动和物理网卡通信：</p>
+<img class="" src="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/2019-09-20-virtio-and-dpdk-fig2.jpeg"/>
+<p>这里要提一下，虽然我们只看到DPDK应用运行在host的用户空间，在guest里运行带PMD驱动的DPDK应用也是可以的。下一节我们将会详细解释这个。</p>
+<h2 id="The-vhot-user-virtio-pmd-architecture"><a class="headerlink" href="#The-vhot-user-virtio-pmd-architecture" title="The vhot-user/virtio-pmd architecture"></a>The vhot-user/virtio-pmd architecture</h2><p>在vhost-user/virtio-pmd架构，virtio会在host的用户态guest的用户态使用DPDK：</p>
+<ol>
+<li>vhost-user（后端） 运行在host用户空间，作为OVS-DPDK的用户态应用。之前提到的DPDK是一个库而vhost-user模块是附带在这些库里面的API。OVS-DPDK是确切的链接到这个库并调用API的应用。任意一个创建在host上的guest VM都会有一个对应的vhost-user被创建出来用来和guest的virtio前端通信。</li>
+<li>virtio-pmd（前端）运行在guest用户态，是一个poll模式驱动，消费专门的cores并且执行不会中断的polling。一个运行在用户态的应用消费virtio-pmd也需要连接到DPDK库</li>
+</ol>
+<p>这个图展示了他们是如何一起运作的：</p>
+<img class="" src="/2022/02/09/How-vhost-user-came-into-being-Virtio-networking-and-DPDK/2019-09-20-virtio-and-dpdk-fig3.jpeg"/>
+<p>如果把这个架构和基于内核的vhost-net/virtio-net架构做对比，vhost-net被vhost-user取代了，而virtio-net则被virtio-pmd取代。</p>
+<p>通过启用host用户态通过共享内存跳过kernel直接访问物理网卡然后通过virtio-pmd在guest的用户态也跳过kernel，整体的性能能够提升2-4倍</p>
+<p>然而这个方法对用户能力有更多的要求，在vhost-net/virtio-net架构中，数据面通讯是直接通过guest OS视角的：简单的安装virtio驱动到guest kernel然后guest用户态应用自动获得了一个标准的Linux网络接口。</p>
+<p>相反vhost-user/virtio-pmd架构，guest的用户态应用为了优化数据面被要求使用virtio-pmd驱动（DPDK库提供）。这不是一个很简单的任务，并且要求专业的DPDK的配置和使用知识。</p>
+<h2 id="Summary"><a class="headerlink" href="#Summary" title="Summary"></a>Summary</h2><p>这篇文章我们介绍了vhost-user/virtio-pmd架构，通过提升了一部分使用成本改善了virtio接口的性能因为我们现在需要把应用link并使用DPDK。</p>
+<p>这里有一系列用户场景比如虚拟网络功能（VNFs, virtial network functions)性能是一个大缺陷而virtio DPDK的架构能够帮助实现对应的性能指标。然而开发应用是需要专业知识的，并需要对DPDK API的理解以及不同的优化。</p>
+<p>下一篇文章我们会提供一个深入的vhost-net/virtio-pmd的内部架构以及不同控制面数据面组件的介绍。</p>

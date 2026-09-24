@@ -1,0 +1,146 @@
+---
+title: "Java Class getName() vs getSimpleName()"
+date: "2022-09-04 21:37:27"
+permalink: "2022/09/04/java-class-getname-and-getsimplename-get-me-confuse/"
+updated: "2022-09-28 09:19:10"
+description: "Work with Java reflection and invoke getSimpleName() met java.lang.NoClassDefFoundError Use getName() instead, the logic seems work well. Before compare these two methods’ difference go through the co"
+categories: ["languages", "java"]
+tags: ["java"]
+disableNunjucks: true
+---
+
+<p>Work with Java reflection and invoke getSimpleName() met <code>java.lang.NoClassDefFoundError</code></p>
+<p>Use getName() instead, the logic seems work well.</p>
+<p>Before compare these two methods’ difference go through the code quickly.</p>
+<h2 id="Class-getName"><a class="headerlink" href="#Class-getName" title="Class::getName()"></a>Class::getName()</h2><p>for getName()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/></pre></td><td class="code"><pre><span class="line">public String getName() {</span><br/><span class="line">    String name = this.name;</span><br/><span class="line">    if (name == null)</span><br/><span class="line">        this.name = name = getName0();</span><br/><span class="line">    return name;</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<p>and the getName0() is native method</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">private native String getName0();</span><br/></pre></td></tr></table></figure>
+<h2 id="Class-getSimpleName"><a class="headerlink" href="#Class-getSimpleName" title="Class::getSimpleName()"></a>Class::getSimpleName()</h2><p>for getSimpleName()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/><span class="line">28</span><br/><span class="line">29</span><br/><span class="line">30</span><br/><span class="line">31</span><br/><span class="line">32</span><br/></pre></td><td class="code"><pre><span class="line">public String getSimpleName() {</span><br/><span class="line">    if (isArray())</span><br/><span class="line">        return getComponentType().getSimpleName()+"[]";</span><br/><span class="line"></span><br/><span class="line">    String simpleName = getSimpleBinaryName();</span><br/><span class="line">    if (simpleName == null) { // top level class</span><br/><span class="line">        simpleName = getName();</span><br/><span class="line">        return simpleName.substring(simpleName.lastIndexOf(".")+1); // strip the package name</span><br/><span class="line">    }</span><br/><span class="line">    // According to JLS3 "Binary Compatibility" (13.1) the binary</span><br/><span class="line">    // name of non-package classes (not top level) is the binary</span><br/><span class="line">    // name of the immediately enclosing class followed by a '$' followed by:</span><br/><span class="line">    // (for nested and inner classes): the simple name.</span><br/><span class="line">    // (for local classes): 1 or more digits followed by the simple name.</span><br/><span class="line">    // (for anonymous classes): 1 or more digits.</span><br/><span class="line"></span><br/><span class="line">    // Since getSimpleBinaryName() will strip the binary name of</span><br/><span class="line">    // the immediatly enclosing class, we are now looking at a</span><br/><span class="line">    // string that matches the regular expression "\$[0-9]*"</span><br/><span class="line">    // followed by a simple name (considering the simple of an</span><br/><span class="line">    // anonymous class to be the empty string).</span><br/><span class="line"></span><br/><span class="line">    // Remove leading "\$[0-9]*" from the name</span><br/><span class="line">    int length = simpleName.length();</span><br/><span class="line">    if (length &lt; 1 || simpleName.charAt(0) != '$')</span><br/><span class="line">        throw new InternalError("Malformed class name");</span><br/><span class="line">    int index = 1;</span><br/><span class="line">    while (index &lt; length &amp;&amp; isAsciiDigit(simpleName.charAt(index)))</span><br/><span class="line">        index++;</span><br/><span class="line">    // Eventually, this is the empty string iff this is an anonymous class</span><br/><span class="line">    return simpleName.substring(index);</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<p>The main part is </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">String simpleName = getSimpleBinaryName();</span><br/></pre></td></tr></table></figure>
+<p>And then get enclosingClass:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/></pre></td><td class="code"><pre><span class="line">private String getSimpleBinaryName() {</span><br/><span class="line">    Class&lt;?&gt; enclosingClass = getEnclosingClass();</span><br/><span class="line">    if (enclosingClass == null) // top level class</span><br/><span class="line">        return null;</span><br/><span class="line">    // Otherwise, strip the enclosing class' name</span><br/><span class="line">    try {</span><br/><span class="line">        return getName().substring(enclosingClass.getName().length());</span><br/><span class="line">    } catch (IndexOutOfBoundsException ex) {</span><br/><span class="line">        throw new InternalError("Malformed class name", ex);</span><br/><span class="line">    }</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<p>what is enclosingClass:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/></pre></td><td class="code"><pre><span class="line">// There are five kinds of classes (or interfaces):</span><br/><span class="line">// a) Top level classes</span><br/><span class="line">// b) Nested classes (static member classes)</span><br/><span class="line">// c) Inner classes (non-static member classes)</span><br/><span class="line">// d) Local classes (named classes declared within a method)</span><br/><span class="line">// e) Anonymous classes</span><br/></pre></td></tr></table></figure>
+<p>in my case it tend to be a) Top level classes, so next part of code goes to getDeclaringClass()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/></pre></td><td class="code"><pre><span class="line">// JVM Spec 4.8.6: A class must have an EnclosingMethod</span><br/><span class="line">// attribute if and only if it is a local class or an</span><br/><span class="line">// anonymous class.</span><br/><span class="line">EnclosingMethodInfo enclosingInfo = getEnclosingMethodInfo();</span><br/><span class="line">Class&lt;?&gt; enclosingCandidate;</span><br/><span class="line"></span><br/><span class="line">if (enclosingInfo == null) {</span><br/><span class="line">    // This is a top level or a nested class or an inner class (a, b, or c)</span><br/><span class="line">    enclosingCandidate = getDeclaringClass();</span><br/><span class="line">} else {</span><br/><span class="line">    Class&lt;?&gt; enclosingClass = enclosingInfo.getEnclosingClass();</span><br/><span class="line">    // This is a local class or an anonymous class (d or e)</span><br/><span class="line">    if (enclosingClass == this || enclosingClass == null)</span><br/><span class="line">        throw new InternalError("Malformed enclosing method information");</span><br/><span class="line">    else</span><br/><span class="line">        enclosingCandidate = enclosingClass;</span><br/><span class="line">}</span><br/><span class="line"></span><br/></pre></td></tr></table></figure>
+<p>and then getDeclaringClass0() will be used.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/></pre></td><td class="code"><pre><span class="line">@CallerSensitive</span><br/><span class="line">public Class&lt;?&gt; getDeclaringClass() throws SecurityException {</span><br/><span class="line">    final Class&lt;?&gt; candidate = getDeclaringClass0();</span><br/><span class="line"></span><br/><span class="line">    if (candidate != null)</span><br/><span class="line">        candidate.checkPackageAccess(</span><br/><span class="line">                ClassLoader.getClassLoader(Reflection.getCallerClass()), true);</span><br/><span class="line">    return candidate;</span><br/><span class="line">}</span><br/><span class="line"></span><br/></pre></td></tr></table></figure>
+<p>which is a native method:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">private native Class&lt;?&gt; getDeclaringClass0();</span><br/></pre></td></tr></table></figure>
+<h2 id="Comparision"><a class="headerlink" href="#Comparision" title="Comparision"></a>Comparision</h2><p>From the code before this section, aboveously the getSimpleName() always call native method but getName() may use Class’s local variable directly. </p>
+<p>So see the local variable before we come to conclusion.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">// cache the name to reduce the number of calls into the VM</span><br/><span class="line">private transient String name;</span><br/></pre></td></tr></table></figure>
+<p>the name used by getName() use a transient String as cache to reduce the number of calls into VM.</p>
+<p>And combine to getName()’s implement, the first time getName0() invoked, this name is set.</p>
+<p>And go for Java doc:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">public String getSimpleName()</span><br/></pre></td></tr></table></figure>
+<p>Returns the simple name of the underlying class as given in the source code. Returns an empty string if the underlying class is anonymous.</p>
+<p>The simple name of an array is the simple name of the component type with “[]” appended. In particular the simple name of an array whose component type is anonymous is “[]”.</p>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<p>the simple name of the underlying class</p>
+</li>
+<li><p><strong>Since:</strong></p>
+<p>1.5</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">public String getName()</span><br/></pre></td></tr></table></figure>
+<p>Returns the name of the entity (class, interface, array class, primitive type, or void) represented by this <code>Class</code> object, as a <code>String</code>.</p>
+<p>If this class object represents a reference type that is not an array type then the binary name of the class is returned, as specified by The Java™ Language Specification.</p>
+<p>If this class object represents a primitive type or void, then the name returned is a <code>String</code> equal to the Java language keyword corresponding to the primitive type or void.</p>
+<p>If this class object represents a class of arrays, then the internal form of the name consists of the name of the element type preceded by one or more ‘<code>[</code>‘ characters representing the depth of the array nesting. The encoding of element type names is as follows:</p>
+<blockquote>
+<table>
+<thead>
+<tr>
+<th>Element Type</th>
+<th></th>
+<th>Encoding</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>boolean</td>
+<td></td>
+<td>Z</td>
+</tr>
+<tr>
+<td>byte</td>
+<td></td>
+<td>B</td>
+</tr>
+<tr>
+<td>char</td>
+<td></td>
+<td>C</td>
+</tr>
+<tr>
+<td>class or interface</td>
+<td></td>
+<td>L<em>classname</em>;</td>
+</tr>
+<tr>
+<td>double</td>
+<td></td>
+<td>D</td>
+</tr>
+<tr>
+<td>float</td>
+<td></td>
+<td>F</td>
+</tr>
+<tr>
+<td>int</td>
+<td></td>
+<td>I</td>
+</tr>
+<tr>
+<td>long</td>
+<td></td>
+<td>J</td>
+</tr>
+<tr>
+<td>short</td>
+<td></td>
+<td>S</td>
+</tr>
+</tbody></table>
+</blockquote>
+<p>The class or interface name <em>classname</em> is the binary name of the class specified above.</p>
+<p>Examples:</p>
+<blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/></pre></td><td class="code"><pre><span class="line">String.class.getName()</span><br/><span class="line">  returns "java.lang.String"</span><br/><span class="line">byte.class.getName()</span><br/><span class="line">  returns "byte"</span><br/><span class="line">(new Object[3]).getClass().getName()</span><br/><span class="line">  returns "[Ljava.lang.Object;"</span><br/><span class="line">(new int[3][4][5][6][7][8][9]).getClass().getName()</span><br/><span class="line">  returns "[[[[[[[I"</span><br/><span class="line"></span><br/></pre></td></tr></table></figure>
+</blockquote>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<p>the name of the class or interface represented by this object.</p>
+</li>
+</ul>
+<p>and more details for the error:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">public class NoClassDefFoundError</span><br/><span class="line">extends LinkageError</span><br/></pre></td></tr></table></figure>
+<p>Thrown if the Java Virtual Machine or a <code>ClassLoader</code> instance tries to load in the definition of a class (as part of a normal method call or as part of creating a new instance using the <code>new</code> expression) and no definition of the class could be found.</p>
+<p>The searched-for class definition existed when the currently executing class was compiled, but the definition can no longer be found.</p>
+<p>So that means class found at compile time but not available at runtime <a href="https://stackoverflow.com/questions/17973970/how-to-solve-java-lang-noclassdeffounderror" rel="noopener" target="_blank">Refer this link</a></p>
+<p>Check for our configuration: </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br/><span class="line">    &lt;groupId&gt;xxx&lt;/groupId&gt;</span><br/><span class="line">    &lt;artifactId&gt;xxx&lt;/artifactId&gt;</span><br/><span class="line">    &lt;version&gt;1.1.1&lt;/version&gt;</span><br/><span class="line">    &lt;scope&gt;system&lt;/scope&gt;</span><br/><span class="line">    &lt;systemPath&gt;${project.basedir}/ext-libs/xxx&lt;/systemPath&gt;</span><br/><span class="line">&lt;/dependency&gt;</span><br/></pre></td></tr></table></figure>
+<p>use a system scope.</p>
+<p>According to maven doc:</p>
+<p>There are 6 scopes:</p>
+<ul>
+<li><strong>compile</strong><br/>This is the default scope, used if none is specified. Compile dependencies are available in all classpaths of a project. Furthermore, those dependencies are propagated to dependent projects.</li>
+<li><strong>provided</strong><br/>This is much like <code>compile</code>, but indicates you expect the JDK or a container to provide the dependency at runtime. For example, when building a web application for the Java Enterprise Edition, you would set the dependency on the Servlet API and related Java EE APIs to scope <code>provided</code> because the web container provides those classes. A dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath. It is not transitive.</li>
+<li><strong>runtime</strong><br/>This scope indicates that the dependency is not required for compilation, but is for execution. Maven includes a dependency with this scope in the runtime and test classpaths, but not the compile classpath.</li>
+<li><strong>test</strong><br/>This scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases. This scope is not transitive. Typically this scope is used for test libraries such as JUnit and Mockito. It is also used for non-test libraries such as Apache Commons IO if those libraries are used in unit tests (src/test/java) but not in the model code (src/main/java).</li>
+<li><strong>system</strong><br/>This scope is similar to <code>provided</code> except that you have to provide the JAR which contains it explicitly. The artifact is always available and is not looked up in a repository.</li>
+<li><strong>import</strong><br/>This scope is only supported on a dependency of type <code>pom</code> in the <code>&lt;dependencyManagement&gt;</code> section. It indicates the dependency is to be replaced with the effective list of dependencies in the specified POM’s <code>&lt;dependencyManagement&gt;</code> section. Since they are replaced, dependencies with a scope of <code>import</code> do not actually participate in limiting the transitivity of a dependency.</li>
+</ul>
+<p>system most like provided but <code>a dependency with this scope is added to the classpath used for compilation and test, but not the runtime classpath</code></p>
+<p>so runtime getSimpleName() will met exception.</p>
+<h2 id="Class-loader"><a class="headerlink" href="#Class-loader" title="Class loader"></a>Class loader</h2><p>get back to the error call trace again:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.NoClassDefFoundError: xxxxx</span><br/><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br/><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br/><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br/><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br/></pre></td></tr></table></figure>
+<p>and another class not found exception:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.ClassNotFoundException: xxxxx</span><br/><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:381) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br/><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.defineClass1(Native Method) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.defineClass(ClassLoader.java:763) ~[?:1.8.0_161]</span><br/><span class="line">        at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.defineClass(URLClassLoader.java:467) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.access$100(URLClassLoader.java:73) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:368) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader$1.run(URLClassLoader.java:362) ~[?:1.8.0_161]</span><br/><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_161]</span><br/><span class="line">        at java.net.URLClassLoader.findClass(URLClassLoader.java:361) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:424) ~[?:1.8.0_161]</span><br/><span class="line">        at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:338) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.ClassLoader.loadClass(ClassLoader.java:357) ~[?:1.8.0_161]</span><br/><span class="line">        at java.lang.Class.getDeclaringClass0(Native Method) ~[?:1.8.0_161]</span><br/></pre></td></tr></table></figure>
+<p>when try to get simple name of class A extends B</p>
+<p>find A and try to define A but need to define B first, but B is not available at runtime so a exception raised.</p>

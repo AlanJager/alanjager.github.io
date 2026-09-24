@@ -43,6 +43,7 @@ feed:
   type: atom
   path: atom.xml
   limit: 20
+  content: false
 seo_geo_aeo:
   sameAs:
     - https://github.com/AlanJager

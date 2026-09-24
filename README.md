@@ -2,8 +2,8 @@
 
 This local project reconstructs the missing Hexo source from the published
 `AlanJager/alanjager.github.io` `github_pages` branch at commit
-`8c57db6625056a49c8a6973b7e0f923f16439d38` (2026-09-23). It has not
-been pushed or deployed.
+`8c57db6625056a49c8a6973b7e0f923f16439d38` (2026-09-23). The recovered
+source is preserved in this repository's `hexo_source` branch.
 
 ## What was recovered
 
@@ -24,8 +24,8 @@ been pushed or deployed.
 - `recovery/github_pages-8c57db6.tar.gz`: an exact archive of the published
   branch at recovery time. SHA-256:
   `abfe8c6437ae488a36f35c17043ed70d9303851ca79b54839a3bdab0c2d0c638`.
-- `source/_drafts/model-quantization-principles.ejs`: the prepared interactive
-  quantization article. It is a draft, so a normal build does not publish it.
+- `source/_posts/model-quantization-principles.ejs`: the interactive
+  quantization article published after the source recovery.
 
 ## Build and check
 
@@ -36,15 +36,15 @@ npm run build
 python3 recovery/verify_recovery.py /Users/kayo/workspace/alanjager.github.io
 ```
 
-The verifier compares all 47 article bodies and their content URLs with the
+The verifier compares the 47 recovered article bodies and their content URLs with the
 published pages, and verifies copied static assets byte for byte. A normal
 build emits `public/`, including the home page, archives, tags, categories,
 feed, and SEO files. The site theme and some generated metadata may differ
 from older published pages; the original output archive is the byte-exact
 record.
 
-To preview drafts in generated output, run `npx hexo generate --draft`. Run
-`npm run build` afterward to restore a publication build without drafts.
+To preview future drafts in generated output, run `npx hexo generate --draft`.
+Run `npm run build` afterward to restore a publication build without drafts.
 
 ## Publish a new post later
 

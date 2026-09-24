@@ -1,4 +1,5 @@
-<article id="<%= post.layout %>-<%= post.slug %>" class="h-entry article article-type-<%= post.layout %>" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+<% var articleLayout = post.layout === false || post.layout === 'false' ? 'post' : post.layout; %>
+<article id="<%= articleLayout %>-<%= post.slug %>" class="h-entry article article-type-<%= articleLayout %>" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <%- partial('post/date', {class_name: 'article-date', date_format: null}) %>
     <%- partial('post/category') %>

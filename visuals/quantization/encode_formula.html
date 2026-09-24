@@ -1,0 +1,1 @@
+<div class="formula"><div class="formula-name">SYMMETRIC QUANTIZATION</div><code>s = max(|wᵢ|) / (2⁽ᵇ⁻¹⁾ − 1)</code><br/><code>qᵢ = clip(round(wᵢ / s), −qmax, qmax)</code><br/><code>ŵᵢ = s · qᵢ</code><small>b 是编码位数。非对称量化还会引入 zero-point；不同方法可使用更复杂的缩放和误差补偿。</small></div>

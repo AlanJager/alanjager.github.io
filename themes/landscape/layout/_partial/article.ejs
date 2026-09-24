@@ -20,7 +20,11 @@
           </p>
         <% } %>
       <% } else { %>
-        <%- post.content %>
+        <% if (!index && post.slug === 'model-quantization-principles') { %>
+          <div class="quant-article"><%- post.content %></div>
+        <% } else { %>
+          <%- post.content %>
+        <% } %>
       <% } %>
     </div>
     <footer class="article-footer">

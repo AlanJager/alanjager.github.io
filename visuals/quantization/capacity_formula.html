@@ -1,0 +1,1 @@
+<div class="formula"><div class="formula-name">CAPACITY ESTIMATES</div><code>权重 ≈ Σ(张量参数数 × 有效 bits/8)</code><br/><code>KV ≈ 2 × L × T × B × Hkv × Dh × 元素字节</code><br/><code>显存 ≈ 权重 + 已分配 KV + 临时激活/工作区 + 运行时</code><small>KV 公式适用于普通全注意力/GQA 的基础估算；滑动窗口、MLA、分页块、scale 与张量并行会改变实际分配。</small></div>

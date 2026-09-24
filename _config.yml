@@ -39,6 +39,8 @@ tag_generator:
 skip_render:
   - tools/**
   - fancybox/**
+  - css/quantization-article.css
+  - js/quantization-demo.js
 feed:
   type: atom
   path: atom.xml

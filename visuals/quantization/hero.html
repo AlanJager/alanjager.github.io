@@ -1,0 +1,9 @@
+<header class="mast" id="top">
+    <div class="shell">
+
+      <div class="hero">
+        <div class="fade"><div class="eyebrow">A visual guide · 2026</div><h2>模型量化，<br><em>究竟量化了什么？</em></h2><p>从一个权重的舍入误差，走到 Transformer 的每一层、推理内核和显存账本。</p><div class="hero-meta"><span></span><span>INT8 · FP8 · W4A16 · W8A8 · Q3_K · KV Cache</span></div></div>
+        <figure class="hero-diagram fade" aria-label="量化过程示意：高精度数值经过分组量化成为低位编码，运行时进入矩阵乘法"><svg viewBox="0 0 520 390" role="img" aria-labelledby="heroTitle"><title id="heroTitle">浮点权重到量化权重再到推理计算</title><rect x="12" y="18" width="496" height="350" rx="4" fill="#1c3b40" stroke="#557d75"/><text x="34" y="49" fill="#a9d8c8" font-family="monospace" font-size="13">W  ·  ORIGINAL WEIGHTS</text><g font-family="monospace" font-size="18" fill="#f4f3e9"><text x="34" y="94">+0.81</text><text x="132" y="94">−0.42</text><text x="236" y="94">+1.73</text><text x="344" y="94">+8.20</text></g><rect x="330" y="67" width="135" height="39" rx="2" fill="#a85634" fill-opacity=".35"/><path d="M260 121V159" stroke="#89c4b3" stroke-width="2"/><path d="M252 151l8 8 8-8" fill="none" stroke="#89c4b3" stroke-width="2"/><text x="34" y="187" fill="#a9d8c8" font-family="monospace" font-size="13">GROUP SCALE + LOW-BIT CODES</text><rect x="34" y="206" width="128" height="59" rx="2" fill="#e6eadf"/><text x="53" y="244" fill="#153638" font-family="monospace" font-size="19">s = 1.17</text><rect x="178" y="206" width="296" height="59" rx="2" fill="#e0efe6"/><text x="194" y="244" fill="#153638" font-family="monospace" font-size="18">[ 1, 0, 1, 7 ]</text><path d="M260 276V305" stroke="#89c4b3" stroke-width="2"/><path d="M252 297l8 8 8-8" fill="none" stroke="#89c4b3" stroke-width="2"/><text x="34" y="337" fill="#f4f3e9" font-family="monospace" font-size="17">kernel:  x × dequant(Wq)</text><circle cx="463" cy="327" r="8" fill="#b96d45"/></svg><figcaption>分组决定 scale 的作用范围；离群值会挤压其他数的刻度。</figcaption></figure>
+      </div>
+    </div>
+  </header>

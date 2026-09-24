@@ -1,0 +1,1 @@
+<div class="three"><article><span class="tag">01 / WEIGHTS</span><b>权重 W</b><p>模型训练后固定的参数。压缩它，直接降低常驻权重的存储需求。</p></article><article><span class="tag">02 / ACTIVATIONS</span><b>激活 A</b><p>推理时随输入产生的中间数。压缩它，才能使用部分低精度矩阵乘法路径。</p></article><article><span class="tag">03 / KV CACHE</span><b>注意力历史</b><p>每个请求累积的 Key 和 Value。长度与并发增长时，它可能成为另一笔显存大头。</p></article></div>

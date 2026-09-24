@@ -12,6 +12,7 @@
 
 ## 近期文章
 
+- [模型量化原理：从单个权重到逐层推理](https://hanayo.cn/2026/09/24/model-quantization-principles/) — 用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。
 - [在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2](https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/) — 在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。
 - [XFS 报错但根因不在 XFS：一次 uprobe 越界写排查](https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/) — 两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。
 - [Linux guest could not access tsc clocksource](https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/) — Phenomenoncheck TSC disabled from guest 12[    0.000004] tsc: Detected 1999.999 MHz processor[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized

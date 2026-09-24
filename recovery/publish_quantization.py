@@ -96,6 +96,7 @@ for tag in ("llm", "quantization", "inference"):
         raise RuntimeError(f"Tag page already exists: {new}")
     new.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(old, new)
+    new.write_text("\n".join(line.rstrip() for line in new.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8")
 
 # The tag directory page is a pre-generated Hexo page, so add only these tags.
 tags_path = target / "tags/index.html"

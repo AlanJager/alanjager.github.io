@@ -50,8 +50,11 @@ Run `npm run build` afterward to restore a publication build without drafts.
 
 Move a reviewed post from `source/_drafts/` to `source/_posts/`, run the build
 and verification commands, then deploy `public/` to `github_pages` using the
-site's release process. There is intentionally no deploy command in this
-recovered project until the desired remote publishing flow is confirmed.
+site's release process. The quantization article was deployed with
+`recovery/publish_quantization.py` against the existing generated checkout;
+that one-time script updated only its article, indexes, feed, and metadata.
+For later articles, use the Hexo source as the authoring baseline and review
+the generated diff before replacing any older published pages.
 
 ## Limits
 

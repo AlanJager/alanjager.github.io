@@ -14,7 +14,7 @@
 <meta property="og:description" content="用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-09-24T07:00:00.000Z">
-<meta property="article:modified_time" content="2026-09-24T08:59:10.960Z">
+<meta property="article:modified_time" content="2026-09-24T09:08:01.478Z">
 <meta property="article:author" content="Alan Jager">
 <meta property="article:tag" content="llm">
 <meta property="article:tag" content="quantization">
@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
 
-<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"模型量化原理：从单个权重到逐层推理","description":"用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。","url":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html","datePublished":"2026-09-24T07:00:00.000Z","dateModified":"2026-09-24T08:59:10.960Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html"}]}</script>
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"模型量化原理：从单个权重到逐层推理","description":"用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。","url":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html","datePublished":"2026-09-24T07:00:00.000Z","dateModified":"2026-09-24T09:08:01.478Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html"}]}</script>
 </head>
 
 <body>
@@ -117,6 +117,9 @@
     @media(max-width:620px){.quant-article .shell{width:min(100% - 32px,1160px)}.quant-article .nav-links{display:none}.quant-article .hero h2{font-size:3.25rem}.quant-article .hero p{font-size:1rem}.quant-article .intro,.quant-article .section{padding:58px 0}.quant-article .three,.quant-article .stack,.quant-article .layer-map,.quant-article .annotated,.quant-article .calc,.quant-article .source-list{grid-template-columns:1fr}.quant-article .layer-block:last-child{grid-column:auto}.quant-article .flow{grid-template-columns:1fr;gap:7px}.quant-article .arrow{transform:rotate(90deg);font-size:1.3rem;line-height:1}.quant-article .method-grid{grid-template-columns:1fr 1fr;gap:10px}.quant-article .runtime{display:grid;grid-template-columns:1fr 1fr}.quant-article .runtime>div{border-right:1px solid #d7e1db;border-bottom:0}.quant-article .runtime>div:nth-last-child(-n+2){border-bottom:1px solid #d7e1db}.quant-article .lab{padding:20px 16px}.quant-article .lab-controls{gap:10px}.quant-article .plot-head,.quant-article .plot-row{grid-template-columns:32px minmax(85px,1fr) 48px 48px;gap:5px;font-size:.65rem}.quant-article .plot-head span:last-child,.quant-article .plot-row .scale{display:none}.quant-article .formula{padding:20px 16px}.quant-article .formula code{font-size:.78rem}}
 
 .quant-article { margin: 24px -20px 0; overflow: hidden; }
+.quant-article h2, .quant-article h3 { color: var(--ink); border-left: 0; padding-left: 0; }
+.quant-article h2::before { content: none !important; }
+.quant-article .mast h2 { color: #f9f4e8; }
 .quant-article .hero { grid-template-columns: 1fr; gap: 22px; padding: 54px 0 48px; }
 .quant-article .hero h2 { font-size: clamp(2.45rem, 4.4vw, 4rem); margin: 12px 0 20px; }
 .quant-article .hero-diagram { width: min(100%, 460px); margin: 0 0 0 auto; }
@@ -198,7 +201,7 @@
 
     </div>
     <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2026/09/24/model-quantization-principles/" data-id="cmufaw8b700adqsjt7nfs2jnq" data-title="模型量化原理：从单个权重到逐层推理" class="article-share-link">分享</a>
+      <a data-url="https://hanayo.cn/2026/09/24/model-quantization-principles/" data-id="cmufb7iy9007hdojtgg3m3jvr" data-title="模型量化原理：从单个权重到逐层推理" class="article-share-link">分享</a>
 
 
 

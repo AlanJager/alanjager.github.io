@@ -1,35 +1,146 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>模型量化：从一个数到一整次推理</title>
-  <style>
-    :root{--paper:#f5f2ea;--ink:#182b30;--muted:#53696c;--line:#cbd3cd;--teal:#087e79;--teal-soft:#e0f0e9;--orange:#bb5b36;--orange-soft:#f5e4d7;--white:#fffef9;--navy:#102e35;--shadow:0 16px 45px rgba(18,45,49,.09)}
-    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--paper);color:var(--ink);font-family:"Iowan Old Style","Songti SC","Noto Serif CJK SC",Georgia,serif;line-height:1.75} a{color:var(--teal);text-underline-offset:3px} a:hover{color:#075b5a} button,input{font:inherit} button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #df8b4c;outline-offset:3px} ::selection{background:#bde6d4}
-    .shell{width:min(1160px,calc(100% - 48px));margin:auto}.eyebrow,.micro,.nav,.tag,.stat-label,.source-list,.control-label,.legend,.label,.footnote,.formula-name{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}.eyebrow{color:#a4cec5;letter-spacing:.18em;text-transform:uppercase;font-size:.77rem}.micro{font-size:.76rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}.nav{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:20px 0;border-bottom:1px solid rgba(255,255,255,.24);font-size:.8rem}.nav a{color:#dcebe7;text-decoration:none}.nav-links{display:flex;gap:23px;flex-wrap:wrap}.mast{background:var(--navy);color:#f9f4e8;overflow:hidden;position:relative}.mast:after{content:"";position:absolute;right:-13%;top:-65%;height:900px;width:900px;border:1px solid rgba(211,235,224,.12);border-radius:50%;box-shadow:0 0 0 75px rgba(211,235,224,.035),0 0 0 160px rgba(211,235,224,.025);pointer-events:none}.hero{display:grid;grid-template-columns:1.15fr .85fr;align-items:end;gap:58px;padding:90px 0 82px;position:relative;z-index:1}.hero h1{font-size:clamp(3.1rem,6.4vw,6.5rem);line-height:1.08;letter-spacing:-.055em;margin:16px 0 26px;font-weight:600}.hero h1 em{font-style:normal;color:#91d3bf}.hero p{font-size:1.2rem;max-width:670px;color:#d8e6e0;margin:0}.hero-meta{display:flex;align-items:center;gap:16px;margin-top:33px;color:#b7d3ca;font-size:.85rem}.hero-meta span:first-child{width:38px;height:1px;background:#a8c8bb}.hero-diagram{padding:20px 0 10px}.hero-diagram svg{width:100%;height:auto;display:block;filter:drop-shadow(0 20px 26px rgba(0,0,0,.12))}.hero-diagram figcaption{font: .75rem ui-monospace,Menlo,monospace;color:#a7c4bd;text-align:right;margin-top:10px}.intro{padding:66px 0 72px;border-bottom:1px solid var(--line)}.lede{font-size:clamp(1.4rem,2.5vw,2rem);line-height:1.55;max-width:900px;margin:0}.lede strong{color:var(--teal);font-weight:600}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:49px}.three article{padding-top:17px;border-top:3px solid var(--ink)}.three b{display:block;font-size:1.15rem}.three p{font-size:.92rem;color:var(--muted);margin:.5em 0 0}.tag{font-size:.72rem;color:var(--teal);letter-spacing:.08em}.section{padding:84px 0;border-bottom:1px solid var(--line)}.section-head{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:start;margin-bottom:38px}.section-no{font: .8rem ui-monospace,Menlo,monospace;color:var(--orange);letter-spacing:.11em;padding-top:10px}.section h2{font-size:clamp(2rem,4vw,3.35rem);line-height:1.16;letter-spacing:-.045em;margin:0;max-width:760px;font-weight:600}.section-sub{font-size:1.05rem;color:var(--muted);max-width:730px;margin:18px 0 0}.prose{max-width:790px;margin-left:248px}.prose p{margin:0 0 1.1em}.prose strong{color:#075f5d}.formula{margin:27px 0;background:var(--white);border-left:4px solid var(--teal);padding:23px 28px;box-shadow:var(--shadow);overflow-x:auto}.formula-name{font-size:.72rem;color:var(--teal);margin:0 0 8px}.formula code{font:500 clamp(.92rem,1.5vw,1.15rem) ui-monospace,"SFMono-Regular",Menlo,monospace;white-space:nowrap;color:var(--ink)}.formula small{display:block;color:var(--muted);margin-top:10px;font-size:.83rem}.diagram-panel{background:var(--white);padding:30px;border:1px solid #e1e2d9;box-shadow:var(--shadow)}.flow{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr;gap:6px;align-items:center}.flow-box{min-height:134px;display:flex;flex-direction:column;justify-content:center;padding:18px 20px;background:#edf2eb;border-top:4px solid var(--teal)}.flow-box:nth-of-type(2){background:#f5e8d9;border-color:var(--orange)}.flow-box:nth-of-type(3){background:#e5eeed;border-color:#386879}.flow-box b{font-size:1.1rem}.flow-box small{color:var(--muted);font-size:.79rem}.arrow{font:2rem ui-monospace,Menlo,monospace;color:var(--orange);text-align:center}.caption{margin:16px 0 0;color:var(--muted);font-size:.85rem}.lab{background:#fffdf6;border:1px solid #d9dfd7;padding:27px 30px 20px;box-shadow:var(--shadow)}.lab-top{display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap}.lab h3{margin:0;font-size:1.4rem}.lab-controls{display:flex;gap:27px;flex-wrap:wrap}.control-label{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:.8rem}.control-label select{padding:7px 29px 7px 10px;border:1px solid #aabdb6;background:#fff;color:var(--ink);border-radius:2px}.lab-summary{display:flex;gap:28px;flex-wrap:wrap;margin:19px 0 16px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.lab-summary b{color:var(--teal);font:600 1.15rem ui-monospace,Menlo,monospace}.lab-summary span{font-size:.85rem;color:var(--muted)}.legend{display:flex;gap:20px;color:var(--muted);font-size:.75rem;margin-bottom:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;background:var(--teal)}.legend i.quant{background:var(--orange);border-radius:1px;transform:rotate(45deg)}.plot-head,.plot-row{display:grid;grid-template-columns:56px minmax(100px,1fr) 86px 86px 82px;gap:10px;align-items:center}.plot-head{font: .72rem ui-monospace,Menlo,monospace;color:var(--muted);padding-bottom:6px}.plot-row{min-height:29px;border-bottom:1px solid #ecede7;font: .75rem ui-monospace,Menlo,monospace}.plot-row svg{width:100%;height:25px}.plot-row .scale{color:var(--muted)}.plot-row.outlier{background:#fbefe5}.lab-note{font-size:.84rem;color:var(--muted);margin:16px 0 0}.stack{display:grid;grid-template-columns:1fr 1fr;gap:20px}.stack article{border-top:3px solid var(--ink);padding:16px 10px 12px 0}.stack h3{margin:0 0 8px;font-size:1.2rem}.stack p{margin:0;color:var(--muted);font-size:.93rem}.layer-map{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px;align-items:stretch}.layer-block{background:var(--white);border:1px solid #dce3dd;padding:20px;min-height:228px}.layer-block h3{margin:0 0 14px;font-size:1.1rem}.layer-block ul{list-style:none;margin:0;padding:0}.layer-block li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e6ebe6;padding:6px 0;font-size:.86rem}.layer-block li code{font:.82rem ui-monospace,Menlo,monospace;color:var(--teal)}.layer-block .tiny{color:var(--muted);font-size:.82rem;margin:14px 0 0}.layer-block.accent{background:#e7f1e9}.layer-block.orange{background:#f5eadd}.annotated{display:grid;grid-template-columns:1.15fr .85fr;gap:33px;margin-top:25px}.notes-list{list-style:none;margin:0;padding:0;counter-reset:item}.notes-list li{counter-increment:item;position:relative;padding:0 0 19px 35px;margin-bottom:17px;border-bottom:1px solid var(--line);font-size:.93rem}.notes-list li:before{content:counter(item,"decimal-leading-zero");position:absolute;left:0;top:2px;color:var(--orange);font: .72rem ui-monospace,Menlo,monospace}.callout{background:var(--navy);color:#eff3e9;padding:28px 30px;align-self:start}.callout b{font-size:1.2rem}.callout p{margin:11px 0 0;color:#cbded6;font-size:.93rem}.method-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.method{padding:18px 0;border-top:3px solid var(--teal)}.method h3{font-size:1.18rem;margin:2px 0 8px}.method p{font-size:.9rem;color:var(--muted);margin:0}.method .tag{color:var(--orange)}.runtime{display:flex;gap:0;align-items:stretch;margin:38px 0 24px}.runtime>div{flex:1;padding:20px 17px;background:var(--white);border:1px solid #d7e1db;border-right:0;min-height:134px}.runtime>div:last-child{border-right:1px solid #d7e1db}.runtime strong{display:block;font-size:.95rem}.runtime small{display:block;color:var(--muted);margin-top:5px;font-size:.78rem}.runtime .phase{font:.7rem ui-monospace,Menlo,monospace;color:var(--orange);display:block;margin-bottom:13px}.memory-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #d6ded6;background:var(--white)}.memory-grid>div{padding:20px;border-right:1px solid #d6ded6}.memory-grid>div:last-child{border-right:0}.memory-grid b{display:block;font-size:1.05rem}.memory-grid p{color:var(--muted);font-size:.83rem;margin:6px 0 0}.calc{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin:24px 0}.calc article{background:var(--white);padding:24px;border-left:4px solid var(--teal)}.calc article:nth-child(2){border-color:var(--orange)}.calc h3{font-size:1.07rem;margin:0 0 10px}.calc .big{font:600 2rem ui-monospace,Menlo,monospace;color:var(--ink);letter-spacing:-.06em}.calc p{font-size:.85rem;color:var(--muted);margin:10px 0 0}.source-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;column-gap:36px}.source-list li{font-size:.78rem;line-height:1.55;padding:12px 0;border-top:1px solid var(--line)}.source-list a{font-family:inherit}.footer{background:var(--navy);color:#cbded6;padding:42px 0;font-size:.86rem}.footer .shell{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.footer a{color:#b8dfcf}.fade{animation:fadeUp .65s ease both}@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.fade{animation:none}}
-    @media(max-width:880px){.hero{grid-template-columns:1fr;padding:62px 0}.hero-diagram{max-width:510px}.section-head{grid-template-columns:1fr;gap:4px}.prose{margin-left:0}.three{gap:20px}.method-grid{grid-template-columns:1fr 1fr}.layer-map{grid-template-columns:1fr 1fr}.layer-block:last-child{grid-column:1/-1}.memory-grid{grid-template-columns:1fr 1fr}.memory-grid>div:nth-child(2){border-right:0}.memory-grid>div:nth-child(-n+2){border-bottom:1px solid #d6ded6}}
-    @media(max-width:620px){.shell{width:min(100% - 32px,1160px)}.nav-links{display:none}.hero h1{font-size:3.25rem}.hero p{font-size:1rem}.intro,.section{padding:58px 0}.three,.stack,.layer-map,.annotated,.calc,.source-list{grid-template-columns:1fr}.layer-block:last-child{grid-column:auto}.flow{grid-template-columns:1fr;gap:7px}.arrow{transform:rotate(90deg);font-size:1.3rem;line-height:1}.method-grid{grid-template-columns:1fr 1fr;gap:10px}.runtime{display:grid;grid-template-columns:1fr 1fr}.runtime>div{border-right:1px solid #d7e1db;border-bottom:0}.runtime>div:nth-last-child(-n+2){border-bottom:1px solid #d7e1db}.lab{padding:20px 16px}.lab-controls{gap:10px}.plot-head,.plot-row{grid-template-columns:32px minmax(85px,1fr) 48px 48px;gap:5px;font-size:.65rem}.plot-head span:last-child,.plot-row .scale{display:none}.formula{padding:20px 16px}.formula code{font-size:.78rem}}
-  </style>
+
+
+  <title>模型量化原理：从单个权重到逐层推理 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <meta name="description" content="用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。">
-  <link rel="canonical" href="https://hanayo.cn/2026/09/24/model-quantization-principles/">
-  <meta property="og:type" content="article">
-  <meta property="og:title" content="模型量化原理：从单个权重到逐层推理">
-  <meta property="og:description" content="图解 INT8、FP8、W4A16、W8A8、GGUF 与 KV Cache 量化的原理和显存计算。">
-  <meta property="og:url" content="https://hanayo.cn/2026/09/24/model-quantization-principles/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="模型量化原理：从单个权重到逐层推理">
+<meta property="og:url" content="https://hanayo.cn/2026/09/24/model-quantization-principles/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-09-24T07:00:00.000Z">
+<meta property="article:modified_time" content="2026-09-24T08:59:10.960Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="quantization">
+<meta property="article:tag" content="inference">
+<meta name="twitter:card" content="summary">
+
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+
+
+    <link rel="shortcut icon" href="/favicon.png">
+
+
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+
+
+<link rel="stylesheet" href="/css/style.css">
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"模型量化原理：从单个权重到逐层推理","description":"用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。","url":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html","datePublished":"2026-09-24T07:00:00.000Z","dateModified":"2026-09-24T08:59:10.960Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/09/24/model-quantization-principles/index.html"}]}</script>
 </head>
+
 <body>
-  <header class="mast" id="top">
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+
+          <a class="main-nav-link" href="/">首页</a>
+
+          <a class="main-nav-link" href="/archives">归档</a>
+
+          <a class="main-nav-link" href="/tools">工具</a>
+
+      </nav>
+      <nav id="sub-nav">
+
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="post-model-quantization-principles" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/24/model-quantization-principles/" class="article-date">
+  <time class="dt-published" datetime="2026-09-24T07:00:00.000Z" itemprop="datePublished">2026-09-24</time>
+</a>
+
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+
+
+      <header class="article-header">
+
+
+    <h1 class="p-name article-title" itemprop="headline name">
+      模型量化原理：从单个权重到逐层推理
+    </h1>
+
+
+      </header>
+
+    <div class="e-content article-entry" itemprop="articleBody">
+
+
+<div class="quant-article">
+<style>
+
+    .quant-article{--paper:#f5f2ea;--ink:#182b30;--muted:#53696c;--line:#cbd3cd;--teal:#087e79;--teal-soft:#e0f0e9;--orange:#bb5b36;--orange-soft:#f5e4d7;--white:#fffef9;--navy:#102e35;--shadow:0 16px 45px rgba(18,45,49,.09)}
+    .quant-article *{box-sizing:border-box} .quant-article{scroll-behavior:smooth} .quant-article{margin:0;background:var(--paper);color:var(--ink);font-family:"Iowan Old Style","Songti SC","Noto Serif CJK SC",Georgia,serif;line-height:1.75} .quant-article a{color:var(--teal);text-underline-offset:3px} .quant-article a:hover{color:#075b5a} .quant-article button,.quant-article input{font:inherit} .quant-article button:focus-visible,.quant-article input:focus-visible,.quant-article a:focus-visible{outline:3px solid #df8b4c;outline-offset:3px} .quant-article ::selection{background:#bde6d4}
+    .quant-article .shell{width:min(1160px,calc(100% - 48px));margin:auto}.quant-article .eyebrow,.quant-article .micro,.quant-article .nav,.quant-article .tag,.quant-article .stat-label,.quant-article .source-list,.quant-article .control-label,.quant-article .legend,.quant-article .label,.quant-article .footnote,.quant-article .formula-name{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}.quant-article .eyebrow{color:#a4cec5;letter-spacing:.18em;text-transform:uppercase;font-size:.77rem}.quant-article .micro{font-size:.76rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}.quant-article .nav{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:20px 0;border-bottom:1px solid rgba(255,255,255,.24);font-size:.8rem}.quant-article .nav a{color:#dcebe7;text-decoration:none}.quant-article .nav-links{display:flex;gap:23px;flex-wrap:wrap}.quant-article .mast{background:var(--navy);color:#f9f4e8;overflow:hidden;position:relative}.quant-article .mast:after{content:"";position:absolute;right:-13%;top:-65%;height:900px;width:900px;border:1px solid rgba(211,235,224,.12);border-radius:50%;box-shadow:0 0 0 75px rgba(211,235,224,.035),0 0 0 160px rgba(211,235,224,.025);pointer-events:none}.quant-article .hero{display:grid;grid-template-columns:1.15fr .85fr;align-items:end;gap:58px;padding:90px 0 82px;position:relative;z-index:1}.quant-article .hero h2{font-size:clamp(3.1rem,6.4vw,6.5rem);line-height:1.08;letter-spacing:-.055em;margin:16px 0 26px;font-weight:600}.quant-article .hero h2 em{font-style:normal;color:#91d3bf}.quant-article .hero p{font-size:1.2rem;max-width:670px;color:#d8e6e0;margin:0}.quant-article .hero-meta{display:flex;align-items:center;gap:16px;margin-top:33px;color:#b7d3ca;font-size:.85rem}.quant-article .hero-meta span:first-child{width:38px;height:1px;background:#a8c8bb}.quant-article .hero-diagram{padding:20px 0 10px}.quant-article .hero-diagram svg{width:100%;height:auto;display:block;filter:drop-shadow(0 20px 26px rgba(0,0,0,.12))}.quant-article .hero-diagram figcaption{font: .75rem ui-monospace,Menlo,monospace;color:#a7c4bd;text-align:right;margin-top:10px}.quant-article .intro{padding:66px 0 72px;border-bottom:1px solid var(--line)}.quant-article .lede{font-size:clamp(1.4rem,2.5vw,2rem);line-height:1.55;max-width:900px;margin:0}.quant-article .lede strong{color:var(--teal);font-weight:600}.quant-article .three{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:49px}.quant-article .three article{padding-top:17px;border-top:3px solid var(--ink)}.quant-article .three b{display:block;font-size:1.15rem}.quant-article .three p{font-size:.92rem;color:var(--muted);margin:.5em 0 0}.quant-article .tag{font-size:.72rem;color:var(--teal);letter-spacing:.08em}.quant-article .section{padding:84px 0;border-bottom:1px solid var(--line)}.quant-article .section-head{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:start;margin-bottom:38px}.quant-article .section-no{font: .8rem ui-monospace,Menlo,monospace;color:var(--orange);letter-spacing:.11em;padding-top:10px}.quant-article .section h2{font-size:clamp(2rem,4vw,3.35rem);line-height:1.16;letter-spacing:-.045em;margin:0;max-width:760px;font-weight:600}.quant-article .section-sub{font-size:1.05rem;color:var(--muted);max-width:730px;margin:18px 0 0}.quant-article .prose{max-width:790px;margin-left:248px}.quant-article .prose p{margin:0 0 1.1em}.quant-article .prose strong{color:#075f5d}.quant-article .formula{margin:27px 0;background:var(--white);border-left:4px solid var(--teal);padding:23px 28px;box-shadow:var(--shadow);overflow-x:auto}.quant-article .formula-name{font-size:.72rem;color:var(--teal);margin:0 0 8px}.quant-article .formula code{font:500 clamp(.92rem,1.5vw,1.15rem) ui-monospace,"SFMono-Regular",Menlo,monospace;white-space:nowrap;color:var(--ink)}.quant-article .formula small{display:block;color:var(--muted);margin-top:10px;font-size:.83rem}.quant-article .diagram-panel{background:var(--white);padding:30px;border:1px solid #e1e2d9;box-shadow:var(--shadow)}.quant-article .flow{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr;gap:6px;align-items:center}.quant-article .flow-box{min-height:134px;display:flex;flex-direction:column;justify-content:center;padding:18px 20px;background:#edf2eb;border-top:4px solid var(--teal)}.quant-article .flow-box:nth-of-type(2){background:#f5e8d9;border-color:var(--orange)}.quant-article .flow-box:nth-of-type(3){background:#e5eeed;border-color:#386879}.quant-article .flow-box b{font-size:1.1rem}.quant-article .flow-box small{color:var(--muted);font-size:.79rem}.quant-article .arrow{font:2rem ui-monospace,Menlo,monospace;color:var(--orange);text-align:center}.quant-article .caption{margin:16px 0 0;color:var(--muted);font-size:.85rem}.quant-article .lab{background:#fffdf6;border:1px solid #d9dfd7;padding:27px 30px 20px;box-shadow:var(--shadow)}.quant-article .lab-top{display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap}.quant-article .lab h3{margin:0;font-size:1.4rem}.quant-article .lab-controls{display:flex;gap:27px;flex-wrap:wrap}.quant-article .control-label{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:.8rem}.quant-article .control-label select{padding:7px 29px 7px 10px;border:1px solid #aabdb6;background:#fff;color:var(--ink);border-radius:2px}.quant-article .lab-summary{display:flex;gap:28px;flex-wrap:wrap;margin:19px 0 16px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.quant-article .lab-summary b{color:var(--teal);font:600 1.15rem ui-monospace,Menlo,monospace}.quant-article .lab-summary span{font-size:.85rem;color:var(--muted)}.quant-article .legend{display:flex;gap:20px;color:var(--muted);font-size:.75rem;margin-bottom:12px}.quant-article .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;background:var(--teal)}.quant-article .legend i.quant{background:var(--orange);border-radius:1px;transform:rotate(45deg)}.quant-article .plot-head,.quant-article .plot-row{display:grid;grid-template-columns:56px minmax(100px,1fr) 86px 86px 82px;gap:10px;align-items:center}.quant-article .plot-head{font: .72rem ui-monospace,Menlo,monospace;color:var(--muted);padding-bottom:6px}.quant-article .plot-row{min-height:29px;border-bottom:1px solid #ecede7;font: .75rem ui-monospace,Menlo,monospace}.quant-article .plot-row svg{width:100%;height:25px}.quant-article .plot-row .scale{color:var(--muted)}.quant-article .plot-row.outlier{background:#fbefe5}.quant-article .lab-note{font-size:.84rem;color:var(--muted);margin:16px 0 0}.quant-article .stack{display:grid;grid-template-columns:1fr 1fr;gap:20px}.quant-article .stack article{border-top:3px solid var(--ink);padding:16px 10px 12px 0}.quant-article .stack h3{margin:0 0 8px;font-size:1.2rem}.quant-article .stack p{margin:0;color:var(--muted);font-size:.93rem}.quant-article .layer-map{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px;align-items:stretch}.quant-article .layer-block{background:var(--white);border:1px solid #dce3dd;padding:20px;min-height:228px}.quant-article .layer-block h3{margin:0 0 14px;font-size:1.1rem}.quant-article .layer-block ul{list-style:none;margin:0;padding:0}.quant-article .layer-block li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e6ebe6;padding:6px 0;font-size:.86rem}.quant-article .layer-block li code{font:.82rem ui-monospace,Menlo,monospace;color:var(--teal)}.quant-article .layer-block .tiny{color:var(--muted);font-size:.82rem;margin:14px 0 0}.quant-article .layer-block.accent{background:#e7f1e9}.quant-article .layer-block.orange{background:#f5eadd}.quant-article .annotated{display:grid;grid-template-columns:1.15fr .85fr;gap:33px;margin-top:25px}.quant-article .notes-list{list-style:none;margin:0;padding:0;counter-reset:item}.quant-article .notes-list li{counter-increment:item;position:relative;padding:0 0 19px 35px;margin-bottom:17px;border-bottom:1px solid var(--line);font-size:.93rem}.quant-article .notes-list li:before{content:counter(item,"decimal-leading-zero");position:absolute;left:0;top:2px;color:var(--orange);font: .72rem ui-monospace,Menlo,monospace}.quant-article .callout{background:var(--navy);color:#eff3e9;padding:28px 30px;align-self:start}.quant-article .callout b{font-size:1.2rem}.quant-article .callout p{margin:11px 0 0;color:#cbded6;font-size:.93rem}.quant-article .method-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.quant-article .method{padding:18px 0;border-top:3px solid var(--teal)}.quant-article .method h3{font-size:1.18rem;margin:2px 0 8px}.quant-article .method p{font-size:.9rem;color:var(--muted);margin:0}.quant-article .method .tag{color:var(--orange)}.quant-article .runtime{display:flex;gap:0;align-items:stretch;margin:38px 0 24px}.quant-article .runtime>div{flex:1;padding:20px 17px;background:var(--white);border:1px solid #d7e1db;border-right:0;min-height:134px}.quant-article .runtime>div:last-child{border-right:1px solid #d7e1db}.quant-article .runtime strong{display:block;font-size:.95rem}.quant-article .runtime small{display:block;color:var(--muted);margin-top:5px;font-size:.78rem}.quant-article .runtime .phase{font:.7rem ui-monospace,Menlo,monospace;color:var(--orange);display:block;margin-bottom:13px}.quant-article .memory-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #d6ded6;background:var(--white)}.quant-article .memory-grid>div{padding:20px;border-right:1px solid #d6ded6}.quant-article .memory-grid>div:last-child{border-right:0}.quant-article .memory-grid b{display:block;font-size:1.05rem}.quant-article .memory-grid p{color:var(--muted);font-size:.83rem;margin:6px 0 0}.quant-article .calc{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin:24px 0}.quant-article .calc article{background:var(--white);padding:24px;border-left:4px solid var(--teal)}.quant-article .calc article:nth-child(2){border-color:var(--orange)}.quant-article .calc h3{font-size:1.07rem;margin:0 0 10px}.quant-article .calc .big{font:600 2rem ui-monospace,Menlo,monospace;color:var(--ink);letter-spacing:-.06em}.quant-article .calc p{font-size:.85rem;color:var(--muted);margin:10px 0 0}.quant-article .source-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;column-gap:36px}.quant-article .source-list li{font-size:.78rem;line-height:1.55;padding:12px 0;border-top:1px solid var(--line)}.quant-article .source-list a{font-family:inherit}.quant-article .footer{background:var(--navy);color:#cbded6;padding:42px 0;font-size:.86rem}.quant-article .footer .shell{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.quant-article .footer a{color:#b8dfcf}.quant-article .fade{animation:fadeUp .65s ease both}@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.quant-article{scroll-behavior:auto}.quant-article .fade{animation:none}}
+    @media(max-width:880px){.quant-article .hero{grid-template-columns:1fr;padding:62px 0}.quant-article .hero-diagram{max-width:510px}.quant-article .section-head{grid-template-columns:1fr;gap:4px}.quant-article .prose{margin-left:0}.quant-article .three{gap:20px}.quant-article .method-grid{grid-template-columns:1fr 1fr}.quant-article .layer-map{grid-template-columns:1fr 1fr}.quant-article .layer-block:last-child{grid-column:1/-1}.quant-article .memory-grid{grid-template-columns:1fr 1fr}.quant-article .memory-grid>div:nth-child(2){border-right:0}.quant-article .memory-grid>div:nth-child(-n+2){border-bottom:1px solid #d6ded6}}
+    @media(max-width:620px){.quant-article .shell{width:min(100% - 32px,1160px)}.quant-article .nav-links{display:none}.quant-article .hero h2{font-size:3.25rem}.quant-article .hero p{font-size:1rem}.quant-article .intro,.quant-article .section{padding:58px 0}.quant-article .three,.quant-article .stack,.quant-article .layer-map,.quant-article .annotated,.quant-article .calc,.quant-article .source-list{grid-template-columns:1fr}.quant-article .layer-block:last-child{grid-column:auto}.quant-article .flow{grid-template-columns:1fr;gap:7px}.quant-article .arrow{transform:rotate(90deg);font-size:1.3rem;line-height:1}.quant-article .method-grid{grid-template-columns:1fr 1fr;gap:10px}.quant-article .runtime{display:grid;grid-template-columns:1fr 1fr}.quant-article .runtime>div{border-right:1px solid #d7e1db;border-bottom:0}.quant-article .runtime>div:nth-last-child(-n+2){border-bottom:1px solid #d7e1db}.quant-article .lab{padding:20px 16px}.quant-article .lab-controls{gap:10px}.quant-article .plot-head,.quant-article .plot-row{grid-template-columns:32px minmax(85px,1fr) 48px 48px;gap:5px;font-size:.65rem}.quant-article .plot-head span:last-child,.quant-article .plot-row .scale{display:none}.quant-article .formula{padding:20px 16px}.quant-article .formula code{font-size:.78rem}}
+
+.quant-article { margin: 24px -20px 0; overflow: hidden; }
+.quant-article .hero { grid-template-columns: 1fr; gap: 22px; padding: 54px 0 48px; }
+.quant-article .hero h2 { font-size: clamp(2.45rem, 4.4vw, 4rem); margin: 12px 0 20px; }
+.quant-article .hero-diagram { width: min(100%, 460px); margin: 0 0 0 auto; }
+.quant-article .layer-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.quant-article .method-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.quant-article .shell { width: min(100% - 40px, 1160px); }
+.quant-article .quant-main { padding-bottom: 50px; }
+@media (max-width: 640px) {
+  .quant-article .shell { width: min(100% - 28px, 1160px); }
+  .quant-article .hero h2 { font-size: clamp(2.1rem, 8vw, 2.8rem); }
+  .quant-article .three, .quant-article .layer-map, .quant-article .method-grid { grid-template-columns: 1fr; }
+}
+
+</style>
+<header class="mast" id="top">
     <div class="shell">
-      <nav class="nav" aria-label="页面导航"><span>MODEL SYSTEMS / FIELD NOTES</span><div class="nav-links"><a href="#encode">数值编码</a><a href="#layer">逐层结构</a><a href="#runtime">推理过程</a><a href="#memory">容量估算</a><a href="#sources">引用</a></div></nav>
+
       <div class="hero">
-        <div class="fade"><div class="eyebrow">A visual guide · 2026</div><h1>模型量化，<br><em>究竟量化了什么？</em></h1><p>从一个权重的舍入误差，走到 Transformer 的每一层、推理内核和显存账本。</p><div class="hero-meta"><span></span><span>INT8 · FP8 · W4A16 · W8A8 · Q3_K · KV Cache</span></div></div>
+        <div class="fade"><div class="eyebrow">A visual guide · 2026</div><h2>模型量化，<br><em>究竟量化了什么？</em></h2><p>从一个权重的舍入误差，走到 Transformer 的每一层、推理内核和显存账本。</p><div class="hero-meta"><span></span><span>INT8 · FP8 · W4A16 · W8A8 · Q3_K · KV Cache</span></div></div>
         <figure class="hero-diagram fade" aria-label="量化过程示意：高精度数值经过分组量化成为低位编码，运行时进入矩阵乘法"><svg viewBox="0 0 520 390" role="img" aria-labelledby="heroTitle"><title id="heroTitle">浮点权重到量化权重再到推理计算</title><rect x="12" y="18" width="496" height="350" rx="4" fill="#1c3b40" stroke="#557d75"/><text x="34" y="49" fill="#a9d8c8" font-family="monospace" font-size="13">W  ·  ORIGINAL WEIGHTS</text><g font-family="monospace" font-size="18" fill="#f4f3e9"><text x="34" y="94">+0.81</text><text x="132" y="94">−0.42</text><text x="236" y="94">+1.73</text><text x="344" y="94">+8.20</text></g><rect x="330" y="67" width="135" height="39" rx="2" fill="#a85634" fill-opacity=".35"/><path d="M260 121V159" stroke="#89c4b3" stroke-width="2"/><path d="M252 151l8 8 8-8" fill="none" stroke="#89c4b3" stroke-width="2"/><text x="34" y="187" fill="#a9d8c8" font-family="monospace" font-size="13">GROUP SCALE + LOW-BIT CODES</text><rect x="34" y="206" width="128" height="59" rx="2" fill="#e6eadf"/><text x="53" y="244" fill="#153638" font-family="monospace" font-size="19">s = 1.17</text><rect x="178" y="206" width="296" height="59" rx="2" fill="#e0efe6"/><text x="194" y="244" fill="#153638" font-family="monospace" font-size="18">[ 1, 0, 1, 7 ]</text><path d="M260 276V305" stroke="#89c4b3" stroke-width="2"/><path d="M252 297l8 8 8-8" fill="none" stroke="#89c4b3" stroke-width="2"/><text x="34" y="337" fill="#f4f3e9" font-family="monospace" font-size="17">kernel:  x × dequant(Wq)</text><circle cx="463" cy="327" r="8" fill="#b96d45"/></svg><figcaption>分组决定 scale 的作用范围；离群值会挤压其他数的刻度。</figcaption></figure>
       </div>
     </div>
   </header>
-  <main>
+  <div class="quant-main">
     <section class="intro shell" aria-label="核心概念"><p class="lede">量化是一次<strong>有损编码</strong>：把高精度张量映射到更少的可表示数值，同时尽量保持模型的输出行为。它首先是数值近似问题，然后才是文件压缩和内核加速问题。</p><div class="three"><article><span class="tag">01 / WEIGHTS</span><b>权重 W</b><p>模型训练后固定的参数。压缩它，直接降低常驻权重的存储需求。</p></article><article><span class="tag">02 / ACTIVATIONS</span><b>激活 A</b><p>推理时随输入产生的中间数。压缩它，才能使用部分低精度矩阵乘法路径。</p></article><article><span class="tag">03 / KV CACHE</span><b>注意力历史</b><p>每个请求累积的 Key 和 Value。长度与并发增长时，它可能成为另一笔显存大头。</p></article></div></section>
     <section class="section shell" id="encode"><div class="section-head"><div class="section-no">01 / THE NUMBER</div><div><h2>一个浮点数如何变成低位整数</h2><p class="section-sub">先看最简单的对称、按组量化。它是理解 GPTQ、AWQ 和 GGUF 块量化的起点。</p></div></div>
       <div class="prose"><p>对于一组浮点权重，选一个缩放因子 <strong>s</strong>。每个权重 <strong>w</strong> 被映射成有限范围内的整数 <strong>q</strong>；需要用它计算时，再得到近似值 <strong>ŵ</strong>。例如 INT4 的对称表示可使用 −7 到 +7 的 15 个量化级别。这里采用这个约定来做交互演示，实际格式的取值范围可能不同。</p><div class="formula"><div class="formula-name">SYMMETRIC QUANTIZATION</div><code>s = max(|wᵢ|) / (2⁽ᵇ⁻¹⁾ − 1)</code><br><code>qᵢ = clip(round(wᵢ / s), −qmax, qmax)</code><br><code>ŵᵢ = s · qᵢ</code><small>b 是编码位数。非对称量化还会引入 zero-point；不同方法可使用更复杂的缩放和误差补偿。</small></div><p>位数越低，可选刻度越少；同组若出现极大的离群值，它会拉大 <strong>s</strong>，使其他小权重更容易被舍入到同一刻度。缩小分组有时能缓解这个问题，但每组都要额外保存 scale。</p></div>
@@ -44,9 +155,8 @@
     <section class="section shell" id="runtime"><div class="section-head"><div class="section-no">04 / THE KERNEL</div><div><h2>压缩权重如何参与一次推理</h2><p class="section-sub">磁盘格式、显存中的布局、算子实际使用的数据类型，是三个不同层次。</p></div></div><div class="runtime"><div><span class="phase">LOAD</span><strong>读取压缩权重</strong><small>加载 packed codes、scale、必要的 zero-point；某些后端可能重排布局。</small></div><div><span class="phase">PREFILL / DECODE</span><strong>准备当前激活</strong><small>W4A16 保留 16 bit 激活；W8A8 将当前激活转换为 8 bit。</small></div><div><span class="phase">GEMM</span><strong>低精度矩阵乘法</strong><small>内核边解包/缩放边计算，或直接用 INT8/FP8 硬件路径。</small></div><div><span class="phase">STATE</span><strong>写入 K/V</strong><small>KV Cache 精度单独配置，随 token 和并发累积。</small></div></div><div class="prose"><p><strong>仅权重量化</strong>不意味着推理时把整份权重永久还原成 BF16；高效内核通常在计算过程中处理编码和 scale。不过，解包和转换有代价，因此文件更小不保证每个 batch 都更快。W8A8 则有机会直接使用低精度矩阵乘法硬件，实际收益取决于芯片、形状、batch 与内核。<a href="#ref-guide">[6]</a></p><div class="formula"><div class="formula-name">THREE INDEPENDENT SWITCHES</div><code>W4A16 ≠ FP8 KV Cache ≠ W8A8</code><small>W/A 描述权重与激活；KV 描述历史注意力状态。三者可以组合，但要分别确认框架支持。</small></div></div></section>
     <section class="section shell" id="memory"><div class="section-head"><div class="section-no">05 / THE MEMORY</div><div><h2>文件大小和显存，要分开算</h2><p class="section-sub">先估权重，再估 KV，最后给运行时工作区留空间。</p></div></div><div class="memory-grid"><div><span class="tag">A</span><b>权重编码</b><p>参数数 × 有效 bits/8；按每个张量实际精度求和。</p></div><div><span class="tag">B</span><b>元数据</b><p>scale、zero-point、混合精度张量和对齐。</p></div><div><span class="tag">C</span><b>KV Cache</b><p>层数、上下文、并发、KV heads、head_dim 与 KV dtype。</p></div><div><span class="tag">D</span><b>运行时开销</b><p>激活、内核工作区、通信 buffer、图捕获和分配器。</p></div></div><div class="formula"><div class="formula-name">CAPACITY ESTIMATES</div><code>权重 ≈ Σ(张量参数数 × 有效 bits/8)</code><br><code>KV ≈ 2 × L × T × B × Hkv × Dh × 元素字节</code><br><code>显存 ≈ 权重 + 已分配 KV + 临时激活/工作区 + 运行时</code><small>KV 公式适用于普通全注意力/GQA 的基础估算；滑动窗口、MLA、分页块、scale 与张量并行会改变实际分配。</small></div><div class="calc"><article><h3>约 8B 参数：只看权重</h3><div class="big">14.90 → 3.84 GiB</div><p>理论示例：全模型 BF16 约 14.90 GiB；若全部按 INT4、每 128 权重一个 FP16 scale，约 3.84 GiB。实际还可能保留高精度张量、存 zero-point 或额外布局。</p></article><article><h3>32 层 GQA：单请求 8K token</h3><div class="big">1.00 → 0.50 GiB</div><p>假设 8 个 KV heads、head_dim 128：BF16 KV 的数据主体 1 GiB；FP8 的数据主体约 0.5 GiB。16 个同长度请求，主体约为 16 / 8 GiB，未计额外开销。</p></article></div><div class="prose"><p>一个实测参照：llama.cpp 给出的 Llama 3.1 8B 文件大小约为 <strong>F16 14.96 GiB</strong>、<strong>Q4_K_M 4.58 GiB</strong>。这只是模型文件口径，不能直接当成加载后的总显存。vLLM 等服务框架还可能预分配 KV Cache，使“启动后已占用显存”大于当下请求真正使用的 KV 数据。<a href="#ref-llama">[7]</a><a href="#ref-vllm">[8]</a></p></div></section>
     <section class="section shell" id="sources"><div class="section-head"><div class="section-no">06 / REFERENCES</div><div><h2>资料与口径</h2><p class="section-sub">公式中的容量例子是按明确假设推导的教学示例；量化算法、格式和运行时描述依据下列原始论文或项目文档。</p></div></div><ol class="source-list"><li id="ref-gptq">[1] Frantar et al., <a href="https://arxiv.org/abs/2210.17323" target="_blank" rel="noopener noreferrer">GPTQ: Accurate Post-Training Quantization</a>, 2022.</li><li id="ref-awq">[2] Lin et al., <a href="https://arxiv.org/abs/2306.00978" target="_blank" rel="noopener noreferrer">AWQ: Activation-aware Weight Quantization</a>, 2023.</li><li id="ref-sq">[3] Xiao et al., <a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener noreferrer">SmoothQuant</a>, 2022.</li><li id="ref-schemes">[4] vLLM Project, <a href="https://docs.vllm.ai/projects/llm-compressor/en/latest/guides/compression_schemes/" target="_blank" rel="noopener noreferrer">LLM Compressor: Compression Schemes</a>.</li><li id="ref-gguf">[5] llama.cpp, <a href="https://github.com/ggml-org/llama.cpp/wiki/Tensor-Encoding-Schemes" target="_blank" rel="noopener noreferrer">Tensor Encoding Schemes</a>.</li><li id="ref-guide">[6] vLLM Project, <a href="https://docs.vllm.ai/projects/llm-compressor/en/latest/steps/choosing-scheme/" target="_blank" rel="noopener noreferrer">Choosing the Right Compression Scheme</a>.</li><li id="ref-llama">[7] llama.cpp, <a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md" target="_blank" rel="noopener noreferrer">Quantization README</a>, model-size table.</li><li id="ref-vllm">[8] vLLM Project, <a href="https://docs.vllm.ai/en/latest/api/vllm/config/cache/" target="_blank" rel="noopener noreferrer">KV Cache configuration</a>.</li></ol></section>
-  </main>
-  <footer class="footer"><div class="shell"><span>模型量化原理 · 单文件离线图解</span><span><a href="#top">返回顶部 ↑</a> · 资料核对于 2026-09-24</span></div></footer>
-  <script>
+  </div>
+<script>
     const weights = [-0.82, 0.24, 1.12, -1.57, 0.48, -0.31, 1.86, -0.95, 0.12, -0.69, 0.93, 8.20, -1.24, 0.38, 1.47, -0.53];
     const bitsSelect = document.getElementById('bits');
     const groupSelect = document.getElementById('group');
@@ -83,5 +193,153 @@
     }
     bitsSelect.addEventListener('change',renderQuantization);groupSelect.addEventListener('change',renderQuantization);renderQuantization();
   </script>
+</div>
+
+
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/09/24/model-quantization-principles/" data-id="cmufaw8b700adqsjt7nfs2jnq" data-title="模型量化原理：从单个权重到逐层推理" class="article-share-link">分享</a>
+
+
+
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li></ul>
+
+    </footer>
+  </div>
+
+
+<nav id="article-nav">
+
+
+    <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</div>
+    </a>
+
+</nav>
+
+
+</article>
+
+
+
+</section>
+
+          <aside id="sidebar">
+
+
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+
+
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+    </div>
+  </div>
+
+
+
+
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.22px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.11px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.78px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.22px;">cpu</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.11px;">ft</a> <a href="/tags/inference/" style="font-size: 10px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.22px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 14.44px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.56px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.22px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.89px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 10px;">llm</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.11px;">perf</a> <a href="/tags/performance/" style="font-size: 12.22px;">performance</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.11px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.22px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.22px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.67px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.33px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.67px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.67px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.67px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a>
+    </div>
+  </div>
+
+
+
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+
+
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+          </li>
+
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+
+          <li>
+            <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+          </li>
+
+          <li>
+            <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</a>
+          </li>
+
+          <li>
+            <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+          </li>
+
+      </ul>
+    </div>
+  </div>
+
+
+</aside>
+
+      </div>
+      <footer id="footer">
+
+  <div class="outer">
+    <div id="footer-info" class="inner">
+
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+
+    <a href="/" class="mobile-nav-link">首页</a>
+
+    <a href="/archives" class="mobile-nav-link">归档</a>
+
+    <a href="/tools" class="mobile-nav-link">工具</a>
+
+</nav>
+
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
 </body>
 </html>

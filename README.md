@@ -25,7 +25,10 @@ source is preserved in this repository's `hexo_source` branch.
   branch at recovery time. SHA-256:
   `abfe8c6437ae488a36f35c17043ed70d9303851ca79b54839a3bdab0c2d0c638`.
 - `source/_posts/model-quantization-principles.ejs`: the interactive
-  quantization article published after the source recovery.
+  quantization article, wrapped in the blog's Landscape post layout. Its CSS
+  is scoped to `.quant-article`, keeping the site's header and sidebar intact.
+- `recovery/quantization-standalone.ejs`: the first full-page version of that
+  article, retained as an exact fallback.
 
 ## Build and check
 

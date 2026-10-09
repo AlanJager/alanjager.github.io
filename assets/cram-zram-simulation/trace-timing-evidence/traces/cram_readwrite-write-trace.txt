@@ -1,5 +1,5 @@
 
- 0)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=<addr> */
+ 0)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=0x7 */
  0)               |  handle_mm_fault() {
  0)               |    __handle_mm_fault() {
  0)               |      pte_offset_map_rw_nolock() {
@@ -189,7 +189,7 @@
  0)   0.545 us    |    }
  0)   0.174 us    |    __rcu_read_unlock();
  0) + 64.127 us   |  }
- 0)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=<addr> */
+ 0)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=0x7 */
  0)               |  handle_mm_fault() {
  0)               |    __handle_mm_fault() {
  0)               |      pte_offset_map_rw_nolock() {

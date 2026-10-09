@@ -1,5 +1,5 @@
 
- 1)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=<addr> */
+ 1)               |  /* page_fault_user: address=<addr> ip=<addr> error_code=0x4 */
  1)               |  handle_mm_fault() {
  1)               |    __handle_mm_fault() {
  1)               |      pte_offset_map_rw_nolock() {

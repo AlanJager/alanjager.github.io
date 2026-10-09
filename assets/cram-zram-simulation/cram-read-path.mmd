@@ -1,0 +1,9 @@
+flowchart TB
+  A["CPU 执行 load"] --> B["地址翻译：页表映射到 CRAM 设备地址"]
+  B --> C["cache 未命中：向设备请求数据"]
+  C --> D["设备定位压缩内容<br/>硬件解压，返回原始数据"]
+  D --> E["CPU 获得原始数据，完成读取"]
+  classDef cpu fill:#edf2fc,stroke:#4d70aa,color:#1c3559;
+  classDef device fill:#e8f4ef,stroke:#32866b,color:#17372b;
+  class A,B,C,E cpu;
+  class D device;

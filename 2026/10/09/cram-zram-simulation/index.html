@@ -13,6 +13,7 @@
 <meta property="og:site_name" content="花の様に">
 <meta property="og:description" content="从作者设计、页读写路径和六轮 QEMU 模拟实验，理解 CRAM 与 zram 的区别，附 trace、数据与复现脚本。">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-read-path.svg">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-lifecycle.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-paths.svg">
@@ -30,7 +31,7 @@
 <meta property="article:tag" content="memory">
 <meta property="article:tag" content="page-fault">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png">
+<meta name="twitter:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-read-path.svg">
   
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
   
@@ -184,6 +185,11 @@
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">受控迁入：普通页 → 迁移到 CRAM → 保留 present、只读映射</span><br><span class="line">读访问：按地址读取 → 页可以继续留在 CRAM</span><br><span class="line">写访问：写保护 fault → 提升回普通 DRAM → 完成写入</span><br></pre></td></tr></table></figure>
 
 <p>这里“读不 fault”指读取时无需先通过 swap fault 恢复这个压缩页。</p>
+<h3 id="压缩后的数据，CPU-怎样读取？"><a href="#压缩后的数据，CPU-怎样读取？" class="headerlink" title="压缩后的数据，CPU 怎样读取？"></a>压缩后的数据，CPU 怎样读取？</h3><p>设备对外提供可寻址的内存空间，对内保存压缩数据。CPU 执行普通 <code>load</code>，设备在读取路径上透明解压，返回 CPU 所需的原始数据。下面画的是 cache 未命中、需要访问设备的路径：</p>
+<p><img src="/assets/cram-zram-simulation/cram-read-path.svg" alt="CRAM 设备透明解压的读路径"></p>
+<p><a href="/assets/cram-zram-simulation/cram-read-path.mmd">下载 Mermaid 图源</a>。</p>
+<p><strong>“直接读”表示应用继续通过原地址访问，省去软件 swap-in 和把整页恢复到普通 DRAM 的步骤。</strong> 硬件解压和设备访问仍有耗时；设备内部的压缩块与解压粒度取决于具体实现。若数据已在 CPU cache 中，这次 load 可由 cache 提供，无需访问设备。<a target="_blank" rel="noopener" href="https://lpc.events/event/20/contributions/2424/">作者 LPC 的设备访问说明</a></p>
+<p>这也解释了两种方案的区别：CRAM 设备返回读取所需的数据，页仍可留在设备；zram swap 则由内核把整页读回并解压到普通 RAM，再让应用完成访问。本文的 QEMU 模型用 RAM 后备，验证的是映射和 fault 路径，图中的硬件解压动作描述真实压缩设备的工作方式。</p>
 <h2 id="Why-CRAM：可寻址之后，怎样保证容量安全？"><a href="#Why-CRAM：可寻址之后，怎样保证容量安全？" class="headerlink" title="Why CRAM：可寻址之后，怎样保证容量安全？"></a>Why CRAM：可寻址之后，怎样保证容量安全？</h2><p>作者 RFC 的核心问题是：压缩设备的逻辑容量可能大于物理容量，而可压缩性会变化。例如一个物理容量为 1 TB 的设备暴露更大的地址空间，能否装下数据取决于内容；这个例子不意味着任何固定容量倍率。任意改写可能使压缩数据膨胀，单靠后台回收追赶写入速度，无法保证始终有足够后备空间。<a target="_blank" rel="noopener" href="https://patchew.org/linux/20260222084842.1824063-1-gourry@gourry.net/">RFC 的容量问题说明</a></p>
 <p>RFC 采用保守的只读层设计，把控制放在三个位置：</p>
 <table>

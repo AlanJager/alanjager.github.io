@@ -1,0 +1,511 @@
+{
+  "scope": "RAM-backed CRAM; sampled logical-page state transitions, not PFN identity or exhaustive migration tracing",
+  "original_phase": {
+    "transitions": {
+      "DC": 283,
+      "DS": 3,
+      "CD": 256,
+      "CS": 0,
+      "SD": 0,
+      "SC": 3
+    },
+    "pages_with_C_D_C": 0,
+    "observed_C_D_C_cycles": 0,
+    "sample_pages": 1920,
+    "target_first64MiB_pages_with_C_D_C": 0
+  },
+  "all_phases": {
+    "transitions": {
+      "DC": 5663,
+      "DS": 15,
+      "CD": 5666,
+      "CS": 3,
+      "SD": 3,
+      "SC": 15
+    },
+    "pages_with_C_D_C": 1896,
+    "observed_C_D_C_cycles": 4213,
+    "sample_pages": 1920
+  },
+  "runs": {
+    "observed": {
+      "writes": [
+        {
+          "stage": "original",
+          "round": 0,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 484679087,
+          "begin": 103159563,
+          "end": 587837824
+        },
+        {
+          "stage": "rotating",
+          "round": 0,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 434718,
+          "begin": 1088191591,
+          "end": 1088625726
+        },
+        {
+          "stage": "rotating",
+          "round": 1,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 435371225,
+          "begin": 1188922465,
+          "end": 1624292944
+        },
+        {
+          "stage": "rotating",
+          "round": 2,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 344193215,
+          "begin": 1724523634,
+          "end": 2068716271
+        },
+        {
+          "stage": "rotating",
+          "round": 3,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 328862994,
+          "begin": 2168962469,
+          "end": 2497812749
+        },
+        {
+          "stage": "rotating",
+          "round": 4,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 395732095,
+          "begin": 2598066777,
+          "end": 2993798177
+        },
+        {
+          "stage": "rotating",
+          "round": 5,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 404203791,
+          "begin": 3094048939,
+          "end": 3498252003
+        },
+        {
+          "stage": "rotating",
+          "round": 6,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 350978548,
+          "begin": 3598454126,
+          "end": 3949431949
+        },
+        {
+          "stage": "rotating",
+          "round": 7,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 245927810,
+          "begin": 4049626956,
+          "end": 4295553990
+        },
+        {
+          "stage": "rotating",
+          "round": 8,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 416799081,
+          "begin": 4395745892,
+          "end": 4812544371
+        },
+        {
+          "stage": "rotating",
+          "round": 9,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 459522128,
+          "begin": 4912776432,
+          "end": 5372297955
+        },
+        {
+          "stage": "rotating",
+          "round": 10,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 479268258,
+          "begin": 5472543005,
+          "end": 5951810639
+        },
+        {
+          "stage": "rotating",
+          "round": 11,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 437156233,
+          "begin": 6052060907,
+          "end": 6489216426
+        },
+        {
+          "stage": "rotating",
+          "round": 12,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 360152524,
+          "begin": 6589466262,
+          "end": 6949618183
+        },
+        {
+          "stage": "rotating",
+          "round": 13,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 389756732,
+          "begin": 7049833729,
+          "end": 7439589474
+        },
+        {
+          "stage": "rotating",
+          "round": 14,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 398224953,
+          "begin": 7539831145,
+          "end": 7938055312
+        },
+        {
+          "stage": "rotating",
+          "round": 15,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 182098358,
+          "begin": 8038232432,
+          "end": 8220330162
+        },
+        {
+          "stage": "rotating",
+          "round": 16,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 493107939,
+          "begin": 8320523553,
+          "end": 8813630205
+        },
+        {
+          "stage": "rotating",
+          "round": 17,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 486289848,
+          "begin": 8914022942,
+          "end": 9400311889
+        },
+        {
+          "stage": "rotating",
+          "round": 18,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 412190935,
+          "begin": 9500526046,
+          "end": 9912716133
+        },
+        {
+          "stage": "rotating",
+          "round": 19,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 443658435,
+          "begin": 10012961453,
+          "end": 10456618853
+        },
+        {
+          "stage": "rotating",
+          "round": 20,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 446382747,
+          "begin": 10556914326,
+          "end": 11003296484
+        },
+        {
+          "stage": "rotating",
+          "round": 21,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 419941772,
+          "begin": 11103474544,
+          "end": 11523415595
+        },
+        {
+          "stage": "rotating",
+          "round": 22,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 391460335,
+          "begin": 11623627579,
+          "end": 12015087348
+        },
+        {
+          "stage": "rotating",
+          "round": 23,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 152889442,
+          "begin": 12115317070,
+          "end": 12268206026
+        }
+      ],
+      "snapshots": 573,
+      "unknown": 4,
+      "total_sample_states": 1100160,
+      "snapshot_duration_ns": {
+        "median": 2149460,
+        "max": 16949060
+      },
+      "data_pass": true
+    },
+    "control": {
+      "writes": [
+        {
+          "stage": "original",
+          "round": 0,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 349936142,
+          "begin": 103687639,
+          "end": 453622793
+        },
+        {
+          "stage": "rotating",
+          "round": 0,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 407626,
+          "begin": 953977845,
+          "end": 954384788
+        },
+        {
+          "stage": "rotating",
+          "round": 1,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 421746727,
+          "begin": 1054653486,
+          "end": 1476399392
+        },
+        {
+          "stage": "rotating",
+          "round": 2,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 475983815,
+          "begin": 1576651544,
+          "end": 2052634594
+        },
+        {
+          "stage": "rotating",
+          "round": 3,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 469243361,
+          "begin": 2152968116,
+          "end": 2622210343
+        },
+        {
+          "stage": "rotating",
+          "round": 4,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 493028636,
+          "begin": 2722387241,
+          "end": 3215415155
+        },
+        {
+          "stage": "rotating",
+          "round": 5,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 467543874,
+          "begin": 3315634947,
+          "end": 3783177589
+        },
+        {
+          "stage": "rotating",
+          "round": 6,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 426697223,
+          "begin": 3883521360,
+          "end": 4310217643
+        },
+        {
+          "stage": "rotating",
+          "round": 7,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 231966821,
+          "begin": 4410455801,
+          "end": 4642420886
+        },
+        {
+          "stage": "rotating",
+          "round": 8,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 440938845,
+          "begin": 4742813968,
+          "end": 5183751799
+        },
+        {
+          "stage": "rotating",
+          "round": 9,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 395867530,
+          "begin": 5284090126,
+          "end": 5679956485
+        },
+        {
+          "stage": "rotating",
+          "round": 10,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 452883045,
+          "begin": 5780229376,
+          "end": 6233111299
+        },
+        {
+          "stage": "rotating",
+          "round": 11,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 323331697,
+          "begin": 6333481903,
+          "end": 6656812570
+        },
+        {
+          "stage": "rotating",
+          "round": 12,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 434515362,
+          "begin": 6757162100,
+          "end": 7191676194
+        },
+        {
+          "stage": "rotating",
+          "round": 13,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 356065075,
+          "begin": 7291927933,
+          "end": 7647992259
+        },
+        {
+          "stage": "rotating",
+          "round": 14,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 415339312,
+          "begin": 7748263789,
+          "end": 8163602403
+        },
+        {
+          "stage": "rotating",
+          "round": 15,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 236080789,
+          "begin": 8263907343,
+          "end": 8499987331
+        },
+        {
+          "stage": "rotating",
+          "round": 16,
+          "start_page": 0,
+          "pages": 16384,
+          "ns": 430824641,
+          "begin": 8600255183,
+          "end": 9031079146
+        },
+        {
+          "stage": "rotating",
+          "round": 17,
+          "start_page": 16384,
+          "pages": 16384,
+          "ns": 436591554,
+          "begin": 9131348430,
+          "end": 9567939174
+        },
+        {
+          "stage": "rotating",
+          "round": 18,
+          "start_page": 32768,
+          "pages": 16384,
+          "ns": 513511137,
+          "begin": 9668230588,
+          "end": 10181740748
+        },
+        {
+          "stage": "rotating",
+          "round": 19,
+          "start_page": 49152,
+          "pages": 16384,
+          "ns": 375374648,
+          "begin": 10282010452,
+          "end": 10657384410
+        },
+        {
+          "stage": "rotating",
+          "round": 20,
+          "start_page": 65536,
+          "pages": 16384,
+          "ns": 501332698,
+          "begin": 10757653192,
+          "end": 11258985236
+        },
+        {
+          "stage": "rotating",
+          "round": 21,
+          "start_page": 81920,
+          "pages": 16384,
+          "ns": 371851203,
+          "begin": 11359212904,
+          "end": 11731063367
+        },
+        {
+          "stage": "rotating",
+          "round": 22,
+          "start_page": 98304,
+          "pages": 16384,
+          "ns": 403154009,
+          "begin": 11831324675,
+          "end": 12234478056
+        },
+        {
+          "stage": "rotating",
+          "round": 23,
+          "start_page": 114688,
+          "pages": 8192,
+          "ns": 160680072,
+          "begin": 12334725861,
+          "end": 12495405300
+        }
+      ],
+      "snapshots": 2,
+      "unknown": 0,
+      "total_sample_states": 3840,
+      "snapshot_duration_ns": {
+        "median": 4067666,
+        "max": 4067666
+      },
+      "data_pass": true
+    }
+  },
+  "inputs": {
+    "color.c": "aa35845b7b80c630865211afdaf9abd02ebb4f567087d546bbf67d860b0514c3",
+    "observed-guest.log": "cd95a8cc7ea72f19ba73651b589e07b7c32dba2f96688c3fff681ae3c1f973b1",
+    "control-guest.log": "9c262395eeefd66a173d3b3435396ecac0e16b382e55b6919a7b3bbdba1a517a"
+  }
+}

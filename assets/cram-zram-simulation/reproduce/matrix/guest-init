@@ -1,0 +1,52 @@
+#!/bin/sh
+export PATH=/bin:/sbin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /sys/kernel/tracing
+mount -t tracefs tracefs /sys/kernel/tracing
+echo LAB_GUEST_BOOT
+uname -a
+sleep 3
+for d in /sys/bus/pci/devices/*; do
+    if [ "$(cat "$d/vendor")" = 0x8086 ] && [ "$(cat "$d/device")" = 0x0d93 ]; then
+        bdf=${d##*/}
+        echo "CXL_DEVICE $bdf"
+        echo cxl_compression > "$d/driver_override"
+        if [ -L "$d/driver" ]; then echo "$bdf" > "$d/driver/unbind"; fi
+        echo "$bdf" > /sys/bus/pci/drivers/cxl_compression/bind
+    fi
+done
+sleep 3
+echo NODE_PRIVATE
+cat /sys/devices/system/node/has_private_memory
+echo NODE_ONLINE
+cat /sys/devices/system/node/online
+cat /sys/devices/system/node/node*/meminfo
+nid=$(cat /sys/devices/system/node/has_private_memory)
+echo false > /sys/kernel/mm/numa/demotion_enabled
+echo lz4 > /sys/block/zram0/comp_algorithm
+echo 64M > /sys/block/zram0/disksize
+mkswap /dev/zram0
+swapon /dev/zram0
+for backend in cram zram; do
+ for mode in direct readwrite readrepeat; do
+  id=${backend}_${mode}
+  echo CASE_BEGIN_$id
+  /bin/probe "$backend" "$mode" "$nid"
+  echo "CASE_EXIT_$id $?"
+  echo 0 > /sys/kernel/tracing/tracing_on
+  echo STATS_BEGIN_$id
+  cat /sys/kernel/tracing/per_cpu/cpu*/stats
+  echo STATS_END_$id
+  echo TRACE_BEGIN_$id
+  cat /sys/kernel/tracing/trace
+  echo TRACE_END_$id
+ done
+done
+echo nop > /sys/kernel/tracing/current_tracer
+echo 0 > /sys/kernel/tracing/events/exceptions/page_fault_user/enable
+swapoff /dev/zram0
+echo 1 > /sys/block/zram0/reset
+echo LAB_GUEST_DONE
+poweroff -f

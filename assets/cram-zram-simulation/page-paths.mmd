@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph CRAM["CRAM：迁入后保留只读映射"]
+    direction TB
+    C0["普通页 · node 0"] --> CE["迁入：cram_migrate_to<br/>migrate_pages → folio_mc_copy"]
+    CE --> C1["CRAM 页 · node 2<br/>present，只读"]
+    C1 --> CR["首次读：直接读取<br/>本轮无目标访问 fault"]
+    CR --> C2["读后仍在 node 2"]
+    C1 -->|"直接首次写"| CW["写保护 fault<br/>handle_mm_fault → cram_handle_fault<br/>migrate_pages<br/>alloc_cram_promote_folio / folio_mc_copy"]
+    C2 -->|"读后首次写"| CW
+    CW --> C3["普通页 · node 0<br/>完成局部写入"]
+  end
+  subgraph ZRAM["zram swap：首次访问时恢复普通页"]
+    direction TB
+    Z0["普通页 · node 0"] --> ZE["换出：MADV_PAGEOUT<br/>__swap_writepage → zram_submit_bio<br/>zcomp_compress → LZ4"]
+    ZE --> Z1["zram 中的压缩对象<br/>原映射为 swap entry"]
+    Z1 -->|"首次读"| ZR["swap fault<br/>do_swap_page → swap_read_folio<br/>zram_submit_bio → zcomp_decompress<br/>lz4_decompress"]
+    ZR --> Z2["恢复普通页 · node 0<br/>完成读取"]
+    Z2 --> ZW["读后首次写：直接修改普通页<br/>本轮无新的 swap-in"]
+    Z1 -->|"直接首次写"| ZD["swap fault：同样先读回并解压整页"]
+    ZD --> Z3["恢复普通页 · node 0<br/>完成局部写入"]
+  end
+  CRAM ~~~ ZRAM
+  classDef cram fill:#e8f4ef,stroke:#32866b,color:#17372b;
+  classDef zram fill:#edf2fc,stroke:#4d70aa,color:#1c3559;
+  class C0,CE,C1,CR,C2,CW,C3 cram;
+  class Z0,ZE,Z1,ZR,Z2,ZW,ZD,Z3 zram;

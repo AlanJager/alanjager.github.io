@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>CRAM 为什么读不触发 fault：一次与 zram 的模拟对照 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="从作者设计、页读写路径和六轮 QEMU 模拟实验，理解 CRAM 与 zram 的区别，附 trace、数据与复现脚本。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CRAM 为什么读不触发 fault：一次与 zram 的模拟对照">
+<meta property="og:url" content="https://hanayo.cn/2026/10/09/cram-zram-simulation/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="从作者设计、页读写路径和六轮 QEMU 模拟实验，理解 CRAM 与 zram 的区别，附 trace、数据与复现脚本。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-lifecycle.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-paths.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/latency.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/pressure.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-color.png">
+<meta property="article:published_time" content="2026-10-09T06:30:00.000Z">
+<meta property="article:modified_time" content="2026-10-09T06:30:00.000Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="cram">
+<meta property="article:tag" content="zram">
+<meta property="article:tag" content="cxl">
+<meta property="article:tag" content="memory">
+<meta property="article:tag" content="page-fault">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"CRAM 为什么读不触发 fault：一次与 zram 的模拟对照","description":"从作者设计、页读写路径和六轮 QEMU 模拟实验，理解 CRAM 与 zram 的区别，附 trace、数据与复现脚本。","url":"https://hanayo.cn/2026/10/09/cram-zram-simulation/index.html","datePublished":"2026-10-09T06:30:00.000Z","dateModified":"2026-10-09T06:30:00.000Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/10/09/cram-zram-simulation/index.html"}]}</script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="post-cram-zram-simulation" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/09/cram-zram-simulation/" class="article-date">
+  <time class="dt-published" datetime="2026-10-09T06:30:00.000Z" itemprop="datePublished">2026-10-09</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      CRAM 为什么读不触发 fault：一次与 zram 的模拟对照
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          <p>最近看了 Gregory Price 的 CRAM（Compressed RAM Service）介绍。Linux 已经有 zram，为什么还需要一套压缩内存管理机制？先读作者的设计说明，会发现两者提供给 Linux 的抽象不同：zram 是压缩 RAM 块设备，CRAM 则管理仍能按地址访问的硬件压缩内存。</p>
+<p>因此，需要比较的不只是压缩算法。一个页进入压缩层后，是否还保留映射？读一下是否就必须恢复到普通内存？写入导致压缩率下降时，内核怎样保证设备的物理容量不会耗尽？这些问题决定了读写路径，也决定了成本出现在哪一步。</p>
+<p>本文先对照作者 RFC 和 zram 官方文档说明设计，再用固定内核、固定 QEMU 的 trace 和模拟数据检查实际行为。</p>
+<h2 id="先读哪些设计材料？"><a href="#先读哪些设计材料？" class="headerlink" title="先读哪些设计材料？"></a>先读哪些设计材料？</h2><table>
+<thead>
+<tr>
+<th>一手材料</th>
+<th>阅读重点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a target="_blank" rel="noopener" href="https://patchew.org/linux/20260222084842.1824063-1-gourry@gourry.net/">Gregory Price：RFC v4 总说明，Private Memory Nodes (w/ Compressed RAM)</a></td>
+<td><code>Background</code>、<code>Core Proposal: N_MEMORY_PRIVATE</code>、<code>Application: Compressed RAM</code>：为什么隔离分配，为什么限制写入</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://www.spinics.net/lists/kernel/msg6058200.html">RFC v4 第 23 个补丁：mm/cram 子系统</a></td>
+<td>迁入、写保护、写 fault 提升，以及设备压力如何驱动回收</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://lpc.events/event/20/contributions/2424/">LPC 2026：A Compressed RAM Service</a></td>
+<td>硬件压缩内存的直接访问模型，及只读层的访问路径</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/blockdev/zram.html">Linux 官方文档：zram</a></td>
+<td>块设备用途、配置、逻辑大小与实际 RAM 占用</td>
+</tr>
+</tbody></table>
+<p>设计说明采用作者 2026-02-22 发布的 RFC v4 和后续 LPC 演讲；实验版本见后面的环境表。</p>
+<h2 id="zram-是什么：普通-RAM-中的压缩块设备"><a href="#zram-是什么：普通-RAM-中的压缩块设备" class="headerlink" title="zram 是什么：普通 RAM 中的压缩块设备"></a>zram 是什么：普通 RAM 中的压缩块设备</h2><p>zram 创建 <code>/dev/zram0</code> 这样的块设备。写入设备的数据被压缩，压缩表示保存在普通 RAM 中。块设备可以作为 swap 后端，也可以用于文件系统等用途；因此，“zram 就是 swap”并不准确。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/blockdev/zram.html">zram 官方文档</a></p>
+<p>本轮把它用作匿名页的 swap 后端：原来的普通页换出后，PTE 表示 swap entry；应用再次访问尚未恢复的页时，要通过 swap fault，把内容读回、解压到普通页，再恢复映射。CPU 不能把匿名页的 PTE 直接指向 zram 的压缩对象，按原地址读取其中某个字节。后面的 trace 用来验证这条访问链。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">页换出：普通页 → swap-out → 压缩对象保存在 zram</span><br><span class="line">再次访问：swap fault → 读回、解压到普通页 → 恢复映射 → 完成访问</span><br></pre></td></tr></table></figure>
+
+<p>这里的容量也要分开看。<code>disksize</code> 是逻辑设备大小，不是已经增加的物理 RAM；<code>compr_data_size</code> 是压缩数据大小，<code>mem_used_total</code> 才包含分配器及元数据等实际内存开销。能节省多少 RAM 取决于数据和压缩效果，不能把逻辑 swap 容量直接算成新增可用内存。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/blockdev/zram.html#stats">zram 容量与统计说明</a></p>
+<p>这些值从 sysfs 读取。<code>disksize</code> 是独立文件；<code>compr_data_size</code> 和 <code>mem_used_total</code> 是同一行 <code>mm_stat</code> 输出中的字段，不是两个独立文件：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="built_in">cat</span> /sys/block/zram0/disksize</span><br><span class="line"><span class="built_in">cat</span> /sys/block/zram0/mm_stat</span><br><span class="line"></span><br><span class="line"><span class="comment"># 给 mm_stat 的前三列加上名称，单位均为 bytes</span></span><br><span class="line">awk <span class="string">&#x27;&#123;printf &quot;orig_data_size=%s\ncompr_data_size=%s\nmem_used_total=%s\n&quot;, $1, $2, $3&#125;&#x27;</span> \</span><br><span class="line">    /sys/block/zram0/mm_stat</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>mm_stat 列号</th>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>orig_data_size</code></td>
+<td>已存数据的未压缩大小</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>compr_data_size</code></td>
+<td>已存数据的压缩大小</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>mem_used_total</code></td>
+<td>为该设备分配的实际内存，包含分配器碎片及元数据开销</td>
+</tr>
+</tbody></table>
+<p>如果使用的是 <code>zram1</code>，将路径中的 <code>zram0</code> 换成 <code>zram1</code>。这些值描述当前存储的数据与内存占用，逻辑设备容量仍读 <code>disksize</code>。</p>
+<h2 id="CRAM-是什么：硬件压缩内存的内核管理层"><a href="#CRAM-是什么：硬件压缩内存的内核管理层" class="headerlink" title="CRAM 是什么：硬件压缩内存的内核管理层"></a>CRAM 是什么：硬件压缩内存的内核管理层</h2><p>作者描述的设备提供 cacheline / byte 级访问。数据以压缩形式存储，但 CPU 仍能通过地址访问它，设备在硬件路径中处理压缩表示。因此，页可以保留页表映射，读取不必先经过软件 swap-in。<a target="_blank" rel="noopener" href="https://lpc.events/event/20/contributions/2424/">作者 LPC 说明</a></p>
+<p>要区分两个层次：<strong>硬件提供压缩和可寻址访问，CRAM 提供页的分配、迁移与压力管理。</strong> CRAM 不是一种压缩算法，也不能理解成“把 zram 的软件解压换成硬件解压”就结束了。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">受控迁入：普通页 → 迁移到 CRAM → 保留 present、只读映射</span><br><span class="line">读访问：按地址读取 → 页可以继续留在 CRAM</span><br><span class="line">写访问：写保护 fault → 提升回普通 DRAM → 完成写入</span><br></pre></td></tr></table></figure>
+
+<p>这里“读不 fault”指读取时无需先通过 swap fault 恢复这个压缩页。</p>
+<h2 id="Why-CRAM：可寻址之后，怎样保证容量安全？"><a href="#Why-CRAM：可寻址之后，怎样保证容量安全？" class="headerlink" title="Why CRAM：可寻址之后，怎样保证容量安全？"></a>Why CRAM：可寻址之后，怎样保证容量安全？</h2><p>作者 RFC 的核心问题是：压缩设备的逻辑容量可能大于物理容量，而可压缩性会变化。例如一个物理容量为 1 TB 的设备暴露更大的地址空间，能否装下数据取决于内容；这个例子不意味着任何固定容量倍率。任意改写可能使压缩数据膨胀，单靠后台回收追赶写入速度，无法保证始终有足够后备空间。<a target="_blank" rel="noopener" href="https://patchew.org/linux/20260222084842.1824063-1-gourry@gourry.net/">RFC 的容量问题说明</a></p>
+<p>RFC 采用保守的只读层设计，把控制放在三个位置：</p>
+<table>
+<thead>
+<tr>
+<th>控制</th>
+<th>做法</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>分配</td>
+<td><code>N_MEMORY_PRIVATE</code> 私有 NUMA node 排除普通分配路径，服务受控迁入页</td>
+<td>避免普通分配绕过设备容量管理</td>
+</tr>
+<tr>
+<td>写入</td>
+<td>到达后写保护；写 fault 先提升回普通 DRAM</td>
+<td>避免应用直接改写压缩层，导致无法控制的容量膨胀</td>
+</tr>
+<tr>
+<td>设备压力</td>
+<td>驱动报告压力，限制新迁入并驱动回收，必要时换出到 swap</td>
+<td>释放设备空间并让系统继续处理内存压力</td>
+</tr>
+</tbody></table>
+<p>私有 node 仍使用普通 <code>struct page</code> / folio，并复用内核分配和迁移设施。<code>mm/cram</code> 在这些设施与设备之间接入 <code>migrate_to</code>、<code>handle_fault</code>、<code>reclaim_policy</code> 等管理动作。<a target="_blank" rel="noopener" href="https://patchew.org/linux/20260222084842.1824063-1-gourry@gourry.net/">RFC 总说明</a>、<a target="_blank" rel="noopener" href="https://www.spinics.net/lists/kernel/msg6058200.html">第 23 个补丁说明</a></p>
+<p>因此，首次写提升是这个版本主动选择的容量安全策略，不是“所有压缩内存在物理上都不能直接写”。RFC 把放宽只读约束列为未来方向，没有在该提案中实现。CXL 是作者使用的设备接入方式，CRAM 的管理抽象本身也不要求永远只服务 CXL。<a target="_blank" rel="noopener" href="https://patchew.org/linux/20260222084842.1824063-1-gourry@gourry.net/">RFC 的未来设计与讨论</a></p>
+<p>把两者放在一起，差异就清楚了：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>zram，作为本实验的 swap 后端</th>
+<th>CRAM，只读层设计</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>内核面对的抽象</td>
+<td>压缩 RAM 块设备上的 swap 对象</td>
+<td>私有 NUMA node 上的可映射页</td>
+</tr>
+<tr>
+<td>CPU 能否按原地址直接读压缩层</td>
+<td>不能，需先恢复普通页</td>
+<td>可以保留读映射</td>
+</tr>
+<tr>
+<td>冷页首次读</td>
+<td>恢复页，回到普通内存</td>
+<td>可以继续留在压缩层</td>
+</tr>
+<tr>
+<td>冷页首次写</td>
+<td>先恢复原页内容再写</td>
+<td>写保护 fault，先提升回普通内存</td>
+</tr>
+<tr>
+<td>主要管理问题</td>
+<td>压缩对象的 RAM 占用、块 I/O 与 swap 恢复</td>
+<td>可变物理容量、受控迁入、写入提升和设备压力</td>
+</tr>
+</tbody></table>
+<p>这个设计最值得验证的收益，是冷页读过以后仍能留在CRAM 压缩内存；代价是首次写仍有提升成本。它是否适合某个业务，需要看冷页占比、读写比例、内存压力和真实设备访问成本。</p>
+<p>作者在 LPC 演讲里有一张访问路径图，可以先用它建立直觉：</p>
+<p><img src="/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png" alt="CRAM 与 DRAM、普通 CXL、swap 的访问路径对照"></p>
+<p>图源：Gregory Price（Meta），<a target="_blank" rel="noopener" href="https://lpc.events/event/20/contributions/2424/">LPC 2026《A Compressed RAM Service》</a>，第 7 页 “Write Control”。原图提取，未改动。</p>
+<p>图里的普通 CXL 内存可以直接读写；CRAM 是受控的压缩内存层，可以直接读，写时要先把页提升到普通内存。swap 的读写则都需要先恢复页。图中的红叉表示不能直接按这条路径完成访问，不表示应用不能写入。下面用 trace 检查这些箭头在实验内核里对应哪些动作。</p>
+<h2 id="读过以后，页到底存在哪里？"><a href="#读过以后，页到底存在哪里？" class="headerlink" title="读过以后，页到底存在哪里？"></a>读过以后，页到底存在哪里？</h2><p>先把问题缩小到一个 4 KiB 匿名页。把它放入目标层后，读取偏移 0 的 8 字节，再检查页位置和 fault 路径。</p>
+<p>把同一个页按“进入目标层 → 首次读 → 随后首次写”展开，会比先看函数名更容易理解：</p>
+<p><img src="/assets/cram-zram-simulation/page-lifecycle.png" alt="CRAM 与 zram 的匿名页状态变化对照"></p>
+<p>图示依据本轮固定版本的匿名页实验绘制，node 0 / node 2 是实验中的节点编号。横向是操作顺序，上下是两种方案；框表示页的位置或压缩对象的表示，箭头表示触发状态变化的动作。</p>
+<p>最值得看的是“首次读后”这一列：<strong>CRAM 页仍在 node 2，zram 已恢复为 node 0 的普通页。</strong> 所以下一次写，CRAM 还要经过写保护 fault 和提升，zram 则可以写已经恢复的页。图中 zram 压缩对象虽然也保存在 RAM 中，却不是原来的可直接映射匿名页。</p>
+<p>图画的是先读再写。如果跳过读直接写，CRAM 仍需提升；zram 仍需先通过 swap fault 恢复原页内容，再修改目标 8 字节。</p>
+<p>本轮 trace 中，CRAM 页首次读没有目标访问 fault，读完仍在 node 2；zram 页首次读触发 swap fault，解压后回到普通内存 node 0。</p>
+<p>这里要把跨 node 读取和迁页分开。CPU 可以直接访问远端 NUMA 内存；有效、允许读取的 PTE 不会仅仅因为页在另一个 node 就触发 fault。<code>membind</code> / <code>cpuset.mems</code> 主要约束分配或放置，也不是每次 load 的远端访问开关。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/mm/numa_memory_policy.html">Linux NUMA memory policy 文档</a></p>
+<p>因此，CRAM 页留在 node 2 时，cache miss 后的访问可能经过远端内存或设备链路，但无需先把整个页迁回 node 0。跨 node 的访问延迟仍在，只是省去了这次读的软件恢复路径。命中 cache 时则未必访问设备。zram 首读需要恢复页，是因为 PTE 为 swap entry、压缩对象不能直接供该匿名映射读取，原因不在 NUMA 距离。</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>CRAM</th>
+<th>zram，作为 swap 后端</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>页进入目标层</td>
+<td>迁移到 node 2，PTE 仍 present，但只读</td>
+<td>软件压缩，PTE 变成 non-present 的 swap entry</td>
+</tr>
+<tr>
+<td>首次读</td>
+<td>没有 fault，仍在 node 2</td>
+<td>swap-in、解压，恢复到 node 0</td>
+</tr>
+<tr>
+<td>再读一次</td>
+<td>继续读 node 2 页</td>
+<td>读已经恢复的 node 0 页</td>
+</tr>
+<tr>
+<td>不先读，直接首次写</td>
+<td>写保护 fault，提升到 node 0</td>
+<td>non-present 写 fault，swap-in、解压后写入</td>
+</tr>
+<tr>
+<td>先读，再首次写</td>
+<td>首次读没有提升，写时仍需提升</td>
+<td>首次读已经恢复，写时没有新的 swap-in</td>
+</tr>
+<tr>
+<td>再写一次</td>
+<td>普通内存写</td>
+<td>普通内存写</td>
+</tr>
+</tbody></table>
+<p>这里 zram 专指用作匿名页 swap 后端的配置。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/blockdev/zram.html">zram 本身是压缩 RAM 块设备</a>，也能用于其他场景，不能把上表外推到所有 zram 用法。</p>
+<h3 id="页进入、首次读和首次写的函数路径"><a href="#页进入、首次读和首次写的函数路径" class="headerlink" title="页进入、首次读和首次写的函数路径"></a>页进入、首次读和首次写的函数路径</h3><p>下面按 CRAM / zram 两条路径展开。首次读和直接首次写是从同一前置状态出发的两个独立用例；读后再写则沿首次读的分支继续。框内保留关键函数，连线表示阶段关系，省略的包装函数和重试见原始 trace。</p>
+<p><img src="/assets/cram-zram-simulation/page-paths.svg" alt="CRAM 与 zram 的页进入、首次读和首次写路径"></p>
+<p><a href="/assets/cram-zram-simulation/page-paths.mmd">下载 Mermaid 图源</a>。</p>
+<p>在 x86 上，CRAM 这次写 fault 的 <code>0x7</code> 表示 user、write、protection violation；zram 直接写的 <code>0x6</code> 表示 user、write、non-present。两者都可能表现为“写一下就 fault”，但前者是在处理只读的 present 页，后者是在恢复 swap entry。</p>
+<p>这批机制测试里，CRAM 的两种首次写各出现了同地址、同指令的两次 fault，涉及重试；zram 直接首次写出现一次。</p>
+<p>从 trace 看，实验实现符合前面描述的访问模型：CRAM 首次读保留原页位置，首次写通过 <code>cram_handle_fault</code> 提升；zram 首次访问走 swap 恢复链。<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/mm/cram.c">固定版本的 <code>mm/cram.c</code></a>提供实验源码依据。</p>
+<p>接下来测量这些路径的模拟开销。</p>
+<h2 id="测试环境与口径"><a href="#测试环境与口径" class="headerlink" title="测试环境与口径"></a>测试环境与口径</h2><p>为了避免把不同版本、不同页内容混到一起，直接对照使用统一机制矩阵；连通性 smoke 只检查能否跑通，不参与数值比较。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Linux</td>
+<td><code>9fa5ffee4fd4726e31f05deebb938cccfa0b460f</code>，guest <code>6.19.0-rc5-cram-lab+</code></td>
+</tr>
+<tr>
+<td>QEMU</td>
+<td><code>a078aaedd382eedd121a037ffa992bb9db964acb</code>，10.2.50</td>
+</tr>
+<tr>
+<td>运行方式</td>
+<td>隔离 QEMU guest，嵌套 KVM，2 vCPU</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>512 MiB 普通 RAM + 512 MiB RAM 后备 CXL CT3</td>
+</tr>
+<tr>
+<td>NUMA / 页</td>
+<td>node 0 普通内存、node 2 CRAM；4 KiB 页，关闭 THP</td>
+</tr>
+<tr>
+<td>程序</td>
+<td>GCC 13.3 静态编译，统一页内容，偏移 0 的 8 字节 load/store</td>
+</tr>
+<tr>
+<td>zram</td>
+<td>LZ4；路径与计时使用 64 MiB swap，压力实验使用 256 MiB swap</td>
+</tr>
+<tr>
+<td>计时</td>
+<td>固定 guest CPU 0，<code>CLOCK_MONOTONIC_RAW</code>；关闭详细 trace</td>
+</tr>
+</tbody></table>
+<p>内核和设备来自实验分支：<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/tree/private_compression">Linux private_compression</a>、<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/qemu/tree/compressed_cxl_clean">QEMU compressed_cxl_clean</a>，复现时应按表中的 commit 固定，不能只跟随分支头。</p>
+<p>本轮使用隔离 guest，宿主没有更换内核或重启。</p>
+<h2 id="访问时间：读的路径短了，写的成本还在"><a href="#访问时间：读的路径短了，写的成本还在" class="headerlink" title="访问时间：读的路径短了，写的成本还在"></a>访问时间：读的路径短了，写的成本还在</h2><p>每种后端跑三组，每组 1000 个成功样本，总共 9000 个，失败数为 0。每个样本重新建立逻辑页，分别测试“读后再读”“直接写后再写”“读后写，再写”。详细 tracing 和计时分开，避免把 function graph 的开销当成访问开销。</p>
+<p>下表单位为 <strong>µs</strong>，每格依次是 <strong>p50 / p95 / p99</strong>，分位数使用 nearest rank。</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th align="right">DRAM</th>
+<th align="right">CRAM</th>
+<th align="right">zram</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>首次读</td>
+<td align="right">0.171 / 0.233 / 0.267</td>
+<td align="right">0.187 / 0.292 / 0.365</td>
+<td align="right">4.418 / 6.934 / 15.850</td>
+</tr>
+<tr>
+<td>重复读</td>
+<td align="right">0.153 / 0.203 / 0.223</td>
+<td align="right">0.153 / 0.212 / 0.240</td>
+<td align="right">0.154 / 0.198 / 0.225</td>
+</tr>
+<tr>
+<td>直接首次写</td>
+<td align="right">0.190 / 0.260 / 0.281</td>
+<td align="right">6.172 / 9.494 / 29.994</td>
+<td align="right">4.440 / 7.267 / 28.087</td>
+</tr>
+<tr>
+<td>直接写后重复写</td>
+<td align="right">0.167 / 0.232 / 0.248</td>
+<td align="right">0.170 / 0.232 / 0.244</td>
+<td align="right">0.161 / 0.218 / 0.237</td>
+</tr>
+<tr>
+<td>先读后首次写</td>
+<td align="right">0.179 / 0.251 / 0.267</td>
+<td align="right">6.194 / 9.902 / 32.496</td>
+<td align="right">0.497 / 0.621 / 0.837</td>
+</tr>
+<tr>
+<td>读后写再重复写</td>
+<td align="right">0.160 / 0.225 / 0.240</td>
+<td align="right">0.170 / 0.237 / 0.263</td>
+<td align="right">0.168 / 0.234 / 0.253</td>
+</tr>
+</tbody></table>
+<p><img src="/assets/cram-zram-simulation/latency.png" alt="三种首次访问的延迟分位数"></p>
+<p>图中圆点是 p50，横线延伸到 p99，短竖线标记 p95；横轴为对数坐标。灰色区间标出计时器空区间的 p50 至 p99，用来提醒接近计时开销的结果不能过度解释。</p>
+<p>路径和数字可以互相对照：zram 首次读需要恢复页，测到微秒级开销；CRAM 首次读没有这条软件恢复链。等到第一次写，CRAM 要做提升，测到约 6 µs 的中位数，而 zram 直接首次写约 4.4 µs。先读再写时，zram 已经把页恢复了，CRAM 仍然要提升。</p>
+<p>空计时区间的 p50 / p95 / p99 为 <strong>0.156 / 0.229 / 0.429 µs</strong>；表中保留原始计时开销，接近这个范围的差异只作路径对照。</p>
+<p>zram 读后首次写的中位数 0.497 µs 高于普通页基线，这个差异尚未归因。独立 trace 没有看到该路径的新 fault，不能只凭时间更长就反推又发生了一次 swap-in。</p>
+<h2 id="内存压力：冷页会不会自己进入-CRAM？"><a href="#内存压力：冷页会不会自己进入-CRAM？" class="headerlink" title="内存压力：冷页会不会自己进入 CRAM？"></a>内存压力：冷页会不会自己进入 CRAM？</h2><p>显式迁移能证明路径，但不能说明内存紧张时内核会不会真正使用这一层。下一组实验逐批初始化相同的 480 MiB 匿名工作集，对照三种条件：关闭自动 demotion、开启自动 demotion，以及开启后由设备压力阻止迁入。三组都保留 zram 作为 swap 后端。</p>
+<p>每 64 页抽样一页，共 1920 个采样点。下面是冷阶段的分布，<strong>这些是采样点数量，不是全量页数或压缩率</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th align="right">普通 node 0</th>
+<th align="right">CRAM node 2</th>
+<th align="right">swapped</th>
+<th>全量内容校验</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>关闭 demotion</td>
+<td align="right">1295</td>
+<td align="right">0</td>
+<td align="right">625</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>开启 demotion</td>
+<td align="right">1467</td>
+<td align="right">453</td>
+<td align="right">0</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>设备压力阻止迁入</td>
+<td align="right">1269</td>
+<td align="right">0</td>
+<td align="right">651</td>
+<td>PASS</td>
+</tr>
+</tbody></table>
+<p>开启组没有显式迁移工作集，仍然观察到冷页进入 node 2。对应 cold 阶段的 <code>pgdemote_kswapd=19694</code>、<code>pgdemote_direct=9275</code>；关闭组这两个计数为 0。这说明模拟环境里，自动降级确实走通了。</p>
+<p>这组主要观察内存压力下的策略和页位置变化。</p>
+<h2 id="页升温：241-ms-花在哪里？"><a href="#页升温：241-ms-花在哪里？" class="headerlink" title="页升温：241 ms 花在哪里？"></a>页升温：241 ms 花在哪里？</h2><p>冷页进入CRAM 压缩内存之后，还有一个问题：应用开始写这些页时，系统要付出多少代价？</p>
+<p>我对工作集前 64 MiB 区域逐页写 8 字节，共 16384 次 store。<strong>覆盖的是 64 MiB 页范围，实际写入只有 128 KiB</strong>。目标区域有 256 个采样点，操作后均回到 node 0。</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>升温前目标区域</th>
+<th>升温后目标区域</th>
+<th align="right">本批墙钟时间</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>关闭 demotion / zram</td>
+<td>256 点均 swapped</td>
+<td>256 点均 node 0</td>
+<td align="right">100.142 ms</td>
+</tr>
+<tr>
+<td>开启 demotion / CRAM</td>
+<td>256 点均 node 2</td>
+<td>256 点均 node 0</td>
+<td align="right">241.738 ms</td>
+</tr>
+<tr>
+<td>阻止迁入 / zram 回退</td>
+<td>256 点均 swapped</td>
+<td>256 点均 node 0</td>
+<td align="right">97.661 ms</td>
+</tr>
+</tbody></table>
+<p><img src="/assets/cram-zram-simulation/pressure.png" alt="冷阶段页分布及写入升温耗时"></p>
+<p>在这个模拟负载里，CRAM 组的升温批次反而更慢。目标页提升时，内存压力没有消失：整个工作集的 node 2 采样数只从 453 降到 446，同时 demotion 计数又增加了 16920 页，说明其他冷页也在降级。</p>
+<p>总数只能说明有页被搬入、也有页被搬出，不能告诉我们是不是同一页在反复搬。为此又补了一组逐页着色测试。</p>
+<p>CRAM 保留了读映射，但写入升温会把页带回普通内存，还可能伴随其他页的回收和迁移。因此需要把首次读和升温成本一起看。</p>
+<h2 id="给页着色：有没有同一页搬来搬去？"><a href="#给页着色：有没有同一页搬来搬去？" class="headerlink" title="给页着色：有没有同一页搬来搬去？"></a>给页着色：有没有同一页搬来搬去？</h2><p>给每个抽样页一个固定编号，把它在普通内存、CRAM 和 swap 中的位置画成颜色。页迁移后物理地址会变，编号仍按同一匿名映射中的逻辑页位置保持不变。</p>
+<p>这次仍用 480 MiB 工作集，每 64 页取一个固定点，共 1920 个采样页。先只写前 64 MiB，复现单次升温动作；随后按 64 MiB 分段轮流写，遍历整个工作集三遍。每页仍只写 8 字节，两段负载分别统计。</p>
+<p><img src="/assets/cram-zram-simulation/page-color.png" alt="固定逻辑页在普通内存、CRAM 与 swap 之间的位置变化"></p>
+<p>横向是时间，纵向是固定页位置。沿着同一条水平线看：绿色是 CRAM，灰色是普通内存；<strong>绿 → 灰 → 绿，才说明同一个逻辑页被搬回来以后，又被放进了 CRAM。</strong> 上图红框标出单次升温的写入时段，下图给出包括后续反复写入在内的完整时间线。</p>
+<table>
+<thead>
+<tr>
+<th>观察哪段负载</th>
+<th align="right">观察到至少一次“CRAM → 普通内存 → CRAM”的采样页</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>仅前 64 MiB 的单次升温</td>
+<td align="right">0 / 1920</td>
+</tr>
+<tr>
+<td>加入分段反复写入后的全程</td>
+<td align="right">1896 / 1920</td>
+</tr>
+</tbody></table>
+<p>单次升温中，前 64 MiB 的 256 个目标采样页全部从 CRAM 回到普通内存，观测期内没有再次降级；其他页则继续进入 CRAM。这说明之前看到的“提升与降级同时发生”，可以由不同页分别搬入、搬出来解释。</p>
+<p>反复写整个工作集时，情况变了：同一逻辑页的往返已经能看到。比如编号 0 的页，从起初的 CRAM 在约 0.114 s 回到普通内存，约 3.381 s 再进入 CRAM，约 4.400 s 又回到普通内存。全程记录到 4213 次这种往返，说明在这组加强的压力负载下，页确实会搬来搬去。</p>
+<p>这组实验显示，在普通内存不足以容纳整个工作集的条件下，写入范围决定了页的位置变化：</p>
+<ul>
+<li><strong>只让一小块冷数据变热</strong>：目标页回到普通内存，其他冷页进入 CRAM；本轮观测窗口内，目标页没有再次降级。</li>
+<li><strong>轮流改写整个工作集</strong>：之前提升的页会再次进入 CRAM，下一轮写到它时又回到普通内存，同一逻辑页出现反复迁移。</li>
+</ul>
+<p>也就是说，CRAM 可以让暂时不用的页留在压缩内存里；当应用轮流写入的范围超过普通内存可容纳的空间时，本轮实验观察到了页在两层内存之间搬来搬去。</p>
+<h2 id="设备不再接收页时：回退与恢复"><a href="#设备不再接收页时：回退与恢复" class="headerlink" title="设备不再接收页时：回退与恢复"></a>设备不再接收页时：回退与恢复</h2><p><strong>这组模拟测试已完成：设备报告压力后，CRAM 停止接收新页；内存压力下，工作负载回退到 zram。设备解除压力后，CRAM 恢复接收。</strong> 回退阶段的内容校验、恢复后的迁入检查均通过。</p>
+<p>测试通过 QMP 注入 CT3 水位中断来模拟设备压力。在所测版本中，<code>lthresh</code> 使驱动将 CRAM node 设为最大压力，新迁入返回 <code>ENOSPC</code>；<code>hthresh</code> 清除压力，恢复迁入。对应实现见 <a target="_blank" rel="noopener" href="https://github.com/gourryinverse/qemu/blob/a078aaedd382eedd121a037ffa992bb9db964acb/hw/cxl/compressed_type3/ct3.c">QEMU CT3 源码</a>及 <a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/drivers/cxl/type3_drivers/cxl_compression/compression.c">Linux compression driver</a>。</p>
+<table>
+<thead>
+<tr>
+<th>测试条件</th>
+<th>观察到的行为</th>
+<th>验收结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>设备正常接收</td>
+<td>探针页迁入 node 2</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>注入设备压力</td>
+<td>新迁入返回 <code>errno=28 (ENOSPC)</code>，页留在 node 0</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>阻止迁入期间运行内存压力负载</td>
+<td>冷页换出到 zram，数据内容正确</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>解除设备压力</td>
+<td>探针页再次迁入 node 2</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>无 swap，同时阻止 CRAM 迁入</td>
+<td>普通内存耗尽后，OOM 终止测试进程；guest 存活，解除压力后迁入恢复</td>
+<td>预期行为通过</td>
+</tr>
+</tbody></table>
+<p>最后一项在独立 guest 中完成：关闭 swap，阻止 CRAM 接收页，再运行相同的 480 MiB 负载。测试进程设置 <code>oom_score_adj=1000</code>，最终被内核 OOM 终止，退出码为 137；init 继续运行，恢复后的迁入探针通过，guest 正常关机。</p>
+<p>这组结果说明，CRAM 可以根据设备压力暂停、恢复迁入。暂停期间，系统使用现有 swap 接住内存压力；如果没有 swap，普通内存耗尽后仍会触发 OOM。</p>
+<h2 id="对应用来说，这些差别意味着什么？"><a href="#对应用来说，这些差别意味着什么？" class="headerlink" title="对应用来说，这些差别意味着什么？"></a>对应用来说，这些差别意味着什么？</h2><p><strong>CRAM 的好处是：冷数据读一下，可以继续放在压缩内存里，不必占回普通 DRAM。zram 的做法是：第一次用到换出的数据，先还原成普通页，之后就按普通内存访问。</strong></p>
+<p>因此，“不用恢复页”和“每次读取都更快”是两回事。CRAM 省去了首次读的软件恢复过程，但页仍在压缩内存设备上，cache miss 时还要付出设备和链路访问成本。zram 首次读取要恢复，恢复到 CPU 本地内存后，后续访问可以获得本地内存的速度。</p>
+<table>
+<thead>
+<tr>
+<th>应用在做什么</th>
+<th>CRAM 的表现</th>
+<th>zram swap 的表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>很多数据放着不动，偶尔读几次</td>
+<td>读完仍留在压缩内存，普通 DRAM 可以留给其他数据</td>
+<td>读到的页要还原，重新占用普通 DRAM</td>
+</tr>
+<tr>
+<td>数据读过以后开始频繁访问</td>
+<td>留在设备上的页可能持续承担远端访问成本</td>
+<td>页已恢复；若在 CPU 本地，后续访问走本地内存</td>
+</tr>
+<tr>
+<td>开始修改原来的冷数据</td>
+<td>先把整页搬回普通 DRAM，再修改；大量页同时变热时，可能伴随其他页被搬走</td>
+<td>已读回的页可以直接改；尚未读回的页仍要先还原</td>
+</tr>
+<tr>
+<td>希望用现有机器节省内存</td>
+<td>需要支持压缩访问的设备及匹配内核</td>
+<td>可以使用现有 RAM 做软件压缩，但要支付 CPU 和内存开销</td>
+</tr>
+</tbody></table>
+<p>本轮实验呈现了两种访问特点：<strong>CRAM 在首次读时保留页的位置，把整页搬回普通内存的动作留到首次写；zram 在首次读或写时恢复普通页，之后直接访问恢复后的页。</strong> 在这台模拟 guest 中，CRAM 的批量写入升温耗时更长；内存紧张时反复写完整个工作集，还观察到同一逻辑页在 CRAM 与普通内存之间往返。</p>
+<p>对“大量数据很少改，偶尔读一下”的负载，CRAM 可以让读过的页继续留在压缩内存，普通 DRAM 留给其他数据。对访问后会连续读写的数据，恢复成普通页可以减少后续恢复动作；若页位于 CPU 本地，也能减少远端访问。应用的读写范围越大、冷热切换越频繁，页搬运就越值得关注。</p>
+<h2 id="测试方法"><a href="#测试方法" class="headerlink" title="测试方法"></a>测试方法</h2><ol>
+<li><strong>用页表状态确认换出完成。</strong> 本轮以 pagemap 的 bit 62（swapped）为 1、bit 63（present）为 0，确认匿名页处于 swap 状态，再开始首次访问计时。<code>MADV_PAGEOUT</code> 用于请求回收目标页，返回值表示请求调用的结果；pagemap 则直接给出检查时的页状态。因此程序在请求后检查状态，必要时做有界重试。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/mm/pagemap.html">pagemap 官方说明</a></li>
+<li><strong>分别计时“准备页”和“访问页”。</strong> 前文首次读、首次写的数据来自第三轮：先准备好目标页，再对 load / store 单独计时。同一轮还记录了准备时间：CRAM 从调用 <code>move_pages</code> 前计到系统调用返回，之后才检查页位置；zram 从请求 <code>MADV_PAGEOUT</code> 计到确认 swapped，包含状态检查和重试等待。两项分别反映“单页迁移系统调用”和“完成换出准备”的等待时间。</li>
+<li><strong>从 <code>cram_handle_fault</code> 观察写保护 fault 的处理。</strong> 固定版本中，这个回调调用 <code>cram_fault</code> 完成处理逻辑；后者在本次编译中被内联，代码合并进调用者。因此 trace 选择实际可见的 <code>cram_handle_fault</code>，再核对其后的页提升和复制路径。<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/mm/cram.c">固定版本的 CRAM 实现</a></li>
+<li><strong>用 trace 解释路径，用关闭详细 tracing 的样本统计时间。</strong> 路径验证批次记录 fault、解压、迁移以及访问后的页位置；访问计时批次关闭详细 function tracing，统计首次读写和重复访问的时间分布。正文的函数链与时间表分别来自这两类记录。</li>
+<li><strong>用 8 字节写入检查局部修改。</strong> 程序只修改页内 8 字节，随后校验整页内容。zram 中尚未恢复的页需要先读回并解压，保留其他字节，再完成这次写入；CRAM 页则先提升到普通内存，再完成修改。</li>
+</ol>
+<h3 id="单页迁入的时间花在哪里？"><a href="#单页迁入的时间花在哪里？" class="headerlink" title="单页迁入的时间花在哪里？"></a>单页迁入的时间花在哪里？</h3><p>第三轮记录的 CRAM 准备阶段中位数约为 1.7–1.8 ms。这是每次迁入一个 4 KiB 页的完整 <code>move_pages</code> 时间，包含迁移前的同步工作。</p>
+<p>为拆开这段时间，第六轮继续使用相同内核与 QEMU，固定 CPU，每次准备一个新页：先运行 200 个关闭详细 tracing 的样本，再采集 40 个从 <code>__x64_sys_move_pages</code> 开始的完整 function graph。检查迁入返回状态为 node 2，随后修改 8 字节并校验整页内容。全部样本通过。</p>
+<table>
+<thead>
+<tr>
+<th>第六轮观测项</th>
+<th align="right">样本数</th>
+<th align="right">中位时间</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>move_pages</code> 墙钟时间，关闭详细 tracing</td>
+<td align="right">200</td>
+<td align="right">519.436 µs</td>
+</tr>
+<tr>
+<td><code>move_pages</code> 墙钟时间，开启 function graph</td>
+<td align="right">40</td>
+<td align="right">465.079 µs</td>
+</tr>
+<tr>
+<td><code>__x64_sys_move_pages</code>，trace 内系统调用耗时</td>
+<td align="right">40</td>
+<td align="right">462.472 µs</td>
+</tr>
+<tr>
+<td><code>lru_cache_disable</code>，迁移前的 LRU 同步</td>
+<td align="right">40</td>
+<td align="right">374.150 µs</td>
+</tr>
+<tr>
+<td>↳ <code>synchronize_rcu_expedited</code>，其中的 RCU 同步</td>
+<td align="right">40</td>
+<td align="right">332.287 µs</td>
+</tr>
+<tr>
+<td><code>cram_migrate_to</code>，CRAM 迁入路径</td>
+<td align="right">40</td>
+<td align="right">69.303 µs</td>
+</tr>
+<tr>
+<td>↳ <code>migrate_pages</code>，其中的页迁移</td>
+<td align="right">40</td>
+<td align="right">63.199 µs</td>
+</tr>
+<tr>
+<td>↳ <code>folio_mc_copy</code>，其中的页内容复制</td>
+<td align="right">40</td>
+<td align="right">1.671 µs</td>
+</tr>
+</tbody></table>
+<p><strong>这轮单页迁入的主要耗时在迁移前的 LRU / RCU 同步，页内容复制只占很短的一段。</strong> 源码也对应这条路径：<code>kernel_move_pages</code> 调用 <code>do_pages_move</code>，后者在处理待迁移页前调用 <code>lru_cache_disable</code>；<code>lru_cache_disable</code> 先等待 RCU 同步，再排空各 CPU 暂存的 LRU 页批次，让页进入可查找、可隔离的状态，然后继续迁移。<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/mm/migrate.c#L2343">迁移入口源码</a>、<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/mm/swap.c#L912">LRU 同步源码</a></p>
+<p>前四轮绘图用的<a href="/assets/cram-zram-simulation/summary.csv">汇总数据</a>和<a href="/assets/cram-zram-simulation/samples.csv">逐样本数据</a>一并保留。逐样本时间单位为 ns；正文换算为 µs。</p>
+<p>第六轮另附<a href="/assets/cram-zram-simulation/prepare-profile-summary.csv">函数耗时汇总</a>和<a href="/assets/cram-zram-simulation/prepare-profile-samples.csv">240 个准备阶段样本</a>，与前四轮访问计时数据分开保存。函数耗时单位为 µs，逐样本墙钟时间单位为 ns。</p>
+<p>逐页着色另附<a href="/assets/cram-zram-simulation/timeline.csv">位置时间线</a>、<a href="/assets/cram-zram-simulation/page-transitions.csv">观测到的页状态转换</a>和<a href="/assets/cram-zram-simulation/writes.csv">写入时段</a>。</p>
+<h2 id="注：实验口径与适用范围"><a href="#注：实验口径与适用范围" class="headerlink" title="注：实验口径与适用范围"></a>注：实验口径与适用范围</h2><ol>
+<li><p><strong>模拟设备。</strong> 本轮 CXL CT3 由 RAM 后备，没有真实硬件压缩；数字不代表 CRAM 硬件延迟、压缩率或容量倍率。作者 LPC PPT 的性能演示也标注了 DRAM 后备以隔离 fault 成本，不能作为真实设备的端到端性能报告。</p>
+</li>
+<li><p><strong>版本与配置。</strong> RFC v4 是设计提案，接口不作为稳定规范；实验另固定到具体 commit，不假定与 RFC 逐行相同。zram 文档滚动更新，实际功能取决于内核版本和配置。嵌套虚拟化测试启用了 <code>CONFIG_CXL_REGION_INVALIDATION_TEST=y</code>，绕过相应 cache integrity 检查，仅用于隔离模拟 guest。</p>
+</li>
+<li><p><strong>访问与计时。</strong> “读不 fault”指无需通过 swap fault 恢复压缩页，不排除其他原因的 fault，也不表示设备读取没有延迟。cache 状态未控制，首次应用读不保证 cache miss；store 未用 <code>mfence</code> 排空 store buffer。计时包含开销，没有统一减去常数，0.187 µs 不能解释为真实设备读取延迟。</p>
+</li>
+<li><p><strong>容量与批次。</strong> CRAM 模型额外配置了 512 MiB RAM 后备空间，zram 使用普通 RAM 保存压缩对象，两者未按相同物理内存预算配置。压力分布是抽样快照，不能用于比较压缩容量。原升温对照只测了单批、固定顺序，未做多轮随机化；覆盖 64 MiB 页范围但实际只写 128 KiB，不据此计算写带宽或硬件性能排名。</p>
+</li>
+<li><p><strong>事件与验收。</strong> 首次写的 fault 次数属于独立 trace 批次，不是固定规则，也不套用到 9000 个计时样本。设备水位由 QMP 注入，未验证真实占用自主触发告警。OOM 通过指预期进程终止和 guest 恢复，不代表被终止的 workload 完成内容校验，也不作为长期稳定性结论。</p>
+</li>
+<li><p><strong>NUMA 自动平衡。</strong> 跨 node 访问本身不要求 fault；启用自动 NUMA balancing / memory tiering 时，内核可能主动修改页映射，通过 NUMA hinting fault 采样并决定迁移。这与 zram 的 swap fault、CRAM 的写保护 fault 是不同机制。“首读无 fault”描述的是本轮观测路径，不排除其他策略下的 hinting fault 或读热页迁移。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/sysctl/kernel.html#numa-balancing">内核 NUMA balancing 说明</a></p>
+</li>
+<li><p><strong>逐页着色。</strong> 单次升温与反复写入是不同负载，位置变化统计不用于归因原升温耗时或量化业务性能损失。正式观察组采到 573 次快照，共 1,100,160 个样本状态，其中 4 个未确定。每次快照完成后等 20 ms 再采样；单次快照中位数 2.149 ms，快照并非原子操作，短暂往返可能漏采，未知状态会打断转换序列。相同的首次升温在连续采样组为 484.679 ms，关闭连续采样组为 349.936 ms；两组保留相同观察器缓存，各在新 guest 中执行并全量校验通过。这些数不与前四轮升温耗时混为同一基准，也不用于硬件性能排名。固定内核未启用 <code>CONFIG_NUMA_BALANCING</code>，按配置核对。原样导出串口的尝试出现导出阶段卡顿告警，已保留诊断日志并改用无损编码重跑，本文只采用重跑后完整、无告警的两组结果。</p>
+</li>
+<li><p><strong>准备阶段归因。</strong> 第三轮 direct 组的 <code>move_pages</code> 最大值为 96.789 ms，未保存该样本的完整 trace，保留为未定位的极值。第六轮关闭详细 tracing 的最大值为 11.067 ms，完整 trace 批次最大墙钟时间为 681.744 µs；这轮定位的是采到的迁入路径，未复现原极值。两轮数据分别保留，数值变化不作为优化收益。表中的函数时间包含子调用，启用了 function graph 的 sleep-time，包含函数内等待；嵌套行不能相加。局部写实验为 8 字节修改，未覆盖整页覆盖写等其他写入模式。</p>
+</li>
+</ol>
+<h2 id="附：启动命令与测试脚本"><a href="#附：启动命令与测试脚本" class="headerlink" title="附：启动命令与测试脚本"></a>附：启动命令与测试脚本</h2><p><a href="/assets/cram-zram-simulation/cram-zram-reproduce.zip">下载复现脚本包</a>，或直接查看<a href="/assets/cram-zram-simulation/reproduce/README.md">操作说明</a>。包内包含测试 C 程序、guest 初始化、initramfs 构建、QEMU 启动、QMP 水位注入和日志分析脚本，以及固定内核配置。脚本使用所在目录定位文件；内核与 QEMU 二进制由读者按固定版本构建。</p>
+<table>
+<thead>
+<tr>
+<th>测试</th>
+<th>程序</th>
+<th>对应结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第二轮读写路径</td>
+<td><a href="/assets/cram-zram-simulation/reproduce/matrix/probe.c">probe.c</a></td>
+<td>CRAM / zram 的 direct、readwrite、readrepeat 六组 trace</td>
+</tr>
+<tr>
+<td>第三轮访问计时</td>
+<td><a href="/assets/cram-zram-simulation/reproduce/latency/bench.c">bench.c</a></td>
+<td>9000 个成功样本，含准备时间、首次与重复读写</td>
+</tr>
+<tr>
+<td>第四轮压力与回退</td>
+<td><a href="/assets/cram-zram-simulation/reproduce/pressure/stress.c">stress.c</a>、<a href="/assets/cram-zram-simulation/reproduce/pressure/orchestrate.py">QMP 注入脚本</a></td>
+<td>自动降级、阻止迁入、zram 回退及恢复；oom 子目录为无 swap 边界用例</td>
+</tr>
+<tr>
+<td>第五轮逐页着色</td>
+<td><a href="/assets/cram-zram-simulation/reproduce/page-color/color.c">color.c</a></td>
+<td>固定逻辑页位置采样、分段反复写入、观察器控制组</td>
+</tr>
+<tr>
+<td>第六轮迁入归因</td>
+<td><a href="/assets/cram-zram-simulation/reproduce/prepare-profile/prepare.c">prepare.c</a></td>
+<td>200 个普通计时样本、40 个完整 move_pages trace</td>
+</tr>
+</tbody></table>
+<p>第六轮的 QEMU 启动命令如下，在该用例目录运行。<code>build-linux</code>、<code>build-qemu</code>、<code>qemu</code> 指向固定版本的构建和源码目录；<code>initramfs.cpio.gz</code> 由该用例的构建脚本生成。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="built_in">timeout</span> 180 build-qemu/qemu-system-x86_64 \</span><br><span class="line">    -L qemu/pc-bios \</span><br><span class="line">    -machine q35,cxl=on -accel kvm -cpu host \</span><br><span class="line">    -m 512M,maxmem=2G,slots=8 -smp 2 \</span><br><span class="line">    -object memory-backend-ram,<span class="built_in">id</span>=ram0,size=512M \</span><br><span class="line">    -numa node,nodeid=0,memdev=ram0 -numa node,nodeid=1 \</span><br><span class="line">    -kernel build-linux/arch/x86/boot/bzImage -initrd initramfs.cpio.gz \</span><br><span class="line">    -append <span class="string">&#x27;console=ttyS0 earlyprintk=serial nokaslr panic=-1&#x27;</span> \</span><br><span class="line">    -display none -serial stdio -monitor none -no-reboot -nic none \</span><br><span class="line">     -object memory-backend-ram,<span class="built_in">id</span>=cxl-mem0,size=512M,share=on \</span><br><span class="line">    -object memory-backend-ram,<span class="built_in">id</span>=cxl-lsa0,size=1M,share=on \</span><br><span class="line">    -device pxb-cxl,bus_nr=12,bus=pcie.0,<span class="built_in">id</span>=cxl.1 \</span><br><span class="line">    -device cxl-rp,port=0,bus=cxl.1,<span class="built_in">id</span>=root_port0,chassis=0,slot=2 \</span><br><span class="line">    -device cxl-ct3,bus=root_port0,volatile-memdev=cxl-mem0,lsa=cxl-lsa0,<span class="built_in">id</span>=cxl-ct3-0 \</span><br><span class="line">    -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=1G,cxl-fmw.0.interleave-granularity=8k</span><br></pre></td></tr></table></figure>
+
+<p>其中普通 RAM 为 512 MiB，<code>cxl-mem0</code> 为额外的 512 MiB RAM 后备设备空间；固件窗口为 1 GiB。guest 初始化脚本把模拟设备绑定到 <code>cxl_compression</code>，查询 <code>has_private_memory</code> 获得 CRAM node 编号，再设置 zram 的 LZ4 算法与 256 MiB 逻辑设备大小。</p>
+<p>例如，在 Linux 测试机上执行第六轮：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="built_in">cd</span> reproduce/prepare-profile</span><br><span class="line">bash build-initramfs.sh</span><br><span class="line">bash run-guest.sh &gt; guest-boot.log 2&gt;&amp;1</span><br><span class="line"><span class="built_in">printf</span> <span class="string">&#x27;%s\n&#x27;</span> <span class="string">&quot;$?&quot;</span> &gt; guest-exit-status.txt</span><br><span class="line">python3 extract-trace.py</span><br><span class="line">python3 analyze.py</span><br></pre></td></tr></table></figure>
+
+<p>输出为 <code>results.json</code>、<code>samples.csv</code>、<code>functions.csv</code> 和完整 <code>move.trace</code>。其他轮次的运行顺序、页着色两组参数以及压力测试的 QMP 注入入口，见脚本包操作说明。所有命令启动临时 guest，guest 的关机命令在 initramfs 内执行。</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/09/cram-zram-simulation/" data-id="cmv0l7wjf00amw3mi0i935jof" data-title="CRAM 为什么读不触发 fault：一次与 zram 的模拟对照" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/09/24/model-quantization-principles/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">模型量化原理：从单个权重到逐层推理</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.22px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.11px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.78px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.22px;">cpu</a> <a href="/tags/cram/" style="font-size: 10px;">cram</a> <a href="/tags/cxl/" style="font-size: 10px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.11px;">ft</a> <a href="/tags/incident-analysis/" style="font-size: 11.11px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 11.11px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.22px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 14.44px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.56px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.22px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.89px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 11.11px;">llm</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.11px;">perf</a> <a href="/tags/performance/" style="font-size: 13.33px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.11px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.22px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.22px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.67px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.33px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.67px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.67px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.67px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

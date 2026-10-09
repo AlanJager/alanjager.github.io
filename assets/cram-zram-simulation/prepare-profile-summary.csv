@@ -1,0 +1,9 @@
+function,n,median_us,max_us,duration_scope
+__x64_sys_move_pages,40,462.4715,678.492,inclusive
+kernel_move_pages,40,461.8255,677.877,inclusive
+lru_cache_disable,40,374.1495,588.378,inclusive
+synchronize_rcu_expedited,40,332.28700000000003,565.709,inclusive
+lru_add_drain_all,40,3.9545000000000003,6.342,inclusive
+cram_migrate_to,40,69.30250000000001,121.192,inclusive
+migrate_pages,40,63.199,115.15,inclusive
+folio_mc_copy,40,1.671,2.348,inclusive

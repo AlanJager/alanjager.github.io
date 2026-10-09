@@ -6,7 +6,7 @@
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-09-24T07:00:00.000Z</updated>
+  <updated>2026-10-09T06:30:00.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -16,6 +16,36 @@
   
   <generator uri="https://hexo.io/">Hexo</generator>
 
+  <entry>
+    <title>CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</title>
+    <link href="https://hanayo.cn/2026/10/09/cram-zram-simulation/"/>
+    <id>https://hanayo.cn/2026/10/09/cram-zram-simulation/</id>
+    <published>2026-10-09T06:30:00.000Z</published>
+    <updated>2026-10-09T06:30:00.000Z</updated>
+    
+    
+    <summary type="html">从作者设计、页读写路径和六轮 QEMU 模拟实验，理解 CRAM 与 zram 的区别，附 trace、数据与复现脚本。</summary>
+    
+    
+    
+    <category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/>
+    
+    
+    <category term="linux" scheme="https://hanayo.cn/tags/linux/"/>
+    
+    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
+    
+    <category term="cram" scheme="https://hanayo.cn/tags/cram/"/>
+    
+    <category term="zram" scheme="https://hanayo.cn/tags/zram/"/>
+    
+    <category term="cxl" scheme="https://hanayo.cn/tags/cxl/"/>
+    
+    <category term="memory" scheme="https://hanayo.cn/tags/memory/"/>
+    
+    <category term="page-fault" scheme="https://hanayo.cn/tags/page-fault/"/>
+    
+  </entry>
   <entry>
     <title>模型量化原理：从单个权重到逐层推理</title>
     <link href="https://hanayo.cn/2026/09/24/model-quantization-principles/"/>

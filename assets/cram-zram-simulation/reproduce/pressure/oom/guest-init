@@ -1,0 +1,43 @@
+#!/bin/sh
+export PATH=/bin:/sbin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /sys/kernel/tracing
+mount -t tracefs tracefs /sys/kernel/tracing
+echo LAB_GUEST_BOOT
+uname -a
+sleep 3
+for d in /sys/bus/pci/devices/*; do
+    if [ "$(cat "$d/vendor")" = 0x8086 ] && [ "$(cat "$d/device")" = 0x0d93 ]; then
+        bdf=${d##*/}
+        echo "CXL_DEVICE $bdf"
+        echo cxl_compression > "$d/driver_override"
+        if [ -L "$d/driver" ]; then echo "$bdf" > "$d/driver/unbind"; fi
+        echo "$bdf" > /sys/bus/pci/drivers/cxl_compression/bind
+    fi
+done
+sleep 3
+echo NODE_PRIVATE
+cat /sys/devices/system/node/has_private_memory
+echo NODE_ONLINE
+cat /sys/devices/system/node/online
+cat /sys/devices/system/node/node*/meminfo
+nid=$(cat /sys/devices/system/node/has_private_memory)
+echo true > /sys/kernel/mm/numa/demotion_enabled
+echo NO_SWAP_BEGIN
+cat /proc/swaps
+echo NO_SWAP_END
+echo INJECT_LOW_READY
+sleep 4
+echo OOM_WORKLOAD_BEGIN
+/bin/stress oom "$nid"
+echo "OOM_EXIT $?"
+echo OOM_WORKLOAD_END
+echo INJECT_HIGH_READY
+sleep 4
+echo PROBE_BEGIN_resumed
+/bin/stress probe "$nid"
+echo PROBE_END_resumed
+echo LAB_GUEST_DONE
+poweroff -f

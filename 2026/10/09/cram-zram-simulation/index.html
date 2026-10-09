@@ -16,7 +16,10 @@
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-read-path.svg">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/cram-access-architecture-author-slide7.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-lifecycle.png">
-<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-paths.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/trace-enter.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/trace-first-read.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/trace-direct-write.png">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/trace-read-then-write.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/latency.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/pressure.png">
 <meta property="og:image" content="https://hanayo.cn/assets/cram-zram-simulation/page-color.png">
@@ -307,9 +310,17 @@
 </tr>
 </tbody></table>
 <p>这里 zram 专指用作匿名页 swap 后端的配置。<a target="_blank" rel="noopener" href="https://docs.kernel.org/admin-guide/blockdev/zram.html">zram 本身是压缩 RAM 块设备</a>，也能用于其他场景，不能把上表外推到所有 zram 用法。</p>
-<h3 id="页进入、首次读和首次写的函数路径"><a href="#页进入、首次读和首次写的函数路径" class="headerlink" title="页进入、首次读和首次写的函数路径"></a>页进入、首次读和首次写的函数路径</h3><p>下面按 CRAM / zram 两条路径展开。首次读和直接首次写是从同一前置状态出发的两个独立用例；读后再写则沿首次读的分支继续。框内保留关键函数，连线表示阶段关系，省略的包装函数和重试见原始 trace。</p>
-<p><img src="/assets/cram-zram-simulation/page-paths.svg" alt="CRAM 与 zram 的页进入、首次读和首次写路径"></p>
-<p><a href="/assets/cram-zram-simulation/page-paths.mmd">下载 Mermaid 图源</a>。</p>
+<h3 id="页进入、首次读和首次写的函数耗时"><a href="#页进入、首次读和首次写的函数耗时" class="headerlink" title="页进入、首次读和首次写的函数耗时"></a>页进入、首次读和首次写的函数耗时</h3><p>下面把第二轮的单页 trace 按四种操作展开，左侧 CRAM，右侧 zram；同一张图使用相同的 µs 刻度。条形长度表示所列函数的耗时，<code>↳</code> 标出下层调用，便于把路径与时间放在一起看。图上数字来自开启 tracing 的单次机制验证；应用访问时间分布仍看下节关闭详细 tracing 的样本统计。</p>
+<h4 id="页进入目标层"><a href="#页进入目标层" class="headerlink" title="页进入目标层"></a>页进入目标层</h4><p><img src="/assets/cram-zram-simulation/trace-enter.png" alt="CRAM 与 zram 页进入的函数耗时"></p>
+<p>CRAM 从 <code>cram_migrate_to</code> 进入页迁移，zram 从 <code>__swap_writepage</code> 进入块设备写入和压缩。这里显示的是 trace 覆盖到的迁入 / 换出函数；完整准备阶段的计时和 LRU / RCU 同步分解见后面的“单页迁入的时间花在哪里”。</p>
+<h4 id="首次读-8-字节"><a href="#首次读-8-字节" class="headerlink" title="首次读 8 字节"></a>首次读 8 字节</h4><p><img src="/assets/cram-zram-simulation/trace-first-read.png" alt="CRAM 与 zram 首次读的函数耗时"></p>
+<p>CRAM 这次读没有监控到目标访问 fault 调用，页仍在 node 2。zram 通过 <code>handle_mm_fault → do_swap_page → swap_read_folio</code> 恢复页，其中解压发生在 <code>zcomp_decompress / lz4_decompress</code>。</p>
+<h4 id="不先读，直接首次写-8-字节"><a href="#不先读，直接首次写-8-字节" class="headerlink" title="不先读，直接首次写 8 字节"></a>不先读，直接首次写 8 字节</h4><p><img src="/assets/cram-zram-simulation/trace-direct-write.png" alt="CRAM 与 zram 直接首次写的函数耗时"></p>
+<p>两者都需要处理 fault：CRAM 提升页，zram 恢复 swap 页。CRAM 的两次 <code>handle_mm_fault</code> 分别列出，第二次对应这条记录中的重试。</p>
+<h4 id="首次读后，应用修改-8-字节"><a href="#首次读后，应用修改-8-字节" class="headerlink" title="首次读后，应用修改 8 字节"></a>首次读后，应用修改 8 字节</h4><p><img src="/assets/cram-zram-simulation/trace-read-then-write.png" alt="CRAM 与 zram 读后首次写的函数耗时"></p>
+<p>这次 CRAM 提升中，<code>migrate_pages</code> 为 49.448 µs；其中普通页分配为 3.721 µs，<code>try_to_migrate</code> 的映射迁移处理为 17.291 µs，页内容复制为 1.380 µs。提升包含分配、映射处理和复制等动作，不能把整个提升时间看成复制时间。</p>
+<p>zram 在前一次读时已经恢复为普通 RAM 页，这次测的是应用修改该页，没有新的 swap-in 或解压调用；<strong>它不是把页写入 zram 的时间。</strong></p>
+<p><a href="/assets/cram-zram-simulation/trace-function-durations.csv">函数耗时明细</a>、<a href="/assets/cram-zram-simulation/trace-duration-summary.json">分用例汇总</a>、<a href="/assets/cram-zram-simulation/trace-timing-evidence.zip">trace 与解析绘图脚本</a>一并保留。</p>
 <p>在 x86 上，CRAM 这次写 fault 的 <code>0x7</code> 表示 user、write、protection violation；zram 直接写的 <code>0x6</code> 表示 user、write、non-present。两者都可能表现为“写一下就 fault”，但前者是在处理只读的 present 页，后者是在恢复 swap entry。</p>
 <p>这批机制测试里，CRAM 的两种首次写各出现了同地址、同指令的两次 fault，涉及重试；zram 直接首次写出现一次。</p>
 <p>从 trace 看，实验实现符合前面描述的访问模型：CRAM 首次读保留原页位置，首次写通过 <code>cram_handle_fault</code> 提升；zram 首次访问走 swap 恢复链。<a target="_blank" rel="noopener" href="https://github.com/gourryinverse/linux/blob/9fa5ffee4fd4726e31f05deebb938cccfa0b460f/mm/cram.c">固定版本的 <code>mm/cram.c</code></a>提供实验源码依据。</p>
@@ -657,6 +668,8 @@
 <li><p><strong>逐页着色。</strong> 单次升温与反复写入是不同负载，位置变化统计不用于归因原升温耗时或量化业务性能损失。正式观察组采到 573 次快照，共 1,100,160 个样本状态，其中 4 个未确定。每次快照完成后等 20 ms 再采样；单次快照中位数 2.149 ms，快照并非原子操作，短暂往返可能漏采，未知状态会打断转换序列。相同的首次升温在连续采样组为 484.679 ms，关闭连续采样组为 349.936 ms；两组保留相同观察器缓存，各在新 guest 中执行并全量校验通过。这些数不与前四轮升温耗时混为同一基准，也不用于硬件性能排名。固定内核未启用 <code>CONFIG_NUMA_BALANCING</code>，按配置核对。原样导出串口的尝试出现导出阶段卡顿告警，已保留诊断日志并改用无损编码重跑，本文只采用重跑后完整、无告警的两组结果。</p>
 </li>
 <li><p><strong>准备阶段归因。</strong> 第三轮 direct 组的 <code>move_pages</code> 最大值为 96.789 ms，未保存该样本的完整 trace，保留为未定位的极值。第六轮关闭详细 tracing 的最大值为 11.067 ms，完整 trace 批次最大墙钟时间为 681.744 µs；这轮定位的是采到的迁入路径，未复现原极值。两轮数据分别保留，数值变化不作为优化收益。表中的函数时间包含子调用，启用了 function graph 的 sleep-time，包含函数内等待；嵌套行不能相加。局部写实验为 8 字节修改，未覆盖整页覆盖写等其他写入模式。</p>
+</li>
+<li><p><strong>函数耗时图。</strong> 图来自第二轮四组单页用例开启 function_graph 的单次记录。函数时间包含子调用，嵌套时间不相加；第二轮未记录绝对时间戳与调度事件，因此条形图展示函数耗时，不能据此还原连续时间线或区分运行与调度等待。图中“无 fault 调用”不是零访问时间。该批次的 tracing 开销与正文第三轮 9000 个关闭详细 tracing 的访问样本分开，不把两批数字拼成同一次操作。页进入图只覆盖所列迁移 / 换出函数，不是完整准备阶段耗时。</p>
 </li>
 </ol>
 <h2 id="附：启动命令与测试脚本"><a href="#附：启动命令与测试脚本" class="headerlink" title="附：启动命令与测试脚本"></a>附：启动命令与测试脚本</h2><p><a href="/assets/cram-zram-simulation/cram-zram-reproduce.zip">下载复现脚本包</a>，或直接查看<a href="/assets/cram-zram-simulation/reproduce/README.md">操作说明</a>。包内包含测试 C 程序、guest 初始化、initramfs 构建、QEMU 启动、QMP 水位注入和日志分析脚本，以及固定内核配置。脚本使用所在目录定位文件；内核与 QEMU 二进制由读者按固定版本构建。</p>

@@ -1,0 +1,332 @@
+{
+  "cram_readwrite_enter": {
+    "cram_migrate_to": {
+      "count": 1,
+      "sum_us": 64.344,
+      "calls_us": [
+        64.344
+      ]
+    },
+    "migrate_pages": {
+      "count": 1,
+      "sum_us": 57.653,
+      "calls_us": [
+        57.653
+      ]
+    },
+    "alloc_cram_folio": {
+      "count": 1,
+      "sum_us": 4.96,
+      "calls_us": [
+        4.96
+      ]
+    },
+    "folio_mc_copy": {
+      "count": 1,
+      "sum_us": 2.423,
+      "calls_us": [
+        2.423
+      ]
+    },
+    "try_to_migrate": {
+      "count": 1,
+      "sum_us": 17.551,
+      "calls_us": [
+        17.551
+      ]
+    },
+    "lru_add_drain_all": {
+      "count": 1,
+      "sum_us": 3.929,
+      "calls_us": [
+        3.929
+      ]
+    }
+  },
+  "cram_readwrite_read": {},
+  "cram_readwrite_write": {
+    "handle_mm_fault": {
+      "count": 2,
+      "sum_us": 72.865,
+      "calls_us": [
+        64.127,
+        8.738
+      ]
+    },
+    "cram_handle_fault": {
+      "count": 1,
+      "sum_us": 57.159,
+      "calls_us": [
+        57.159
+      ]
+    },
+    "migrate_pages": {
+      "count": 1,
+      "sum_us": 49.448,
+      "calls_us": [
+        49.448
+      ]
+    },
+    "alloc_cram_promote_folio": {
+      "count": 1,
+      "sum_us": 3.721,
+      "calls_us": [
+        3.721
+      ]
+    },
+    "folio_mc_copy": {
+      "count": 1,
+      "sum_us": 1.38,
+      "calls_us": [
+        1.38
+      ]
+    },
+    "try_to_migrate": {
+      "count": 1,
+      "sum_us": 17.291,
+      "calls_us": [
+        17.291
+      ]
+    }
+  },
+  "zram_readwrite_enter": {
+    "__swap_writepage": {
+      "count": 1,
+      "sum_us": 78.108,
+      "calls_us": [
+        78.108
+      ]
+    },
+    "zram_submit_bio": {
+      "count": 1,
+      "sum_us": 44.31,
+      "calls_us": [
+        44.31
+      ]
+    },
+    "zcomp_compress": {
+      "count": 1,
+      "sum_us": 5.512,
+      "calls_us": [
+        5.512
+      ]
+    },
+    "lz4_compress": {
+      "count": 1,
+      "sum_us": 4.572,
+      "calls_us": [
+        4.572
+      ]
+    }
+  },
+  "zram_readwrite_read": {
+    "handle_mm_fault": {
+      "count": 1,
+      "sum_us": 185.968,
+      "calls_us": [
+        185.968
+      ]
+    },
+    "do_swap_page": {
+      "count": 1,
+      "sum_us": 179.323,
+      "calls_us": [
+        179.323
+      ]
+    },
+    "swap_read_folio": {
+      "count": 1,
+      "sum_us": 86.257,
+      "calls_us": [
+        86.257
+      ]
+    },
+    "zram_submit_bio": {
+      "count": 1,
+      "sum_us": 17.082,
+      "calls_us": [
+        17.082
+      ]
+    },
+    "zcomp_decompress": {
+      "count": 1,
+      "sum_us": 2.621,
+      "calls_us": [
+        2.621
+      ]
+    },
+    "lz4_decompress": {
+      "count": 1,
+      "sum_us": 1.58,
+      "calls_us": [
+        1.58
+      ]
+    }
+  },
+  "zram_readwrite_write": {},
+  "cram_direct_enter": {
+    "cram_migrate_to": {
+      "count": 1,
+      "sum_us": 174.587,
+      "calls_us": [
+        174.587
+      ]
+    },
+    "migrate_pages": {
+      "count": 1,
+      "sum_us": 168.159,
+      "calls_us": [
+        168.159
+      ]
+    },
+    "alloc_cram_folio": {
+      "count": 1,
+      "sum_us": 19.739,
+      "calls_us": [
+        19.739
+      ]
+    },
+    "folio_mc_copy": {
+      "count": 1,
+      "sum_us": 97.888,
+      "calls_us": [
+        97.888
+      ]
+    },
+    "try_to_migrate": {
+      "count": 1,
+      "sum_us": 17.769,
+      "calls_us": [
+        17.769
+      ]
+    },
+    "lru_add_drain_all": {
+      "count": 1,
+      "sum_us": 3.909,
+      "calls_us": [
+        3.909
+      ]
+    }
+  },
+  "cram_direct_read": {},
+  "cram_direct_write": {
+    "handle_mm_fault": {
+      "count": 2,
+      "sum_us": 78.97,
+      "calls_us": [
+        71.413,
+        7.557
+      ]
+    },
+    "cram_handle_fault": {
+      "count": 1,
+      "sum_us": 63.108,
+      "calls_us": [
+        63.108
+      ]
+    },
+    "migrate_pages": {
+      "count": 1,
+      "sum_us": 55.684,
+      "calls_us": [
+        55.684
+      ]
+    },
+    "alloc_cram_promote_folio": {
+      "count": 1,
+      "sum_us": 3.47,
+      "calls_us": [
+        3.47
+      ]
+    },
+    "folio_mc_copy": {
+      "count": 1,
+      "sum_us": 1.206,
+      "calls_us": [
+        1.206
+      ]
+    },
+    "try_to_migrate": {
+      "count": 1,
+      "sum_us": 16.956,
+      "calls_us": [
+        16.956
+      ]
+    }
+  },
+  "zram_direct_enter": {
+    "__swap_writepage": {
+      "count": 1,
+      "sum_us": 79.117,
+      "calls_us": [
+        79.117
+      ]
+    },
+    "zram_submit_bio": {
+      "count": 1,
+      "sum_us": 46.885,
+      "calls_us": [
+        46.885
+      ]
+    },
+    "zcomp_compress": {
+      "count": 1,
+      "sum_us": 5.933,
+      "calls_us": [
+        5.933
+      ]
+    },
+    "lz4_compress": {
+      "count": 1,
+      "sum_us": 4.983,
+      "calls_us": [
+        4.983
+      ]
+    }
+  },
+  "zram_direct_read": {},
+  "zram_direct_write": {
+    "handle_mm_fault": {
+      "count": 1,
+      "sum_us": 175.65,
+      "calls_us": [
+        175.65
+      ]
+    },
+    "do_swap_page": {
+      "count": 1,
+      "sum_us": 170.722,
+      "calls_us": [
+        170.722
+      ]
+    },
+    "swap_read_folio": {
+      "count": 1,
+      "sum_us": 36.85,
+      "calls_us": [
+        36.85
+      ]
+    },
+    "zram_submit_bio": {
+      "count": 1,
+      "sum_us": 17.992,
+      "calls_us": [
+        17.992
+      ]
+    },
+    "zcomp_decompress": {
+      "count": 1,
+      "sum_us": 2.656,
+      "calls_us": [
+        2.656
+      ]
+    },
+    "lz4_decompress": {
+      "count": 1,
+      "sum_us": 1.717,
+      "calls_us": [
+        1.717
+      ]
+    }
+  }
+}

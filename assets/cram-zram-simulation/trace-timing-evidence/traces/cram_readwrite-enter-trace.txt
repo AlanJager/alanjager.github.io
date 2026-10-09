@@ -1,0 +1,183 @@
+
+ 0)               |  cram_migrate_to() {
+ 0)   0.281 us    |    __rcu_read_lock();
+ 0)   0.193 us    |    __rcu_read_unlock();
+ 0)               |    migrate_pages() {
+ 0)               |      migrate_pages_batch.isra.0() {
+ 0)   0.255 us    |        __cond_resched();
+ 0)               |        alloc_cram_folio() {
+ 0)   0.314 us    |          __rcu_read_lock();
+ 0)   0.181 us    |          __rcu_read_unlock();
+ 0)               |          __folio_alloc_noprof() {
+ 0)               |            __alloc_frozen_pages_noprof() {
+ 0)               |              get_page_from_freelist() {
+ 0)   0.265 us    |                numa_zone_alloc_allowed();
+ 0)   0.174 us    |                _raw_spin_trylock();
+ 0)   0.168 us    |                _raw_spin_unlock();
+ 0)   2.414 us    |              }
+ 0)   2.938 us    |            }
+ 0)   3.412 us    |          }
+ 0)   4.960 us    |        }
+ 0)               |        folio_get_anon_vma() {
+ 0)   0.172 us    |          __rcu_read_lock();
+ 0)   0.177 us    |          __rcu_read_unlock();
+ 0)   1.040 us    |        }
+ 0)               |        try_to_migrate() {
+ 0)               |          rmap_walk() {
+ 0)               |            rmap_walk_anon() {
+ 0)               |              folio_lock_anon_vma_read() {
+ 0)   0.174 us    |                __rcu_read_lock();
+ 0)   0.196 us    |                down_read_trylock();
+ 0)   0.166 us    |                __rcu_read_unlock();
+ 0)   1.436 us    |              }
+ 0)   0.320 us    |              anon_vma_interval_tree_iter_first();
+ 0)   0.168 us    |              __cond_resched();
+ 0)   0.167 us    |              invalid_migration_vma();
+ 0)               |              try_to_migrate_one() {
+ 0)   0.166 us    |                __cond_resched();
+ 0)               |                page_vma_mapped_walk() {
+ 0)               |                  pte_offset_map_rw_nolock() {
+ 0)               |                    ___pte_offset_map() {
+ 0)   0.286 us    |                      __rcu_read_lock();
+ 0)   0.682 us    |                    }
+ 0)   1.121 us    |                  }
+ 0)   0.169 us    |                  _raw_spin_lock();
+ 0)   0.187 us    |                  check_pte();
+ 0)   2.424 us    |                }
+ 0)               |                ptep_clear_flush() {
+ 0)               |                  flush_tlb_mm_range() {
+ 0)               |                    flush_tlb_func() {
+ 0)   0.184 us    |                      mm_needs_global_asid();
+ 0)   0.979 us    |                      native_flush_tlb_one_user();
+ 0)   2.160 us    |                    }
+ 0)   2.724 us    |                  }
+ 0)   3.250 us    |                }
+ 0)               |                folio_mark_dirty() {
+ 0)   0.241 us    |                  folio_mapping();
+ 0)   0.675 us    |                }
+ 0)               |                lruvec_stat_mod_folio() {
+ 0)   0.167 us    |                  __rcu_read_lock();
+ 0)   0.171 us    |                  mod_node_page_state();
+ 0)               |                  mod_memcg_lruvec_state() {
+ 0)   0.167 us    |                    css_rstat_updated();
+ 0)   0.613 us    |                  }
+ 0)   0.182 us    |                  __rcu_read_unlock();
+ 0)   2.191 us    |                }
+ 0)               |                page_vma_mapped_walk() {
+ 0)   0.182 us    |                  __rcu_read_unlock();
+ 0)   0.169 us    |                  _raw_spin_unlock();
+ 0)   0.963 us    |                }
+ 0) + 12.189 us   |              }
+ 0)   0.185 us    |              folio_not_mapped();
+ 0)   0.168 us    |              up_read();
+ 0) + 16.681 us   |            }
+ 0) + 17.144 us   |          }
+ 0) + 17.551 us   |        }
+ 0)   0.180 us    |        try_to_unmap_flush();
+ 0)   0.167 us    |        __cond_resched();
+ 0)               |        move_to_new_folio() {
+ 0)   0.180 us    |          folio_mapping();
+ 0)               |          __migrate_folio.isra.0() {
+ 0)               |            folio_mc_copy() {
+ 0)   1.239 us    |              copy_mc_to_kernel();
+ 0)   2.423 us    |            }
+ 0)   0.284 us    |            __folio_migrate_mapping();
+ 0)               |            folio_migrate_flags() {
+ 0)   0.177 us    |              mem_cgroup_migrate();
+ 0)   0.910 us    |            }
+ 0)   4.565 us    |          }
+ 0)   5.803 us    |        }
+ 0)               |        folio_add_lru() {
+ 0)               |          __folio_batch_add_and_move() {
+ 0)               |            folio_batch_move_lru() {
+ 0)               |              folio_lruvec_lock_irqsave() {
+ 0)   0.261 us    |                _raw_spin_lock_irqsave();
+ 0)   0.834 us    |              }
+ 0)               |              lru_add() {
+ 0)   0.178 us    |                __rcu_read_lock();
+ 0)   0.175 us    |                folio_mapping();
+ 0)   0.177 us    |                __rcu_read_unlock();
+ 0)               |                mod_lruvec_state() {
+ 0)   0.314 us    |                  mod_node_page_state();
+ 0)               |                  mod_memcg_lruvec_state() {
+ 0)   0.169 us    |                    css_rstat_updated();
+ 0)   0.631 us    |                  }
+ 0)   1.475 us    |                }
+ 0)   0.170 us    |                __mod_zone_page_state();
+ 0)   0.230 us    |                mem_cgroup_update_lru_size();
+ 0)   3.865 us    |              }
+ 0)   0.171 us    |              _raw_spin_unlock_irqrestore();
+ 0)   0.214 us    |              folios_put_refs();
+ 0)   6.126 us    |            }
+ 0)   6.528 us    |          }
+ 0)   6.895 us    |        }
+ 0)               |        rmap_walk() {
+ 0)               |          rmap_walk_anon() {
+ 0)   0.179 us    |            folio_anon_vma();
+ 0)   0.198 us    |            down_read_trylock();
+ 0)   0.209 us    |            anon_vma_interval_tree_iter_first();
+ 0)   0.169 us    |            __cond_resched();
+ 0)               |            remove_migration_pte() {
+ 0)               |              page_vma_mapped_walk() {
+ 0)               |                __pte_offset_map_lock() {
+ 0)               |                  ___pte_offset_map() {
+ 0)   0.175 us    |                    __rcu_read_lock();
+ 0)   0.549 us    |                  }
+ 0)   0.171 us    |                  _raw_spin_lock();
+ 0)   1.278 us    |                }
+ 0)   0.295 us    |                check_pte();
+ 0)   2.326 us    |              }
+ 0)   0.170 us    |              pte_mkwrite();
+ 0)   0.176 us    |              __rcu_read_lock();
+ 0)   0.181 us    |              __rcu_read_unlock();
+ 0)               |              folio_add_anon_rmap_ptes() {
+ 0)               |                lruvec_stat_mod_folio() {
+ 0)   0.167 us    |                  __rcu_read_lock();
+ 0)   0.166 us    |                  mod_node_page_state();
+ 0)               |                  mod_memcg_lruvec_state() {
+ 0)   0.173 us    |                    css_rstat_updated();
+ 0)   0.600 us    |                  }
+ 0)   0.167 us    |                  __rcu_read_unlock();
+ 0)   1.992 us    |                }
+ 0)   2.393 us    |              }
+ 0)               |              page_vma_mapped_walk() {
+ 0)   0.181 us    |                __rcu_read_unlock();
+ 0)   0.172 us    |                _raw_spin_unlock();
+ 0)   0.930 us    |              }
+ 0)   7.950 us    |            }
+ 0)   0.184 us    |            anon_vma_interval_tree_iter_next();
+ 0)   0.197 us    |            up_read();
+ 0) + 10.790 us   |          }
+ 0) + 11.134 us   |        }
+ 0)   0.170 us    |        folio_unlock();
+ 0)   0.168 us    |        folio_unlock();
+ 0)               |        migrate_folio_done() {
+ 0)   0.175 us    |          mod_node_page_state();
+ 0)               |          __folio_put() {
+ 0)   0.186 us    |            __mem_cgroup_uncharge();
+ 0)               |            free_frozen_pages() {
+ 0)               |              __free_frozen_pages() {
+ 0)   0.496 us    |                __get_pfnblock_flags_mask.isra.0();
+ 0)   0.166 us    |                _raw_spin_trylock();
+ 0)   0.316 us    |                free_frozen_page_commit.isra.0();
+ 0)   0.169 us    |                _raw_spin_unlock();
+ 0)   2.356 us    |              }
+ 0)   2.799 us    |            }
+ 0)   3.984 us    |          }
+ 0)   4.786 us    |        }
+ 0) + 56.745 us   |      }
+ 0) + 57.653 us   |    }
+ 0)               |    lru_add_drain_all() {
+ 0)   0.192 us    |      lru_add_drain_cpu();
+ 0)   0.176 us    |      mlock_drain_local();
+ 0)               |      mutex_lock() {
+ 0)   0.165 us    |        __cond_resched();
+ 0)   0.527 us    |      }
+ 0)   0.176 us    |      need_mlock_drain();
+ 0)   0.203 us    |      has_bh_in_lru();
+ 0)   0.206 us    |      need_mlock_drain();
+ 0)   0.237 us    |      has_bh_in_lru();
+ 0)   0.179 us    |      mutex_unlock();
+ 0)   3.929 us    |    }
+ 0) + 64.344 us   |  }
+ 0)               |  

@@ -1,0 +1,210 @@
+
+ 1)               |  __swap_writepage() {
+ 1)               |    swap_writepage_bdev_sync.isra.0() {
+ 1)               |      bio_init() {
+ 1)               |        bio_associate_blkg() {
+ 1)   0.369 us    |          __rcu_read_lock();
+ 1)   0.208 us    |          kthread_blkcg();
+ 1)               |          bio_associate_blkg_from_css() {
+ 1)   0.177 us    |            __rcu_read_lock();
+ 1)   0.188 us    |            __rcu_read_unlock();
+ 1)   1.629 us    |          }
+ 1)   0.186 us    |          __rcu_read_unlock();
+ 1)   3.868 us    |        }
+ 1)   4.693 us    |      }
+ 1)   0.292 us    |      swap_folio_sector();
+ 1)               |      bio_add_folio_nofail() {
+ 1)   0.185 us    |        __bio_add_page();
+ 1)   0.668 us    |      }
+ 1)               |      bio_associate_blkg_from_page.isra.0() {
+ 1)   0.171 us    |        __rcu_read_lock();
+ 1)   0.374 us    |        cgroup_e_css();
+ 1)               |        bio_associate_blkg_from_css() {
+ 1)   0.168 us    |          __rcu_read_lock();
+ 1)   0.169 us    |          __rcu_read_unlock();
+ 1)   0.168 us    |          __rcu_read_lock();
+ 1)   0.168 us    |          __rcu_read_unlock();
+ 1)   1.640 us    |        }
+ 1)   0.179 us    |        __rcu_read_unlock();
+ 1)   3.429 us    |      }
+ 1)               |      count_memcg_events() {
+ 1)   0.167 us    |        css_rstat_updated();
+ 1)   0.713 us    |      }
+ 1)               |      __folio_start_writeback() {
+ 1)   0.167 us    |        folio_mapping();
+ 1)               |        lruvec_stat_mod_folio() {
+ 1)   0.173 us    |          __rcu_read_lock();
+ 1)   0.179 us    |          mod_node_page_state();
+ 1)               |          mod_memcg_lruvec_state() {
+ 1)   0.176 us    |            css_rstat_updated();
+ 1)   0.611 us    |          }
+ 1)   0.185 us    |          __rcu_read_unlock();
+ 1)   2.062 us    |        }
+ 1)   0.208 us    |        mod_zone_page_state();
+ 1)   3.345 us    |      }
+ 1)   0.173 us    |      folio_unlock();
+ 1)               |      submit_bio_wait() {
+ 1)               |        submit_bio() {
+ 1)   0.522 us    |          blkcg_set_ioprio();
+ 1)               |          submit_bio_noacct() {
+ 1)   0.167 us    |            __cond_resched();
+ 1)               |            submit_bio_noacct_nocheck() {
+ 1)   0.498 us    |              blk_cgroup_bio_start();
+ 1)               |              __submit_bio() {
+ 1)   0.171 us    |                __rcu_read_lock();
+ 1)   0.169 us    |                __rcu_read_unlock();
+ 1)               |                zram_submit_bio() {
+ 1)               |                  bio_start_io_acct() {
+ 1)               |                    update_io_ticks() {
+ 1)   0.424 us    |                      bdev_count_inflight();
+ 1)   0.982 us    |                    }
+ 1)   1.774 us    |                  }
+ 1)               |                  zcomp_stream_get() {
+ 1)               |                    mutex_lock() {
+ 1)   0.180 us    |                      __cond_resched();
+ 1)   0.647 us    |                    }
+ 1)   1.151 us    |                  }
+ 1)               |                  zcomp_compress() {
+ 1)   0.165 us    |                    __cond_resched();
+ 1)               |                    lz4_compress() {
+ 1)               |                      LZ4_compress_fast() {
+ 1)   3.864 us    |                        LZ4_compress_fast_extState();
+ 1)   4.215 us    |                      }
+ 1)   4.983 us    |                    }
+ 1)   5.933 us    |                  }
+ 1)               |                  zs_malloc() {
+ 1)   0.743 us    |                    kmem_cache_alloc_noprof();
+ 1)   0.681 us    |                    _raw_spin_lock();
+ 1)   0.169 us    |                    _raw_spin_unlock();
+ 1)   0.467 us    |                    kmem_cache_alloc_noprof();
+ 1)               |                    __alloc_pages_noprof() {
+ 1)               |                      __alloc_frozen_pages_noprof() {
+ 1)               |                        get_page_from_freelist() {
+ 1)   0.594 us    |                          numa_zone_alloc_allowed();
+ 1)   0.176 us    |                          _raw_spin_trylock();
+ 1)   0.212 us    |                          _raw_spin_unlock();
+ 1)   2.741 us    |                        }
+ 1)   3.284 us    |                      }
+ 1)   3.781 us    |                    }
+ 1)   0.179 us    |                    inc_zone_page_state();
+ 1)               |                    __alloc_pages_noprof() {
+ 1)               |                      __alloc_frozen_pages_noprof() {
+ 1)               |                        get_page_from_freelist() {
+ 1)   0.174 us    |                          numa_zone_alloc_allowed();
+ 1)   0.179 us    |                          _raw_spin_trylock();
+ 1)   0.243 us    |                          _raw_spin_unlock();
+ 1)   1.414 us    |                        }
+ 1)   1.799 us    |                      }
+ 1)   2.155 us    |                    }
+ 1)   0.170 us    |                    inc_zone_page_state();
+ 1)               |                    __alloc_pages_noprof() {
+ 1)               |                      __alloc_frozen_pages_noprof() {
+ 1)               |                        get_page_from_freelist() {
+ 1)   0.174 us    |                          numa_zone_alloc_allowed();
+ 1)   0.174 us    |                          _raw_spin_trylock();
+ 1)   0.242 us    |                          _raw_spin_unlock();
+ 1)   1.364 us    |                        }
+ 1)   1.756 us    |                      }
+ 1)   2.227 us    |                    }
+ 1)   0.190 us    |                    inc_zone_page_state();
+ 1)               |                    __alloc_pages_noprof() {
+ 1)               |                      __alloc_frozen_pages_noprof() {
+ 1)               |                        get_page_from_freelist() {
+ 1)   0.179 us    |                          numa_zone_alloc_allowed();
+ 1)   0.177 us    |                          _raw_spin_trylock();
+ 1)   0.250 us    |                          _raw_spin_unlock();
+ 1)   1.403 us    |                        }
+ 1)   1.778 us    |                      }
+ 1)   2.139 us    |                    }
+ 1)   0.173 us    |                    inc_zone_page_state();
+ 1)               |                    __alloc_pages_noprof() {
+ 1)               |                      __alloc_frozen_pages_noprof() {
+ 1)               |                        get_page_from_freelist() {
+ 1)   0.179 us    |                          numa_zone_alloc_allowed();
+ 1)   0.177 us    |                          _raw_spin_trylock();
+ 1)   0.239 us    |                          _raw_spin_unlock();
+ 1)   1.361 us    |                        }
+ 1)   1.736 us    |                      }
+ 1)   2.096 us    |                    }
+ 1)   0.177 us    |                    inc_zone_page_state();
+ 1)   0.210 us    |                    create_page_chain();
+ 1)   0.261 us    |                    _raw_spin_lock();
+ 1)   0.205 us    |                    obj_malloc();
+ 1)   0.171 us    |                    folio_unlock();
+ 1)   0.172 us    |                    folio_unlock();
+ 1)   0.172 us    |                    folio_unlock();
+ 1)   0.169 us    |                    folio_unlock();
+ 1)   0.172 us    |                    folio_unlock();
+ 1)   0.225 us    |                    _raw_spin_unlock();
+ 1) + 24.809 us   |                  }
+ 1)   0.172 us    |                  zs_get_total_pages();
+ 1)               |                  zs_obj_write() {
+ 1)   0.268 us    |                    _raw_read_lock();
+ 1)   0.173 us    |                    _raw_spin_lock();
+ 1)   0.176 us    |                    _raw_spin_unlock();
+ 1)   0.168 us    |                    _raw_read_unlock();
+ 1)   0.193 us    |                    _raw_spin_lock();
+ 1)   0.169 us    |                    _raw_spin_unlock();
+ 1)   2.713 us    |                  }
+ 1)               |                  zcomp_stream_put() {
+ 1)   0.165 us    |                    mutex_unlock();
+ 1)   0.539 us    |                  }
+ 1)   0.172 us    |                  __cond_resched();
+ 1)   0.228 us    |                  zram_free_page();
+ 1)   0.279 us    |                  wake_up_bit();
+ 1)   0.175 us    |                  __cond_resched();
+ 1)   0.172 us    |                  wake_up_bit();
+ 1)               |                  bio_end_io_acct_remapped() {
+ 1)               |                    bdev_end_io_acct() {
+ 1)   0.185 us    |                      update_io_ticks();
+ 1)   0.245 us    |                      jiffies_to_usecs();
+ 1)   1.210 us    |                    }
+ 1)   1.563 us    |                  }
+ 1)               |                  bio_endio() {
+ 1)   0.174 us    |                    __rcu_read_lock();
+ 1)   0.170 us    |                    __rcu_read_unlock();
+ 1)               |                    submit_bio_wait_endio() {
+ 1)               |                      complete() {
+ 1)   0.167 us    |                        _raw_spin_lock_irqsave();
+ 1)   0.185 us    |                        _raw_spin_unlock_irqrestore();
+ 1)   0.960 us    |                      }
+ 1)   1.336 us    |                    }
+ 1)   2.533 us    |                  }
+ 1) + 46.885 us   |                }
+ 1)   0.179 us    |                __rcu_read_lock();
+ 1)   0.171 us    |                __rcu_read_unlock();
+ 1) + 49.512 us   |              }
+ 1) + 50.941 us   |            }
+ 1) + 52.459 us   |          }
+ 1) + 53.733 us   |        }
+ 1)               |        wait_for_completion_io() {
+ 1)   0.168 us    |          __cond_resched();
+ 1)   0.163 us    |          _raw_spin_lock_irq();
+ 1)   0.172 us    |          _raw_spin_unlock_irq();
+ 1)   1.338 us    |        }
+ 1)   0.356 us    |        blk_status_to_errno();
+ 1) + 56.341 us   |      }
+ 1)               |      __end_swap_bio_write() {
+ 1)               |        folio_end_writeback() {
+ 1)               |          folio_end_writeback_no_dropbehind() {
+ 1)   0.293 us    |            folio_rotate_reclaimable();
+ 1)               |            __folio_end_writeback() {
+ 1)   0.185 us    |              folio_mapping();
+ 1)               |              lruvec_stat_mod_folio() {
+ 1)   0.183 us    |                __rcu_read_lock();
+ 1)   0.175 us    |                mod_node_page_state();
+ 1)               |                mod_memcg_lruvec_state() {
+ 1)   0.172 us    |                  css_rstat_updated();
+ 1)   0.540 us    |                }
+ 1)   0.170 us    |                __rcu_read_unlock();
+ 1)   2.002 us    |              }
+ 1)   0.183 us    |              mod_zone_page_state();
+ 1)   0.172 us    |              mod_node_page_state();
+ 1)   3.534 us    |            }
+ 1)   4.622 us    |          }
+ 1)   0.173 us    |          folio_end_dropbehind();
+ 1)   5.846 us    |        }
+ 1)   6.202 us    |      }
+ 1) + 78.350 us   |    }
+ 1) + 79.117 us   |  }
+ 1)               |  

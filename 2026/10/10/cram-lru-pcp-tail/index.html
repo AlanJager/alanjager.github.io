@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="回移完整 fbatch 补丁，拆解 CRAM 迁入的 15 ms 长尾，再用 CPU 对照与逐页 PFN 跟踪验证 PCP 复用如何影响 EPT fault。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用">
+<meta property="og:url" content="https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="回移完整 fbatch 补丁，拆解 CRAM 迁入的 15 ms 长尾，再用 CPU 对照与逐页 PFN 跟踪验证 PCP 复用如何影响 EPT fault。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/fbatch-ab.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/guest-tail.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/mmio-cycle.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/release-ab.svg">
+<meta property="og:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/pfn-lineage.svg">
+<meta property="article:published_time" content="2026-10-10T10:20:00.000Z">
+<meta property="article:modified_time" content="2026-10-10T10:20:00.000Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="kvm">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="cram">
+<meta property="article:tag" content="cxl">
+<meta property="article:tag" content="lru">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hanayo.cn/assets/cram-lru-pcp-tail/fbatch-ab.svg">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用","description":"回移完整 fbatch 补丁，拆解 CRAM 迁入的 15 ms 长尾，再用 CPU 对照与逐页 PFN 跟踪验证 PCP 复用如何影响 EPT fault。","url":"https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/index.html","datePublished":"2026-10-10T10:20:00.000Z","dateModified":"2026-10-10T10:20:00.000Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/index.html"}]}</script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="post-cram-lru-pcp-tail" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/10/cram-lru-pcp-tail/" class="article-date">
+  <time class="dt-published" datetime="2026-10-10T10:20:00.000Z" itemprop="datePublished">2026-10-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          <p><a href="/2026/10/09/cram-zram-simulation/">上一篇</a>比较了 CRAM 与 zram 的读写路径。CRAM 页可以保留读映射，首次写再提升到普通内存。但实验里还有一个问题：把页迁入 CRAM，有时会突然慢很多。</p>
+<p>单页 trace 中，<code>move_pages</code> 用了约 462 µs，<code>lru_cache_disable</code> 占了 374 µs，其中 RCU 等待约 332 µs；真正的 <code>folio_mc_copy</code> 只有约 1.7 µs。这让人首先怀疑：是不是 LRU 算法出了问题？最近 Kairui Song 的内存回收补丁，能不能解决这个毛刺？</p>
+<p>本文沿着这个问题继续往下查。先回移完整的 LRU 批次管理补丁，做 CRAM A/B；再拆剩下的 15 ms 长尾；最后调整后台任务的 CPU 分工，把页归还、PCP 入队出队和下一次分配的 PFN 连起来。</p>
+<p>最后得到的结果很具体：<strong>LRU 同步、后台清理抢占前台的 CPU、新物理页的 EPT 映射，分别造成了不同阶段的等待。只移动后台发送任务，还会改变页归还的位置，进而影响下一次分配。</strong></p>
+<h2 id="先分清楚：这里有三种“LRU-优化”"><a href="#先分清楚：这里有三种“LRU-优化”" class="headerlink" title="先分清楚：这里有三种“LRU 优化”"></a>先分清楚：这里有三种“LRU 优化”</h2><p>Kairui Song 的工作确实与内存回收有关，但“使用了 zram 的测试”不等于“优化 zram 自己的 LRU”。</p>
+<table>
+<thead>
+<tr>
+<th>工作</th>
+<th>改动关注什么</th>
+<th>与本轮迁入等待的关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kairui Song 的 MGLRU reclaim 系列</td>
+<td>扫描预算、aging、回收循环和脏页写回</td>
+<td>关注哪些页被回收、回收怎样推进；本轮内核未启用 MGLRU</td>
+</tr>
+<tr>
+<td>同步 swap 设备相关的写回改动</td>
+<td>swap-out 时写回与 folio 状态处理</td>
+<td>处在换出链上；本轮测的是 <code>move_pages</code> 迁入 CRAM</td>
+</tr>
+<tr>
+<td>Hugh Dickins 的 fbatch 系列</td>
+<td>每 CPU 的 LRU 待处理批次、引用计数和页隔离</td>
+<td>直接涉及迁移前的 LRU drain 与 <code>lru_cache_disable</code></td>
+</tr>
+</tbody></table>
+<p>Kairui 的系列重整 MGLRU 回收路径，作者也使用过 zram 负载做测试。我们的固定配置是经典 LRU，<code>CONFIG_LRU_GEN</code> 未启用。因此，要处理眼前这段同步等待，应该看迁移入口和批次管理。<a target="_blank" rel="noopener" href="https://patchew.org/linux/20260428-mglru-reclaim-v7-0-02fabb92dc43@tencent.com/">Kairui Song 的 MGLRU v7</a></p>
+<p>页可能还挂在某个 CPU 的 LRU 待处理批次里，迁移却要隔离它。旧路径先把这些批次处理完，再开始迁移。Hugh 的 26 个 fbatch 补丁改变了批次中 folio 的管理方式，让它们保持可隔离状态，并减少批次持有的额外引用；系列中的迁移改动因此可以移除 <code>lru_cache_disable</code>。<a target="_blank" rel="noopener" href="https://patchew.org/linux/e28f9a94-4339-f8ac-8301-6be3c9b5b7ce@google.com/">Hugh Dickins 的 fbatch v2</a></p>
+<p>这里的问题是<strong>开始迁移前，为了保证页状态一致而付出的同步成本</strong>。它与“LRU 选错了冷热页”是两件事。</p>
+<h2 id="完整回移后，小批迁入快了，大批长尾还在"><a href="#完整回移后，小批迁入快了，大批长尾还在" class="headerlink" title="完整回移后，小批迁入快了，大批长尾还在"></a>完整回移后，小批迁入快了，大批长尾还在</h2><p>先在普通 RAM→RAM 迁移上验证整套补丁，再把 01–26 全部回移到固定的 CRAM 分支。CRAM 的私有内存节点、页释放回调和写 fault 提升路径也要适配新的批次与引用计数规则。</p>
+<p>A/B 两组都带同一个 CRAM 页释放修正，避免把正确性修复混进补丁收益。前台固定在 CPU 0，关闭 THP、MGLRU 和自动 NUMA balancing。每个表格单元来自三次新 guest，总计 600 个无详细 tracing 样本。</p>
+<p>下表单位为 µs，测量范围是 <code>move_pages</code> 系统调用。</p>
+<table>
+<thead>
+<tr>
+<th>每次迁入页数</th>
+<th align="right">原版中位数</th>
+<th align="right">fbatch 中位数</th>
+<th align="right">原版 P99</th>
+<th align="right">fbatch P99</th>
+<th align="right">fbatch 最大值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td align="right">643.132</td>
+<td align="right">30.080</td>
+<td align="right">2453.772</td>
+<td align="right">98.668</td>
+<td align="right">142.856</td>
+</tr>
+<tr>
+<td>16</td>
+<td align="right">670.061</td>
+<td align="right">32.564</td>
+<td align="right">16023.429</td>
+<td align="right">419.530</td>
+<td align="right">521.075</td>
+</tr>
+<tr>
+<td>256</td>
+<td align="right">1827.658</td>
+<td align="right">607.466</td>
+<td align="right">19656.455</td>
+<td align="right">13691.034</td>
+<td align="right">15861.356</td>
+</tr>
+</tbody></table>
+<p>独立 trace 中，原版九次调用都有入口 <code>lru_cache_disable</code> 和 RCU 等待；回移后这两条路径都消失了。单页中位数下降约 95%，256 页中位数下降约 67%。</p>
+<p><img src="/assets/cram-lru-pcp-tail/fbatch-ab.svg" alt="完整 fbatch 回移前后的迁入中位数与 P99"></p>
+<p>但 256 页组仍有 15.861 ms 的最大值。同步等待消掉了，剩下的长尾需要重新抓现场。</p>
+<h2 id="15-ms-去了哪里：前台让出-CPU，后台清理接着跑"><a href="#15-ms-去了哪里：前台让出-CPU，后台清理接着跑" class="headerlink" title="15 ms 去了哪里：前台让出 CPU，后台清理接着跑"></a>15 ms 去了哪里：前台让出 CPU，后台清理接着跑</h2><p>继续运行 256 页迁入负载，捕获到一次 <strong>16.183 ms</strong> 的调用。下面是这次 trace 的时间线，各行共享同一个 guest 时钟。</p>
+<p><img src="/assets/cram-lru-pcp-tail/guest-tail.svg" alt="256 页迁入长尾：前台离开 CPU 与后台清理的重叠时间"></p>
+<p>前台在 <code>__cond_resched</code> 处让出 CPU，切出时状态是 <code>R+</code>，仍然可以运行。随后 CPU 0 跑起清理 worker；前台直到约 15.331 ms 后才重新获得 CPU。</p>
+<table>
+<thead>
+<tr>
+<th>观测项</th>
+<th align="right">时间</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>前台迁入调用</td>
+<td align="right">16.183 ms</td>
+</tr>
+<tr>
+<td>前台不在 CPU 上</td>
+<td align="right">15.331 ms</td>
+</tr>
+<tr>
+<td>同期后台 <code>cxl_internal_send_cmd</code></td>
+<td align="right">15.283 ms</td>
+</tr>
+<tr>
+<td>其中 <code>memcpy_toio</code></td>
+<td align="right">14.985 ms</td>
+</tr>
+<tr>
+<td>doorbell 等待</td>
+<td align="right">0.025 ms</td>
+</tr>
+</tbody></table>
+<p>这些时间相互包含、重叠，不能相加。关键是：这次长尾的大部分时间里，前台没有执行迁入，它在等 CPU。</p>
+<p>后台清理的是什么？是<strong>前面几轮写入提升后，留下的旧 CRAM 页</strong>。它们要完成设备清零，再归还给分配器。这里并不是把当前 DRAM 页“后台同步回 DRAM”。</p>
+<p>新一轮迁入与旧页清理，本来可以是两个任务。但固定实现把 overflow worker 排到调用 CPU，前台也固定在 CPU 0。即使 guest 有两个 vCPU，后台工作仍然会排到 CPU 0。前台在可调度点让出执行机会，清理任务就接着跑。</p>
+<p>所以这里不存在“向设备写一次，就必须切走前台一次”的规则。<strong>实际发生的是两个任务共享同一个 CPU，而清理任务一次占用了较长时间。</strong></p>
+<h2 id="memcpy-toio-为什么要-15-ms：2040-字节，510-次-MMIO-往返"><a href="#memcpy-toio-为什么要-15-ms：2040-字节，510-次-MMIO-往返" class="headerlink" title="memcpy_toio 为什么要 15 ms：2040 字节，510 次 MMIO 往返"></a><code>memcpy_toio</code> 为什么要 15 ms：2040 字节，510 次 MMIO 往返</h2><p>继续拆后台清理命令。驱动已经做了批处理：一次清理最多携带 127 个地址范围。</p>
+<p>本次 payload 包含 8 字节头部和 127 个 16 字节描述符，总共 <strong>2040 字节</strong>。这些描述符告诉设备清理哪些地址；如果每个范围是 4 KiB，它们描述的是 508 KiB 页空间。真正写进 mailbox 的仍然只有 2040 字节。</p>
+<p>这个 x86 实现的 <code>memcpy_toio</code> 使用 <code>rep movsl</code>，每次写 4 字节。在本轮模拟路径里，宿主 trace 对应到了：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">2040 / 4 = 510 次 MMIO 写</span><br><span class="line">          = 510 次 EPT_MISCONFIG</span><br><span class="line">          = 510 次 KVM_EXIT_MMIO 返回 QEMU</span><br></pre></td></tr></table></figure>
+
+<p>对一次 15.267 ms 的完整 payload 周期，按互斥的宿主时间区间拆分如下。</p>
+<p><img src="/assets/cram-lru-pcp-tail/mmio-cycle.svg" alt="510 次 mailbox MMIO 写的宿主侧时间分解"></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th align="right">累计时间</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>KVM exit 到 ioctl 返回</td>
+<td align="right">2.505 ms</td>
+</tr>
+<tr>
+<td>ioctl 进入到 KVM entry</td>
+<td align="right">3.466 ms</td>
+</tr>
+<tr>
+<td>KVM entry 到下一次 exit，含 guest 执行与转换</td>
+<td align="right">6.391 ms</td>
+</tr>
+<tr>
+<td>两次 ioctl 之间的 QEMU 用户态处理</td>
+<td align="right">2.719 ms</td>
+</tr>
+<tr>
+<td>宿主线程不在 CPU 上</td>
+<td align="right">0.186 ms</td>
+</tr>
+<tr>
+<td>合计</td>
+<td align="right">15.267 ms</td>
+</tr>
+</tbody></table>
+<p>另开一批诊断，在 QEMU 设备 payload 回调里加计数器：510 次回调累计约 <strong>0.081 ms</strong>。它测的是设备回调本身，上一张表里的 QEMU 用户态阶段还包含分发等工作。</p>
+<p>这解释了为什么两千字节也能写得很慢：这条模拟路径把 payload 拆成了 510 次需要返回用户态的访问。设备回调的数据处理只是其中一小段。驱动已经在按地址范围批量发命令，但一个批次的 payload 仍然有很多次 MMIO 访问。</p>
+<h2 id="把发送搬到-CPU-1：大毛刺少了，P99-却升高"><a href="#把发送搬到-CPU-1：大毛刺少了，P99-却升高" class="headerlink" title="把发送搬到 CPU 1：大毛刺少了，P99 却升高"></a>把发送搬到 CPU 1：大毛刺少了，P99 却升高</h2><p>接下来只改变后台发送的 CPU，保持 QEMU、前台负载和同一轮内核镜像不变。每组六次新 guest，每次 1000 轮，每轮迁入 256 页。</p>
+<p>负载的完整循环是：准备普通页 → 迁入 CRAM → 读与校验 → 局部写触发提升 → 校验页回到 node 0 → 下一轮。表格只计迁入系统调用。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th align="right">中位数</th>
+<th align="right">P99</th>
+<th align="right">最大值</th>
+<th align="right">≥10 ms 次数 / 6000</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>发送留在 CPU 0</td>
+<td align="right">0.588 ms</td>
+<td align="right">0.955 ms</td>
+<td align="right">18.674 ms</td>
+<td align="right">16</td>
+</tr>
+<tr>
+<td>发送移到 CPU 1</td>
+<td align="right">0.572 ms</td>
+<td align="right">1.987 ms</td>
+<td align="right">10.182 ms</td>
+<td align="right">1</td>
+</tr>
+</tbody></table>
+<p>超过 10 ms 的调用从 16 次降到 1 次，说明移走发送任务确实减少了那类大毛刺。但 P99 从约 1 ms 变成约 2 ms。</p>
+<p>继续抓这批约 2 ms 的迁入，发现它们与之前的 15 ms 等待不同。一条 1.968 ms 调用中：</p>
+<ul>
+<li><code>folio_mc_copy</code> 用了 1.026 ms，其中 <code>copy_mc_to_kernel</code> 约 0.912 ms。</li>
+<li>前台不在 CPU 上只有 0.015 ms。</li>
+<li>真正复制指令 <code>rep movsb</code> 对应 39 次 <code>EPT_VIOLATION</code>。</li>
+<li>这 39 次 fault 对应本轮首次观察到的目标 GPA；没有返回用户态 QEMU。</li>
+</ul>
+<p>另一条 3.242 ms 调用有 80 次同类 EPT fault；一个较快样本的复制只有约 0.108 ms，目标 EPT fault 为 0。</p>
+<p>这里需要分清两种 exit：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>事件</th>
+<th>本轮处理路径</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>写 mailbox payload</td>
+<td><code>EPT_MISCONFIG</code> / <code>KVM_EXIT_MMIO</code></td>
+<td>返回 QEMU，处理模拟设备寄存器访问</td>
+</tr>
+<tr>
+<td>向 RAM 后备的 CRAM 目标页复制</td>
+<td><code>EPT_VIOLATION</code></td>
+<td>KVM 处理目标内存映射，没有返回 QEMU 用户态</td>
+</tr>
+</tbody></table>
+<p>前一类拖慢后台命令，后一类出现在真正的页复制上。把前一类工作移走后，后一类成本变得明显了。</p>
+<h2 id="发送和归还拆开：CPU-1-发命令，CPU-0-归还页"><a href="#发送和归还拆开：CPU-1-发命令，CPU-0-归还页" class="headerlink" title="发送和归还拆开：CPU 1 发命令，CPU 0 归还页"></a>发送和归还拆开：CPU 1 发命令，CPU 0 归还页</h2><p>检查代码才发现，上一步移走的不只有发送：<strong>发送完成后的 <code>folio_put</code> 也一起在 CPU 1 执行了。</strong></p>
+<p>这会影响空闲页放在哪里。Linux 的 PCP 是每 CPU 的空闲物理页列表。CPU 1 归还的页可以进入 CPU 1 的 PCP；下一轮前台仍在 CPU 0 分配，不能直接从自己的 PCP 取到这些页。</p>
+<p>于是做三组对照，三个配置使用同一个新镜像：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th align="right">发送 CPU</th>
+<th align="right">设备清零后归还 CPU</th>
+<th align="right">中位数</th>
+<th align="right">P99</th>
+<th align="right">最大值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>local</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.583 ms</td>
+<td align="right">13.032 ms</td>
+<td align="right">19.443 ms</td>
+</tr>
+<tr>
+<td>remote</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0.576 ms</td>
+<td align="right">1.888 ms</td>
+<td align="right">5.613 ms</td>
+</tr>
+<tr>
+<td>split</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.580 ms</td>
+<td align="right">0.903 ms</td>
+<td align="right">7.153 ms</td>
+</tr>
+</tbody></table>
+<p>每组同样是六次新 guest、共 6000 个迁入样本。<code>split</code> 在清零命令完成后，由 CPU 0 执行归还，再复用批次缓冲区。</p>
+<p><img src="/assets/cram-lru-pcp-tail/release-ab.svg" alt="发送与归还 CPU 分开后，迁入 P99 和目标复制 EPT fault 的变化"></p>
+<p>与 <code>remote</code> 相比，<code>split</code> 的中位数基本相同，P99 下降约 **52%**。六次独立 guest 的 P99 都向同一方向变化；最大值则是 5.613→7.153 ms。</p>
+<p>独立的宿主 trace 每组两次，每次完整运行 1000 轮。去掉各批前两轮后，目标复制 EPT fault 从 <strong>2799 次降到 257 次</strong>。这说明变化不仅体现在调用时间上，实际复制路径中的映射 fault 也减少了。</p>
+<p>不过，看到 fault 减少，还差最后一环：CPU 0 后来取到的，究竟是不是刚刚归还的那些物理页？</p>
+<h2 id="沿着-PFN-跟一遍：归还的页，确实被下一批复用了"><a href="#沿着-PFN-跟一遍：归还的页，确实被下一批复用了" class="headerlink" title="沿着 PFN 跟一遍：归还的页，确实被下一批复用了"></a>沿着 PFN 跟一遍：归还的页，确实被下一批复用了</h2><p>再开四个干净 guest，顺序为 remote、split、split、remote。每次 256 轮 × 256 页，共跟踪 <strong>262144 次目标页分配</strong>。</p>
+<p>这次给每个 PFN 的每次分配加上代次，把以下事件串起来：设备清零完成后的归还 → PCP 入队 → PCP 出队 → <code>alloc_cram_folio</code> 返回 → 下一次复制。宿主 EPT 事件通过目标 GPA 与 guest PFN 对上。</p>
+<p><img src="/assets/cram-lru-pcp-tail/pfn-lineage.svg" alt="同一 PFN 在不同归还 CPU 下的实际复用路径"></p>
+<p>以 split 中的 <strong>PFN <code>0x37007e</code></strong> 为例：</p>
+<table>
+<thead>
+<tr>
+<th>guest 时间</th>
+<th align="right">CPU</th>
+<th>事件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>10.317484 s</td>
+<td align="right">0</td>
+<td>设备清零完成，准备 <code>folio_put</code></td>
+</tr>
+<tr>
+<td>10.317485 s</td>
+<td align="right">0</td>
+<td>页进入 CPU 0 PCP</td>
+</tr>
+<tr>
+<td>10.320039 s</td>
+<td align="right">0</td>
+<td>同一 PFN 从同一 PCP、同一链表出队</td>
+</tr>
+<tr>
+<td>10.320040 s</td>
+<td align="right">0</td>
+<td><code>alloc_cram_folio</code> 返回这个 PFN</td>
+</tr>
+<tr>
+<td>10.320697 s</td>
+<td align="right">0</td>
+<td>复制下一批内容，目标复制 EPT fault 为 0</td>
+</tr>
+</tbody></table>
+<p>它在第 0 轮首次分配时有一次 EPT fault，第 14 轮再次使用时没有。</p>
+<p>remote 中也能复用旧页，但路径更长。例如 PFN <code>0x3700e2</code>：CPU 1 归还 → CPU 1 PCP → drain 到 buddy → refill 到 CPU 0 PCP → CPU 0 在第 39 轮取出。它再次复制时同样没有 EPT fault。</p>
+<p>两组汇总如下，各有 131072 次目标分配。</p>
+<table>
+<thead>
+<tr>
+<th>目标页来源</th>
+<th align="right">remote 次数</th>
+<th align="right">split 次数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU 0 普通归还后直接 PCP 复用</td>
+<td align="right">123826</td>
+<td align="right">123825</td>
+</tr>
+<tr>
+<td>设备批量清零归还后，从 CPU 0 PCP 直接复用</td>
+<td align="right">0</td>
+<td align="right"><strong>5973</strong></td>
+</tr>
+<tr>
+<td>设备批量归还后，经 buddy 补回 CPU 0 PCP 再复用</td>
+<td align="right">4174</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>工作负载首次分配到的 PFN，由 buddy 补入 PCP</td>
+<td align="right"><strong>3072</strong></td>
+<td align="right"><strong>1274</strong></td>
+</tr>
+</tbody></table>
+<p>5973 次直接复用都有完整的归还、入队、出队、分配和复制记录，目标复制 EPT fault 全部为 0。两组的复制 EPT fault 则全部对应工作负载首次分配到的目标 PFN：remote 为 3072 次，split 为 1274 次。</p>
+<p>PCP 入队放在链表头，分配也从链表头取。把页归还到 CPU 0，相当于把已经清理、已经用过的物理页放回前台正在取页的列表；归还到 CPU 1，则要等这些页经其他路径回到 CPU 0。</p>
+<p>这里的“node 2 的 CPU 0 PCP”，是 <strong>CRAM 节点所在 zone 的 CPU 0 空闲页列表</strong>。它不是 CPU 数据 cache，node 2 也不是 CPU 2。</p>
+<h2 id="现在-CPU-各在做什么"><a href="#现在-CPU-各在做什么" class="headerlink" title="现在 CPU 各在做什么"></a>现在 CPU 各在做什么</h2><p>把最终 split 配置展开，就容易理解了。</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>CPU 0</th>
+<th>CPU 1</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>迁入</td>
+<td>前台分配 CRAM 目标页，复制 DRAM→CRAM</td>
+<td>可以发送前面批次的清理命令</td>
+</tr>
+<tr>
+<td>首次写</td>
+<td>提升页，复制 CRAM→DRAM</td>
+<td>可以继续处理已有后台工作</td>
+</tr>
+<tr>
+<td>延迟清理</td>
+<td>交换清理缓冲区，等待发送完成</td>
+<td>向设备发媒体清零命令</td>
+</tr>
+<tr>
+<td>清零完成</td>
+<td>归还页到 CPU 0 PCP</td>
+<td>通知发送完成</td>
+</tr>
+<tr>
+<td>下一轮</td>
+<td>从自己的 PCP 复用目标页，再复制新内容</td>
+<td>继续发送其他清理批次</td>
+</tr>
+</tbody></table>
+<p>这轮实验回答了三个不同的问题。</p>
+<p>小批迁入时，旧路径先花时间等待 LRU 批次同步；完整 fbatch 回移后，单页中位数从 643 µs 降到了 30 µs。</p>
+<p>持续进行“迁入→写入提升→再次迁入”时，旧 CRAM 页的清理会与下一轮迁入同时发生。清理与前台共用 CPU 0，产生了约 15 ms 的可运行等待；把发送放到 CPU 1，减少了这类大毛刺。</p>
+<p>发送完成后，如果页也归还到 CPU 1，CPU 0 下一轮会使用更多此前未用过的目标 PFN。在本轮 RAM 后备的 KVM 模型里，这些新 PFN 带来了复制 EPT fault。发送留在 CPU 1、归还放回 CPU 0 后，前台可以直接复用已用过的页，P99 从 1.888 ms 降到 0.903 ms。</p>
+<p><strong>后台任务在哪里执行，影响的不只有当前这次等待；页最终归还到哪里，也会影响下一批分配和复制。</strong></p>
+<h2 id="数据与复现"><a href="#数据与复现" class="headerlink" title="数据与复现"></a>数据与复现</h2><p>正文图表使用的<a href="/assets/cram-lru-pcp-tail/figures.json">汇总数据</a>、<a href="/assets/cram-lru-pcp-tail/plot.py">绘图脚本</a>和<a href="/assets/cram-lru-pcp-tail/pfn-lineage.mmd">PFN 路径 Mermaid 源码</a>一并保留。</p>
+<p><a href="/assets/cram-lru-pcp-tail/experiment-kit.zip">实验附件包</a>包含补丁、C probe、guest 初始化脚本、QEMU 启动脚本、分析脚本、正式逐样本 CSV、逐页示例和构建元数据。附件中的 <a href="/assets/cram-lru-pcp-tail/README.txt">README</a>说明目录、运行方法和 trace 口径。实验机路径已经替换，QEMU 启动脚本通过环境变量指定本地文件。</p>
+<p>最终 CPU 对照的启动参数如下，其他 QEMU 参数保持一致：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">local:  cxl_compression.flush_cpu=-1 cxl_compression.release_cpu=-1</span><br><span class="line">remote: cxl_compression.flush_cpu=1  cxl_compression.release_cpu=-1</span><br><span class="line">split:  cxl_compression.flush_cpu=1  cxl_compression.release_cpu=0</span><br></pre></td></tr></table></figure>
+
+<p><code>-1</code> 表示沿用对应的当前执行 CPU，具体以附件补丁实现为准。这两个参数来自本轮实验补丁。</p>
+<h2 id="注"><a href="#注" class="headerlink" title="注"></a>注</h2><ol>
+<li><strong>模拟条件。</strong> guest 使用 2 vCPU、512 MiB 普通内存和 512 MiB RAM 后备 CXL CT3。设备没有真实硬件压缩。实验运行在嵌套虚拟化环境；本文讨论这套模型中观测到的调度、迁移和映射成本。宿主 trace 可见 L1 KVM，未采集 L0 时间线。</li>
+<li><strong>版本与补丁。</strong> CRAM 基础 commit 为 <code>9fa5ffee4fd4726e31f05deebb938cccfa0b460f</code>，QEMU 为 <code>a078aaedd382eedd121a037ffa992bb9db964acb</code>。fbatch 回移包含 v2 的 01–26，排除额外调试 hack，并适配 CRAM。两组共同修正 free 回调的零引用计数处理，使用 <code>folio_ref_unfreeze(folio, 1)</code>；CPU 实验在此基础上增加发送/归还 CPU 参数。<code>DEBUG_VM=y</code>，THP、MGLRU 和自动 NUMA balancing 关闭。</li>
+<li><strong>各轮口径。</strong> fbatch A/B、首次 CPU A/B、三组 CPU 对照、PFN 诊断是不同轮次。各自只比较同轮、同镜像配置；跨轮数值分别保留。fbatch 表按原分析脚本的 <code>floor(p×(n−1))</code> 取分位点；后续 CPU 表使用 nearest-rank。每组 6000 次也是六个新 guest 样本的合并分布。</li>
+<li><strong>计时范围。</strong> 正式分布来自关闭详细 tracing 的迁入系统调用计时；读、局部写提升、位置与内容校验发生在计时区间外。详细 trace 用于解释路径。函数时间包含子调用和函数内等待；图中重叠区间按实际时间戳绘制。原 96.789 ms 和 15.861 ms 极值没有完整现场 trace，本文拆解的是新捕获的 16.183 ms 调用。</li>
+<li><strong>MMIO 分解。</strong> 15.267 ms 的互斥分段来自原 QEMU；0.081 ms 的 payload 回调统计来自单独的计数器诊断批次。KVM entry→exit 阶段包含 guest 执行和转换，不能全部命名为 VM exit 耗时。计数器 QEMU 未用于后续正式 CPU A/B。</li>
+<li><strong>逐页诊断。</strong> 四次 guest 每次 256 轮，使用每 CPU 32 MiB trace 缓冲区，与 1000 轮正式计时分开。入队、出队和分配通过 PFN 与代次匹配；EPT 用 <code>GPA &gt;&gt; 12</code> 关联 PFN，不将 guest 与宿主时钟直接相减。该批去掉前两轮后的 EPT 是 2052→254；上一批完整 1000 轮宿主对照为 2799→257。</li>
+<li><strong>探针完整性。</strong> 逐页实验的 guest/host trace 没有 dropped/overrun。全局入队探针有少量 miss，但目标分配的每一代都匹配到完整入队、出队与复制记录，目标事件数量守恒；不将全局探针描述为零漏记。PCP 内联辅助函数用反汇编确认的调用点采集，偏移只适用于附件记录的固定内核。</li>
+<li><strong>正确性检查。</strong> CPU 对照和逐页诊断各组完成页内容与位置校验；fbatch 回移还检查了立即写提升、并发写、页释放及 mlock/lazyfree 路径。split 始终在媒体命令完成后归还页。它只改变这条设备批量归还路径的执行 CPU，普通页的所有释放路径并未统一迁到 CPU 0。</li>
+</ol>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/" data-id="cmv297qmy00ag4rmi3lhtb5mw" data-title="CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/10/09/cram-zram-simulation/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.5px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.25px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.5px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.5px;">cpu</a> <a href="/tags/cram/" style="font-size: 11.25px;">cram</a> <a href="/tags/cxl/" style="font-size: 11.25px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.25px;">ft</a> <a href="/tags/incident-analysis/" style="font-size: 11.25px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 11.25px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.5px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 15px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.25px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.5px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.75px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 11.25px;">llm</a> <a href="/tags/lru/" style="font-size: 10px;">lru</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.25px;">perf</a> <a href="/tags/performance/" style="font-size: 15px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.25px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.5px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.5px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.25px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.75px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.25px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.25px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.25px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="CRAM 第二篇：实验附件这是 2026-10-10 的实验源文件、数据和脱敏后的运行脚本。正文数值已经测完；附件不是预期结果列表。 目录与数据 fbatch&#x2F;：完整 01–26 回移及 CRAM 适配的合并 patch、共同 free 修正、probe、guest-init、样本与分析。source-complete-with-common-fix.patch 已包含共同修正，不要再重复应用。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="花の様に">
+<meta property="og:url" content="https://hanayo.cn/assets/cram-lru-pcp-tail/README.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="CRAM 第二篇：实验附件这是 2026-10-10 的实验源文件、数据和脱敏后的运行脚本。正文数值已经测完；附件不是预期结果列表。 目录与数据 fbatch&#x2F;：完整 01–26 回移及 CRAM 适配的合并 patch、共同 free 修正、probe、guest-init、样本与分析。source-complete-with-common-fix.patch 已包含共同修正，不要再重复应用。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-10-10T10:31:10.812Z">
+<meta property="article:modified_time" content="2026-10-10T10:23:46.484Z">
+<meta property="article:author" content="Alan Jager">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}}]}</script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="page-" class="h-entry article article-type-page" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/assets/cram-lru-pcp-tail/README.html" class="article-date">
+  <time class="dt-published" datetime="2026-10-10T10:31:10.812Z" itemprop="datePublished">2026-10-10</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          <h1 id="CRAM-第二篇：实验附件"><a href="#CRAM-第二篇：实验附件" class="headerlink" title="CRAM 第二篇：实验附件"></a>CRAM 第二篇：实验附件</h1><p>这是 2026-10-10 的实验源文件、数据和脱敏后的运行脚本。正文数值已经测完；附件不是预期结果列表。</p>
+<h2 id="目录与数据"><a href="#目录与数据" class="headerlink" title="目录与数据"></a>目录与数据</h2><ul>
+<li><code>fbatch/</code>：完整 01–26 回移及 CRAM 适配的合并 patch、共同 free 修正、probe、guest-init、样本与分析。<code>source-complete-with-common-fix.patch</code> 已包含共同修正，不要再重复应用。</li>
+<li><code>flushcpu/</code>：第一次迁移发送 CPU 的 patch、6000 样本/组的独立 A/B。</li>
+<li><code>releasecpu/</code>：发送/归还三组对照；正式样本、独立宿主与 guest trace 汇总、release patch、运行和分析脚本。</li>
+<li><code>lineage/</code>：256 轮逐页实验，PFN/代次分析、完整性统计、两个实际示例及对应 trace 摘录。</li>
+<li><code>mmio/</code>：510 次 MMIO 的宿主阶段分析。</li>
+<li><code>kernel.config</code>：本轮 A/B 使用的配置；未启用 MGLRU/NUMA balancing，开启 DEBUG_VM。</li>
+<li><code>guest-tail-selected.trace.txt</code>：16.183 ms 长尾的选定 trace，包含调度栈和后台函数入口/出口。</li>
+<li><code>figures.json</code>、<code>plot.py</code>、<code>pfn-lineage.mmd</code>：正文图的数据和生成代码。</li>
+<li><code>public-provenance.json</code>：源文件与脱敏附件的 SHA256；修改启动脚本的路径不会改变已测数据。</li>
+</ul>
+<p>CSV 时间单位是 ns。正式 CPU 样本只使用 <code>mode=nop</code>。fbatch P99 使用 floor(p×(n−1))，CPU P99 使用 nearest-rank。guest/host 详细 tracing 不混入无详细 tracing 分布。不同目录的轮次、镜像和负载长度分开。</p>
+<p>大型完整 host trace、内核/QEMU 二进制未打入附件；保存了原实验构建信息、hash 与选定 trace。部分分析脚本读取 <code>results/</code> 或 <code>host-results/</code> 原始日志，重采后才有这些文件；现有 CSV/JSON 可直接查看。</p>
+<h2 id="固定源码与补丁顺序"><a href="#固定源码与补丁顺序" class="headerlink" title="固定源码与补丁顺序"></a>固定源码与补丁顺序</h2><p>Linux：<code>https://github.com/gourryinverse/linux.git</code>，commit <code>9fa5ffee4fd4726e31f05deebb938cccfa0b460f</code>。<br>QEMU：<code>https://github.com/gourryinverse/qemu.git</code>，commit <code>a078aaedd382eedd121a037ffa992bb9db964acb</code>。</p>
+<p>在独立 Linux checkout 的基础 commit 上构建最终 CPU 对照内核：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">git apply /path/to/kit/fbatch/source-complete-with-common-fix.patch</span><br><span class="line">git apply /path/to/kit/flushcpu/flush-cpu.patch</span><br><span class="line">git apply /path/to/kit/releasecpu/release-cpu.patch</span><br><span class="line"><span class="built_in">mkdir</span> -p build</span><br><span class="line"><span class="built_in">cp</span> /path/to/kit/kernel.config build/.config</span><br><span class="line">make O=build olddefconfig</span><br><span class="line">make O=build -j<span class="string">&quot;<span class="subst">$(nproc)</span>&quot;</span> bzImage</span><br></pre></td></tr></table></figure>
+
+<p>fbatch 原版 A 只应用 <code>common-cram-free-fix.patch</code>，B 应用完整合并 patch；配置相同。最终 CPU 对照的三个参数组合用同一个镜像启动。编译环境改变会影响二进制 hash，guest kprobe 偏移与 QEMU uprobe 偏移必须按新二进制反汇编重新核对。</p>
+<p>配置中启用的 <code>CONFIG_CXL_REGION_INVALIDATION_TEST=y</code> 是模拟 guest 的测试设置，沿用第一篇环境。</p>
+<h2 id="构建-guest-与启动"><a href="#构建-guest-与启动" class="headerlink" title="构建 guest 与启动"></a>构建 guest 与启动</h2><p>在 Linux x86_64 上使用静态 gcc、静态 busybox、cpio 和 gzip；确认 <code>/usr/bin/busybox</code> 不依赖 guest 中不存在的动态库。</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line"><span class="built_in">cd</span> releasecpu</span><br><span class="line">bash build-initramfs.sh</span><br><span class="line"><span class="built_in">export</span> QEMU_BIN=/absolute/path/to/fixed-qemu-system-x86_64</span><br><span class="line"><span class="built_in">export</span> BIOS_DIR=/absolute/path/to/qemu/pc-bios</span><br><span class="line"><span class="built_in">export</span> KERNEL_IMAGE=/absolute/path/to/split-capable-bzImage</span><br><span class="line">bash run-guest.sh <span class="built_in">local</span> nop local-export.gz &gt; local.log</span><br><span class="line">bash run-guest.sh remote nop remote-export.gz &gt; remote.log</span><br><span class="line">bash run-guest.sh <span class="built_in">split</span> nop split-export.gz &gt; split.log</span><br></pre></td></tr></table></figure>
+
+<p>每个命令都是一个新 guest；<code>run-guest.sh</code> 保留原 q35/CXL/CT3/内存/2vCPU 配置和全部命令参数。<code>nop</code> 不开详细 tracing。实验 probe 需要 guest root，以调用迁移与 trace 接口。位置、读后内容、局部写后内容和提升位置都通过才出现 <code>MIGRATE_CONTENT_POSITION_PASS</code>。</p>
+<p>正式三组顺序与 vCPU 绑核由 <code>releasecpu/run-matrix.py</code> 控制；脚本选宿主 affinity 允许集合的最后两个 CPU，应确认这两个 CPU 适合实验。每个 guest 1000 轮，各组 6 次，不并发压测。</p>
+<p><code>lineage/</code> 使用单独的 256 轮 probe 和 guest-init，构建方法相同，不能复用正式计时 guest-init。其 trace buffer 较大，会改变时间分布。</p>
+<h2 id="宿主诊断脚本"><a href="#宿主诊断脚本" class="headerlink" title="宿主诊断脚本"></a>宿主诊断脚本</h2><p>宿主 trace runner 需要 root 访问 tracefs，QEMU 在普通实验用户下运行。设置 <code>LAB_USER</code>。脱敏脚本保留原实验选择宿主 CPU 6/7、UID 1000 及相应 tracing mask 的代码：运行前按可用 CPU、用户 UID 调整 <code>run-host.py</code> 的 affinity、<code>tracing_cpumask</code> 和 chown。这些诊断 runner 是采集方法参考，不是通用一键部署工具。</p>
+<p>动态 probe 偏移只适用于元数据里的内核/QEMU 二进制。页身份关联用 <code>struct page</code> 指针转 PFN，并将宿主 GPA&gt;&gt;12 对上 guest PFN；新内核需要核对 vmemmap、struct page 大小、寄存器与反汇编。每次采集都验证 trace hash、丢事件统计和目标事件数量守恒。</p>
+<p>模拟设备由 RAM 后备，不能用这些数据推算真实设备压缩率或端到端硬件延迟。</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/assets/cram-lru-pcp-tail/README.html" data-id="cmv297qmi00044rmi0zsrg8b8" data-title="" class="article-share-link">分享</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+  
+</article>
+
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.5px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.25px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.5px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.5px;">cpu</a> <a href="/tags/cram/" style="font-size: 11.25px;">cram</a> <a href="/tags/cxl/" style="font-size: 11.25px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.25px;">ft</a> <a href="/tags/incident-analysis/" style="font-size: 11.25px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 11.25px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.5px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 15px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.25px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.5px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.75px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 11.25px;">llm</a> <a href="/tags/lru/" style="font-size: 10px;">lru</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.25px;">perf</a> <a href="/tags/performance/" style="font-size: 15px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.25px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.5px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.5px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.25px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.75px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.25px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.25px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.25px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

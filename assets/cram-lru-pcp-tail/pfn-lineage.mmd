@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant F as CPU 0 前台
+    participant W0 as CPU 0 清理 worker
+    participant W1 as CPU 1 发送 worker
+    participant P0 as node 2 CPU 0 PCP
+    participant P1 as node 2 CPU 1 PCP
+    participant B as node 2 buddy
+    F->>W0: 旧 CRAM 页待清理
+    W0->>W1: 发送媒体清零并等待完成
+    W1->>W1: 清零命令完成
+    alt remote：归还也在 CPU 1
+        W1->>P1: folio_put，页进入 PCP 1
+        P1->>B: 部分页以后 drain
+        B->>P0: CPU 0 分配时 refill
+        P0-->>F: 返回目标 PFN
+    else split：归还回 CPU 0
+        W1-->>W0: 完成通知
+        W0->>P0: folio_put，页进入 PCP 0
+        P0-->>F: 从同一 PCP 直接复用 PFN
+    end
+    F->>F: 复制下一批内容
+    Note over F,P0: 观测到 5973 次完整直接复用，目标复制 EPT fault 均为 0

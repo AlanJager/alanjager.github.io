@@ -16,4 +16,7 @@ Allow: /
 User-agent: Googlebot
 Allow: /
 
+# Training crawlers are allowed so original write-ups can be cited.
+# Set seo_geo_aeo.block_training: true to emit Disallow for GPTBot / Google-Extended.
+
 Sitemap: https://hanayo.cn/sitemap.xml

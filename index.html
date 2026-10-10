@@ -2,40 +2,39 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-
-
+  
+  
   <title>花の様に</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
+  <meta name="description" content="Alan Jager 的 KVM &#x2F; virtio &#x2F; Linux 内核排查笔记">
+<meta property="og:type" content="website">
 <meta property="og:title" content="花の様に">
 <meta property="og:url" content="https://hanayo.cn/index.html">
 <meta property="og:site_name" content="花の様に">
-<meta property="og:locale">
+<meta property="og:description" content="Alan Jager 的 KVM &#x2F; virtio &#x2F; Linux 内核排查笔记">
+<meta property="og:locale" content="zh_CN">
 <meta property="article:author" content="Alan Jager">
-<meta property="article:tag" content="ブログ">
 <meta name="twitter:card" content="summary">
-
+  
     <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
-
-
+  
+  
     <link rel="shortcut icon" href="/favicon.png">
-
-
-
+  
+  
+    
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
 
-
-
+  
+  
 <link rel="stylesheet" href="/css/style.css">
 
-
-
+  
+    
 <link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
-
-<meta name="generator" content="Hexo 5.1.1">  <link rel="canonical" href="https://hanayo.cn/index.html">
-  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "花の様に", "url": "https://hanayo.cn/", "inLanguage": "zh-CN", "publisher": {"@type": "Person", "name": "Alan Jager", "url": "https://hanayo.cn/", "sameAs": ["https://github.com/AlanJager"]}}]}</script>
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}}]}</script>
 </head>
 
 <body>
@@ -48,22 +47,23 @@
       <h1 id="logo-wrap">
         <a href="/" id="logo">花の様に</a>
       </h1>
-
+      
     </div>
     <div id="header-inner" class="inner">
       <nav id="main-nav">
         <a id="main-nav-toggle" class="nav-icon"></a>
-
+        
           <a class="main-nav-link" href="/">首页</a>
-
+        
           <a class="main-nav-link" href="/archives">归档</a>
-
-        <a class="main-nav-link" href="/tools/" title="开源工具">工具</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
       </nav>
       <nav id="sub-nav">
-
+        
           <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
-
+        
         <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
       </nav>
       <div id="search-form-wrap">
@@ -75,344 +75,1181 @@
 
       <div class="outer">
         <section id="main">
-
-<article class="h-entry article article-type-post" id="post-cram-zram-simulation" itemprop="blogPost" itemscope="" itemtype="https://schema.org/BlogPosting">
-<div class="article-meta">
-<a class="article-date" href="/2026/10/09/cram-zram-simulation/">
-<time class="dt-published" datetime="2026-10-09T06:30:00.000Z" itemprop="datePublished">2026-10-09</time>
+  
+    
+<article id="post-cram-lru-pcp-tail" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/10/cram-lru-pcp-tail/" class="article-date">
+  <time class="dt-published" datetime="2026-10-10T10:20:00.000Z" itemprop="datePublished">2026-10-10</time>
 </a>
-<div class="article-category">
-<a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
-</div>
-</div>
-<div class="article-inner">
-<header class="article-header">
-<h1 itemprop="name">
-<a class="p-name article-title" href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
-</h1>
-</header>
-<div class="e-content article-entry" itemprop="articleBody">
-<p>Linux 已经有 zram，为什么还需要 CRAM？从一个匿名页的首次读写入手，对照设计、trace 与六轮模拟实验，看看两者把成本放在哪里。</p>
-<p class="article-more-link">
-<a href="/2026/10/09/cram-zram-simulation/#more">阅读全文</a>
-</p>
-</div>
-<footer class="article-footer">
-<a class="article-share-link" data-id="cmv0l7wjf00amw3mi0i935jof" data-title="CRAM 为什么读不触发 fault：一次与 zram 的模拟对照" data-url="https://hanayo.cn/2026/10/09/cram-zram-simulation/">分享</a>
-<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
-</footer>
-</div>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>一个 CRAM 迁入毛刺，先追到 LRU 同步，再追到后台清理的 510 次 MMIO 往返。把发送移到另一个 CPU 后，P99 为什么反而升高？继续沿着物理页的归还与再分配，看看 CPU 分工怎样改变下一批迁入。</p>
+        
+          <p class="article-more-link">
+            <a href="/2026/10/10/cram-lru-pcp-tail/#more">阅读全文</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/" data-id="cmv297qmy00ag4rmi3lhtb5mw" data-title="CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li></ul>
+
+    </footer>
+  </div>
+  
 </article>
-<article class="h-entry article article-type-post" id="post-model-quantization-principles" itemprop="blogPost" itemscope="" itemtype="https://schema.org/BlogPosting">
-<div class="article-meta">
-<a class="article-date" href="/2026/09/24/model-quantization-principles/">
-<time class="dt-published" datetime="2026-09-24T07:00:00.000Z" itemprop="datePublished">2026-09-24</time>
+
+
+
+
+  
+    
+<article id="post-cram-zram-simulation" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/09/cram-zram-simulation/" class="article-date">
+  <time class="dt-published" datetime="2026-10-09T06:30:00.000Z" itemprop="datePublished">2026-10-09</time>
 </a>
-<div class="article-category">
-<a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
-</div>
-</div>
-<div class="article-inner">
-<header class="article-header">
-<h1 itemprop="name">
-<a class="p-name article-title" href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
-</h1>
-</header>
-<div class="e-content article-entry" itemprop="articleBody">
-<p>用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。</p>
-<p class="article-more-link">
-<a href="/2026/09/24/model-quantization-principles/">阅读全文</a>
-</p>
-</div>
-<footer class="article-footer">
-<a class="article-share-link" data-id="cmuf9oab000a4kojtamla0kc9" data-title="模型量化原理：从单个权重到逐层推理" data-url="https://hanayo.cn/2026/09/24/model-quantization-principles/">分享</a>
-<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li></ul>
-</footer>
-</div>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/arch-notes/">arch-notes</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Linux 已经有 zram，为什么还需要 CRAM？从一个匿名页的首次读写入手，对照设计、trace 与六轮模拟实验，看看两者把成本放在哪里。</p>
+        
+          <p class="article-more-link">
+            <a href="/2026/10/09/cram-zram-simulation/#more">阅读全文</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/09/cram-zram-simulation/" data-id="cmv297qmz00as4rmi02hve3kp" data-title="CRAM 为什么读不触发 fault：一次与 zram 的模拟对照" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+
+    </footer>
+  </div>
+  
 </article>
 
-<article id="post-juicefs-nfs-format-nfs3-nfs4" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta"><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" class="article-date"><time class="dt-published" datetime="2026-09-23T08:00:00.000Z" itemprop="datePublished">2026-09-23</time></a><div class="article-category"><a class="article-category-link" href="/categories/arch-notes/">arch-notes</a></div></div>
-  <div class="article-inner"><header class="article-header"><h1 itemprop="name"><a class="p-name article-title" href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a></h1></header><div class="e-content article-entry" itemprop="articleBody"><p>一次 JuiceFS NFS object storage 的空指针排查：先拆开错误处理缺陷，再确认 NFSv3 MOUNT、RPC 错误和 NFSv4 协议边界。</p><p class="article-more-link"><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">Read More</a></p></div><footer class="article-footer"><a data-url="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" data-id="juicefs-nfs-format-nfs3-nfs4" data-title="JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4" class="article-share-link">Share</a><a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" itemprop="commentCount"></span> 条评论</a><ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li></ul></footer></div>
+
+
+
+  
+    
+<article id="post-model-quantization-principles" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/24/model-quantization-principles/" class="article-date">
+  <time class="dt-published" datetime="2026-09-24T07:00:00.000Z" itemprop="datePublished">2026-09-24</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ai-inference/">ai-inference</a>►<a class="article-category-link" href="/categories/ai-inference/quantization/">quantization</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。</p>
+        
+          <p class="article-more-link">
+            <a href="/2026/09/24/model-quantization-principles/#more">阅读全文</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/09/24/model-quantization-principles/" data-id="cmv297qmy00a94rmi3s5zghr5" data-title="模型量化原理：从单个权重到逐层推理" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li></ul>
+
+    </footer>
+  </div>
+  
 </article>
 
-<article id="post-deepseek-v32-bw1100-profiler-analysis" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+
+
+
+  
+    
+<article id="post-2026-09-23-juicefs-nfs-format-nfs3-nfs4" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" class="article-date">
+  <time class="dt-published" datetime="2026-09-23T08:00:00.000Z" itemprop="datePublished">2026-09-23</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/systems/">systems</a>►<a class="article-category-link" href="/categories/systems/storage/">storage</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<p>在一个 NFS 导出上执行 <code>juicefs format --storage nfs</code>，本来应该得到一个挂载错误，进程却先 panic 了：</p>
+<pre><code>panic: runtime error: invalid memory address or nil pointer dereference
+github.com/juicedata/juicefs/pkg/object.newNFSStore
+    pkg/object/nfs.go:469</code></pre>
+<p>同一台机器直接挂载这个导出时，内核协商成了 <code>nfs4</code>；显式指定 <code>vers=3</code> 则报 <code>Protocol not supported</code>。这看起来像一个问题，实际是两层：JuiceFS 有一个错误处理顺序的 bug；而它的 NFS object storage 客户端走的是 NFSv3 的 MOUNT 协议，不能因为内核能挂 NFSv4 就自动获得 v3 能力。</p>
+<h2 id="phenomenon"><a class="headerlink" href="#phenomenon"></a>Phenomenon</h2>
+<p>JuiceFS 1.3.0 的 <code>newNFSStore</code> 路径大致是：</p>
+<pre><code class="language-go">target, err := mount.Mount(path, auth.Auth())
+target.Config.DirCount = 1 &lt;&lt; 17
+target.Config.MaxCount = 1 &lt;&lt; 20
+if err != nil &#123; return nil, fmt.Errorf("unable to mount %s: %v", addr, err) &#125;</code></pre>
+<p><code>mount.Mount</code> 在 NFSv3 的 <code>MNT</code> 调用失败时会返回空的 <code>target</code>。两次读取 <code>target.Config</code> 已经解引用空指针，根本到不了 <code>if err != nil</code>。Go 不强制“必须先检查 <code>err</code>，才能读取同一调用返回的其他值”；这是一条需要主动遵守的资源有效性边界。</p>
+<p>上游的 <a target="_blank" rel="noopener" href="https://github.com/juicedata/juicefs/pull/7573">PR #7573</a> 已合入主干，修复就是把错误检查移到解引用之前：</p>
+<pre><code class="language-go">target, err := mount.Mount(path, auth.Auth())
+if err != nil &#123; return nil, fmt.Errorf("unable to mount %s: %v", addr, err) &#125;
+target.Config.DirCount = 1 &lt;&lt; 17
+target.Config.MaxCount = 1 &lt;&lt; 20</code></pre>
+<p>补丁改变的是失败时的表现：从 panic 变成带有底层 MOUNT 错误的正常退出。它不会让一个不支持 NFSv3、或不允许当前客户端访问的导出忽然变得可用。</p>
+<h2 id="layers"><a class="headerlink" href="#layers"></a>两种失败，不在同一层</h2>
+<table><thead><tr><th>现象</th><th>失败位置</th><th>含义</th></tr></thead><tbody><tr><td><code>MNT3ERR_ACCES</code></td><td>MOUNT v3 过程已经被服务端执行</td><td>服务端支持 v3，但导出规则拒绝该客户端</td></tr><tr><td><code>rpc: PROG_MISMATCH</code></td><td>ONC RPC 的程序/版本分发</td><td>客户端请求 MOUNT program 100005、版本 3；服务端没有这个版本</td></tr><tr><td><code>mount.nfs: Protocol not supported</code></td><td>Linux 内核 NFS 客户端</td><td>内核强制使用 v3 时协商失败；这不是 JuiceFS 的原始错误文案</td></tr></tbody></table>
+<p><code>PROG_MISMATCH</code> 先于 <code>MNT3ERR_ACCES</code>。前者说明 RPC 请求连 MOUNT v3 过程都没有进入；后者则说明版本已经匹配，服务端开始按 export 规则授权。因此，不能从 panic 本身推断是 export 权限、路径拼写、服务端未开启 v3，还是网络故障；先升级到包含该修复的版本，把真实错误露出来。</p>
+<h2 id="nfs3"><a class="headerlink" href="#nfs3"></a>NFSv3：挂载不是 NFS 读写本身</h2>
+<p>NFSv3 由多个 ONC RPC 程序配合。挂载时，客户端先通过 <code>rpcbind</code> 找服务端口，再调用 MOUNT v3 的 <code>MNT(路径)</code> 获取文件句柄，随后才对 NFS v3 程序做 <code>LOOKUP</code>、<code>READ</code>、<code>WRITE</code>。文件锁由独立的 NLM 协议处理。</p>
+<pre><code>client
+  ├─ rpcbind (100000, 通常是 111)：找到服务端口
+  ├─ mountd  (100005 v3)：MNT("/export/path") → file handle
+  ├─ nfsd    (100003 v3, 通常是 2049)：LOOKUP / READ / WRITE
+  └─ NLM     (100021)：LOCK</code></pre>
+<p>NFSv3 规范明确把 MOUNT 作为辅助协议：它负责把远端目录树附着到本地文件系统，并按 export control 向受限客户端授予访问；NLM 则把有状态的文件锁单列为一个协议。<a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc1813.html">RFC 1813</a> 的介绍与附录 I、II 定义了这条边界。</p>
+<p>JuiceFS 这里没有调用系统的 <code>mount.nfs</code>，而是直接通过 Go NFS 库拨 MOUNT 服务并调用 v3 <code>MNT</code>。所以系统命令不带 <code>vers</code> 时成功协商为 NFSv4，只能证明“内核客户端可以使用 v4”；不能证明 JuiceFS 要求的 MOUNT v3 存在。</p>
+<h2 id="nfs4"><a class="headerlink" href="#nfs4"></a>NFSv4：把多条控制路径收进 2049</h2>
+<p>NFSv4 不再依赖单独的 MOUNT 协议来取得导出目录的文件句柄。客户端连接 NFS program 100003 的 v4 服务（默认 TCP 2049），通过 <code>COMPOUND</code> 请求在服务器提供的伪文件系统内走路径：</p>
+<pre><code>COMPOUND &#123; PUTROOTFH; LOOKUP "export"; LOOKUP "path"; GETFH; OPEN / READ / LOCK &#125;</code></pre>
+<p><code>LOOKUP</code>、读写和锁没有消失，而是变成一个 <code>COMPOUND</code> 中的操作。NFSv4.1 规范规定 RPC 过程为 <code>NULL</code> 和 <code>COMPOUND</code>，并说明客户端不应再依赖 RPC binding protocol 发现 NFS 服务端口。<a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc8881.html#section-2.9.3">RFC 8881 §2.9.3</a></p>
+<table><thead><tr><th></th><th>NFSv3</th><th>NFSv4</th></tr></thead><tbody><tr><td>获取导出根</td><td>MOUNT <code>MNT(路径)</code> 返回 file handle</td><td><code>PUTROOTFH</code> + <code>LOOKUP</code></td></tr><tr><td>服务发现</td><td><code>rpcbind</code>、MOUNT 等多个程序</td><td>NFS v4 固定服务路径，默认 2049</td></tr><tr><td>锁</td><td>独立 NLM</td><td><code>COMPOUND</code> 内的 <code>LOCK</code></td></tr></tbody></table>
+<p>这不只是“端口更少”。NFSv4 的设计动机是降低防火墙配置复杂度、减少广域网往返，并把锁与恢复纳入同一协议状态模型；<a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc2624.html">RFC 2624</a> 分别讨论了这三点。</p>
+<h2 id="resolution"><a class="headerlink" href="#resolution"></a>Resolution</h2>
+<ol><li>升级到包含 <a target="_blank" rel="noopener" href="https://github.com/juicedata/juicefs/pull/7573">PR #7573</a> 的 JuiceFS 版本，或回合等价的空指针修复。验收条件是：NFSv3 MOUNT 失败时以非零退出返回 <code>unable to mount ...</code>，而不是 panic。</li><li>在运行 <code>format</code> 的客户端检查 v3：<code>showmount -e &lt;nfs-server&gt;</code>、<code>rpcinfo -p &lt;nfs-server&gt;</code>、<code>mount -t nfs -o vers=3,tcp &lt;nfs-server&gt;:/&lt;export-path&gt; /mnt/nfs-v3-test</code>。</li><li>在服务端确认 <code>cat /proc/fs/nfsd/versions</code> 输出包含 <code>+3</code>，并用 <code>exportfs -v</code> 确认导出规则。</li><li>如果服务端只提供 NFSv4，当前这条 JuiceFS NFS storage 路径并不兼容；需要提供 NFSv3 export，或选择与服务端协议能力匹配的对象存储/网关方案。</li></ol>
+<h2 id="debugging-notes"><a class="headerlink" href="#debugging-notes"></a>Debugging notes</h2>
+<ul><li>panic 是程序的错误处理 bug，不是协议错误码。</li><li><code>PROG_MISMATCH</code> 是 RPC 的程序版本不匹配；<code>MNT3ERR_ACCES</code> 才是 MOUNT 过程内的访问拒绝。</li><li><code>mount.nfs</code> 的报错是 Linux 内核客户端翻译后的文案，不能逐字套到 JuiceFS 的 Go 客户端上。</li><li>升级修复 panic 是为了恢复可诊断性；协议和授权问题仍要通过 v3 MOUNT 的真实结果分别确认。</li></ul>
+<p>把这几层拆开之后，排查路径就很短：先让程序不崩，再看 MOUNT v3 是否存在，最后看 export 是否允许当前客户端。</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/" data-id="cmv297qmy00a54rmia6pj2sa4" data-title="JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+
+  
+    
+<article id="post-2026-09-20-deepseek-v32-bw1100-profiler-analysis" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" class="article-date">
   <time class="dt-published" datetime="2026-09-20T08:00:00.000Z" itemprop="datePublished">2026-09-20</time>
 </a>
-  <div class="article-category"><a class="article-category-link" href="/categories/arch-notes/">arch-notes</a></div>
-  </div>
-  <div class="article-inner">
-    <header class="article-header"><h1 itemprop="name"><a class="p-name article-title" href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a></h1></header>
-    <div class="e-content article-entry" itemprop="articleBody"><p>最近在 8 张 BW1100 上跑 DeepSeek-V3.2 W8A8，顺手做了一次 Profiler 分析练习。</p>
-<p>这篇文章记录低并发 Decode、16K Prefill 和高并发 Decode 下的 kernel 时间分布，以及从这些数据里能看到什么、暂时还不能说明什么。</p>
-<p class="article-more-link"><a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">Read More</a></p></div>
-    <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" data-id="deepseek-v32-bw1100-profiler-analysis" data-title="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2" class="article-share-link">Share</a>
-      <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" itemprop="commentCount"></span> 条评论</a>
-      <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li></ul>
-    </footer>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ai-inference/">ai-inference</a>►<a class="article-category-link" href="/categories/ai-inference/performance/">performance</a>
   </div>
 
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<p>最近在 8 张 BW1100 上跑 DeepSeek-V3.2 W8A8，顺手做了一次 Profiler 分析练习。这篇文章主要记录分析过程：先看不同负载下的 kernel 时间分布，再根据热点整理后面值得继续确认的问题。</p>
+<p>它不是一份完整的性能报告，也不讨论跨平台排名。里面的数字只用于理解这套环境中的瓶颈变化。</p>
+<p>测试环境是 8 张 BW1100，TP=8，推理框架为 vLLM 0.18.1 + vllm-hcu 0.18.1。模型使用 W8A8 权重、BF16 激活、FP8 KV cache。基线已经启用了 chunked prefill、prefix cache、FlashMLA、global MoE cache、通信计算重叠和 NUMA 绑定。</p>
+<p>换句话说，这不是从一个完全没有优化过的配置开始捡低垂果实。</p>
+<h2 id="phenomenon"><a class="headerlink" href="#phenomenon" title="Phenomenon"></a>Phenomenon</h2>
+<p>基线的 1K 输入、1K 输出测试中：</p>
+<table>
+<thead>
+<tr>
+<th align="right">并发</th>
+<th align="right">输出吞吐</th>
+<th align="right">TTFT Avg</th>
+<th align="right">TPOT Avg</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">C1</td>
+<td align="right">35.04 Token/s</td>
+<td align="right">315.9 ms</td>
+<td align="right">28.25 ms</td>
+</tr>
+<tr>
+<td align="right">C8</td>
+<td align="right">168.55 Token/s</td>
+<td align="right">181.2 ms</td>
+<td align="right">40.39 ms</td>
+</tr>
+<tr>
+<td align="right">C32</td>
+<td align="right">457.97 Token/s</td>
+<td align="right">3083.5 ms</td>
+<td align="right">66.89 ms</td>
+</tr>
+</tbody></table>
+<p>从结果看，随着并发增加，总吞吐继续上升，但排队和单 token 延迟也在增加。这种场景下，直接问“哪个参数最快”没有意义。至少要先区分三个目标：</p>
+<ol>
+<li>单路或低并发 Decode 延迟。</li>
+<li>C8/C32 下的均衡吞吐。</li>
+<li>长上下文 Prefill 和严格 TTFT。</li>
+</ol>
+<p>它们很可能需要不同配置。</p>
+<h2 id="start-from-the-profiler"><a class="headerlink" href="#start-from-the-profiler" title="Start from the Profiler"></a>Start from the Profiler</h2>
+<p>这轮分析取 Rank0 设备 kernel 的累计时间，把算子粗分为通信、MoE、MLA/Attention、量化、GEMM 和 Norm/Activation。</p>
+<p><img alt="不同负载下的 Rank0 kernel 累计时间分布" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/time-distribution.png"/></p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th align="right">通信</th>
+<th align="right">MoE</th>
+<th align="right">MLA/Attention</th>
+<th align="right">量化</th>
+<th align="right">GEMM</th>
+<th align="right">Norm/Activation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Decode C1，128→16</td>
+<td align="right">11.8%</td>
+<td align="right">13.3%</td>
+<td align="right">12.4%</td>
+<td align="right">15.6%</td>
+<td align="right">30.5%</td>
+<td align="right">15.2%</td>
+</tr>
+<tr>
+<td>Prefill C1，16K→1</td>
+<td align="right">11.0%</td>
+<td align="right">20.8%</td>
+<td align="right">47.6%</td>
+<td align="right">5.6%</td>
+<td align="right">10.5%</td>
+<td align="right">3.3%</td>
+</tr>
+<tr>
+<td>Decode C32，1K→16</td>
+<td align="right">9.0%</td>
+<td align="right">28.2%</td>
+<td align="right">21.5%</td>
+<td align="right">10.6%</td>
+<td align="right">19.2%</td>
+<td align="right">10.8%</td>
+</tr>
+</tbody></table>
+<p>这里最重要的不是某个百分比，而是三个场景的形状完全不同。</p>
+<p>16K Prefill 明显由 Attention 主导。<code>sparse_attn_fwd_kernel</code> 占 29.5%，<code>mqa_logits_fp8</code> 占 17.3%。如果目标是长上下文 TTFT，应该优先看 Attention、长 Prefill 切分和调度，而不是盯着普通 GEMM。</p>
+<p><img alt="16K Prefill 算子执行热力图" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/prefill-operator-heatmap.png"/></p>
+<p>C32 Decode 中，MoE 占比上升到 28.2%，MLA/Attention 为 21.5%，GEMM 下降到 19.2%。高并发时，MoE、Attention 和跨卡归约共同决定结果，也不存在一个可以单独解决问题的“大算子”。</p>
+<p>C1 Decode 看起来 GEMM 最高，但展开时间轴后，会看到一条由大量量化、GEMM、Norm、Attention、MoE 和通信 kernel 组成的密集链。</p>
+<p><img alt="Decode 算子执行时间轴" src="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/decode-operator-timeline.png"/></p>
+<p>这给出的一个方向是：Decode 不一定缺少某个更快的 GEMM，更可能需要减少 launch、同步和重复计算。不过 Profiler 只能帮助提出问题，不能直接证明某种改法一定有效。</p>
+<h2 id="几个需要说明的地方"><a class="headerlink" href="#几个需要说明的地方" title="几个需要说明的地方"></a>几个需要说明的地方</h2>
+<p>上面的数字还有几处不能看得太满：</p>
+<ul>
+<li>Profiler 占比来自 Rank0 设备 kernel 累计时间；stream 重叠可能造成重复计时，不能把各项占比理解成严格的 wall-clock 分解。</li>
+<li>结果绑定于这套模型、W8A8 量化、KV cache、框架/插件版本和 8×BW1100 配置。模型、精度、tokenizer、缓存状态和请求分布没有对齐时，这些数字不适合拿去做横向比较。</li>
+</ul>
+<h2 id="后续工作"><a class="headerlink" href="#后续工作" title="后续工作"></a>后续工作</h2>
+<p>这次先停在 Profiler 分析。后面如果继续做，会先把测试方法固定下来，再逐项验证：</p>
+<ol>
+<li>补充不同输入长度和并发下的 trace，确认热点变化不是单个样本造成的。</li>
+<li>把 Prefill 和 Decode 分开看，分别记录 wall-clock、设备时间、TTFT、TPOT 和吞吐，避免混在一起解释。</li>
+<li>针对 Decode 的小 kernel 链测试融合、调度和 speculative decoding，但一次只改一个变量。</li>
+<li>针对长 Prefill 继续拆 Attention、MoE 和通信时间，确认优化空间到底落在哪一层。</li>
+<li>补齐请求数、正确性、显存和 P50/P95/P99 后，再决定哪些结果值得单独写。</li>
+</ol>
+<p>现在这些更多还是拿数据和熟悉工具，先不急着下结论。</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/" data-id="cmv297qmy00a14rmigp53bbxm" data-title="在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li></ul>
+
+    </footer>
+  </div>
+  
 </article>
 
 
-    <article id="post-xfs-error-root-cause-uprobe-out-of-bounds" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+
+
+  
+    
+<article id="post-2026-09-02-xfs-error-root-cause-uprobe-out-of-bounds" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" class="article-date">
   <time class="dt-published" datetime="2026-09-02T08:00:00.000Z" itemprop="datePublished">2026-09-02</time>
 </a>
-  <div class="article-category"><a class="article-category-link" href="/categories/linux/">linux</a></div>
-  </div>
-  <div class="article-inner">
-    <header class="article-header"><h1 itemprop="name"><a class="p-name article-title" href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</a></h1></header>
-    <div class="e-content article-entry" itemprop="articleBody"><p>一周内，两台配置相近的 Linux 虚拟机先后出现业务无响应。控制台最后的关键日志来自 XFS：文件系统发现 inode 元数据损坏，随后主动执行 forced shutdown。</p>
-<p class="article-more-link"><a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">Read More</a></p></div>
-    <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" data-id="xfs-error-root-cause-uprobe-out-of-bounds" data-title="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查" class="article-share-link">Share</a>
-      <a href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/#comments" class="article-comment-link"><span class="post-comments-count valine-comment-count" data-xid="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" itemprop="commentCount"></span> 条评论</a>
-      <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/security/" rel="tag">security</a></li></ul>
-    </footer>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/systems/">systems</a>►<a class="article-category-link" href="/categories/systems/linux-kernel/">linux-kernel</a>
   </div>
 
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/">XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<h2 id="Phenomenon"><a class="headerlink" href="#Phenomenon" title="Phenomenon"></a>Phenomenon</h2>
+<p>一周内，两台配置相近的 Linux 虚拟机先后出现业务无响应。控制台最后的关键日志来自 XFS：文件系统发现 inode 元数据损坏，随后主动执行 forced shutdown。</p>
+<p><img alt="XFS console corruption log" src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/console-corruption.jpg"/></p>
+<p>从现象上看，这很像 XFS bug、虚拟磁盘写错位置，或者底层存储损坏。但这次真正写坏 XFS 元数据的并不是 XFS。</p>
+<p>最终定位到 Linux kernel 的 uprobe 参数抓取路径：第三方安全 Agent 注册的 uprobe 抓取了超过一页大小的参数，<code>store_trace_args()</code> 在边界检查前已经把数据写出 per-CPU buffer。溢出的内容落到相邻内存后，XFS write verifier 成了第一个发现损坏的组件。</p>
+<p>换句话说，XFS 是报警的人，不是制造问题的人。</p>
+<h2 id="Start-from-the-XFS-error"><a class="headerlink" href="#Start-from-the-XFS-error" title="Start from the XFS error"></a>Start from the XFS error</h2>
+<p>XFS 检测到元数据不符合预期时会主动关闭文件系统，防止错误继续扩大。因此，<code>xfs_do_force_shutdown</code> 说明 XFS 看到了损坏，但不能直接证明损坏由 XFS 产生。</p>
+<p>面对这种问题，最开始需要同时保留几条假设：</p>
+<ol><li>XFS 自身逻辑错误。</li><li>virtio-blk、宿主机或存储后端写错位置。</li><li>内存硬件或 DMA 写坏数据。</li><li>第三方内核模块破坏内存。</li><li>Linux 通用内核路径发生越界写或 use-after-free。</li></ol>
+<p>这里最容易犯的错误，是看到 XFS 日志就只沿着文件系统代码向下查。内存损坏问题里，打印错误的函数经常只是受害者。</p>
+<h2 id="Find-the-data-signature"><a class="headerlink" href="#Find-the-data-signature" title="Find the data signature"></a>Find the data signature</h2>
+<p>真正改变排查方向的是损坏数据的内容。</p>
+<p>在异常的 inode metadata buffer 中，可以看到类似路径和 JSON 结束符的数据片段。它们不像 XFS 元数据，也不像随机 bit flip，更像某个用户态程序正在处理的字符串。</p>
+<p>这个特征缩小了问题范围：</p>
+<ul><li>如果是硬件随机错误，数据通常不会形成可读的 JSON 结构。</li><li>如果是普通的 XFS 逻辑错误，也不应该把用户态字符串写进 inode metadata。</li><li>更合理的方向，是某条从用户态取字符串的内核路径越过了自己的 buffer 边界。</li></ul>
+<p>此时再向前检查控制台日志，可以找到 uprobe 相关 warning，并且触发进程来自第三方安全 Agent。warning、进程和损坏数据的内容开始形成同一条证据链。</p>
+<h2 id="The-uprobe-buffer"><a class="headerlink" href="#The-uprobe-buffer" title="The uprobe buffer"></a>The uprobe buffer</h2>
+<p>uprobe 可以在用户态程序的指定地址放置探针。探针触发时，内核会读取寄存器或用户态内存中的参数，再把结果写入 tracing buffer。</p>
+<p>相关路径使用一页大小的 per-CPU 临时 buffer。问题发生时，代码大致遵循下面的顺序：</p>
+<ol><li>根据 trace event 和动态参数计算 <code>dsize</code>。</li><li>调用 <code>store_trace_args()</code> 把参数写入 <code>ucb-&gt;buf</code>。</li><li>返回上层后才检查总长度是否超过 <code>PAGE_SIZE</code>。</li></ol>
+<p>这类检查虽然存在，但没有保护作用：当检查执行时，越界写已经发生。</p>
+<p>上游修复把检查移动到了 <code>store_trace_args()</code> 之前，并在长度超过一页时截断 <code>dsize</code>：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">#define MAX_UCB_BUFFER_SIZE PAGE_SIZE</span><br/><span class="line"></span><br/><span class="line">ucb-&gt;dsize = tu-&gt;tp.size + dsize;</span><br/><span class="line">if (WARN_ON_ONCE(ucb-&gt;dsize &gt; MAX_UCB_BUFFER_SIZE)) {</span><br/><span class="line">    ucb-&gt;dsize = MAX_UCB_BUFFER_SIZE;</span><br/><span class="line">    dsize = MAX_UCB_BUFFER_SIZE - tu-&gt;tp.size;</span><br/><span class="line">}</span><br/><span class="line"></span><br/><span class="line">store_trace_args(ucb-&gt;buf, &amp;tu-&gt;tp, regs, NULL, esize, dsize);</span></pre></td></tr></table></figure>
+<p>对应的上游提交是 <a href="https://git.kernel.org/stable/c/373b9338c9722a368925d83bc622c596896b328e" rel="noopener" target="_blank"><code>373b9338c972</code> - uprobe: avoid out-of-bounds memory access of fetching args</a>，该问题也被登记为 <a href="https://nvd.nist.gov/vuln/detail/CVE-2024-50067" rel="noopener" target="_blank">CVE-2024-50067</a>。</p>
+<p><img alt="uprobe out-of-bounds write mechanism" src="/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/uprobe-root-cause.png"/></p>
+<h2 id="Why-XFS-was-damaged"><a class="headerlink" href="#Why-XFS-was-damaged" title="Why XFS was damaged"></a>Why XFS was damaged</h2>
+<p>这次抓取的参数比一页 buffer 多出少量字节。这些字节不会停在 <code>ucb-&gt;buf</code> 的结尾，而是继续写入相邻内存。</p>
+<p>被覆盖的内存后来作为 XFS inode metadata buffer 使用。XFS 在 write verifier 中检查 magic、字段和结构一致性时发现内容已经损坏，于是执行 forced shutdown。</p>
+<p>目前的证据能够确认：</p>
+<ul><li>uprobe 参数长度超过一页。</li><li>旧代码先写入、后检查，存在确定的越界窗口。</li><li>损坏区中出现了与触发进程参数一致的用户态字符串特征。</li><li>上游存在与代码路径和现象匹配的修复。</li></ul>
+<p>还有一个可以继续补强的物证：从 vmcore 中取出触发 CPU 的 <code>uprobe_cpu_buffer</code> 物理页，再与受损 XFS buffer 的物理页比较，确认两者在故障现场是否直接相邻。它不改变修复方向，但能把最后一段内存落点推断变成可审计的现场证据。</p>
+<h2 id="Resolution"><a class="headerlink" href="#Resolution" title="Resolution"></a>Resolution</h2>
+<p>短期处理：</p>
+<ol><li>升级或停用会触发该路径的第三方 Agent 探针。</li><li>在受影响内核上回合上游补丁。</li><li>避免继续运行相同版本、相同探针配置的机器。</li></ol>
+<p>长期处理：</p>
+<ol><li>为生产虚拟机配置可用的 kdump，并验证 vmcore 确实可以写出。</li><li>保留串口或控制台日志，不能只依赖重启后仍存在的本地日志。</li><li>记录第三方安全、监控 Agent 的版本和变更时间。</li><li>将上游 commit、CVE 和内部内核版本建立对应关系。</li></ol>
+<h2 id="Debugging-notes"><a class="headerlink" href="#Debugging-notes" title="Debugging notes"></a>Debugging notes</h2>
+<p>这次问题留下几个比较有用的排查原则。</p>
+<h3 id="Error-reporter-is-not-always-the-root-cause"><a class="headerlink" href="#Error-reporter-is-not-always-the-root-cause" title="Error reporter is not always the root cause"></a>Error reporter is not always the root cause</h3>
+<p>文件系统、allocator 和 verifier 经常是最先发现内存损坏的组件。看到错误后，需要回答“谁发现了损坏”和“谁制造了损坏”两个不同的问题。</p>
+<h3 id="Read-before-the-fatal-line"><a class="headerlink" href="#Read-before-the-fatal-line" title="Read before the fatal line"></a>Read before the fatal line</h3>
+<p>fatal error 往往出现在证据链的末端。向前读取 50 到 200 行，重点寻找 warning、异常进程名、寄存器中的长度值以及第三方模块或 tracing 事件。</p>
+<h3 id="Read-corrupted-bytes-as-data"><a class="headerlink" href="#Read-corrupted-bytes-as-data" title="Read corrupted bytes as data"></a>Read corrupted bytes as data</h3>
+<p>不要只把损坏区域当作十六进制。尝试转成 ASCII、路径、JSON 或已知结构体。用户态字符串出现在内核元数据中，本身就是很强的方向性证据。</p>
+<h3 id="A-bounds-check-after-memcpy-is-not-a-bounds-check"><a class="headerlink" href="#A-bounds-check-after-memcpy-is-not-a-bounds-check" title="A bounds check after memcpy is not a bounds check"></a>A bounds check after memcpy is not a bounds check</h3>
+<p>检查存在不等于检查有效。代码审计时必须确认长度验证是在写入之前还是之后，以及动态字符串、数组的累计长度是否可能超过固定 buffer。</p>
+<h3 id="Keep-the-last-unverified-link-visible"><a class="headerlink" href="#Keep-the-last-unverified-link-visible" title="Keep the last unverified link visible"></a>Keep the last unverified link visible</h3>
+<p>当日志、数据签名、源码和上游补丁已经相互吻合时，也不要把暂未直接验证的物理页相邻关系写成既成事实。把缺口和验证方法留下来，事故结论才方便复查。</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/" data-id="cmv297qmy00al4rmi933wh9qe" data-title="XFS 报错但根因不在 XFS：一次 uprobe 越界写排查" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/security/" rel="tag">security</a></li></ul>
+
+    </footer>
+  </div>
+  
 </article>
 
 
-    <article id="post-linux-guest-could-not-access-tsc-clocksource" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+
+
+  
+    
+<article id="post-2024-02-04-linux-guest-could-not-access-tsc-clocksource" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" class="article-date">
   <time class="dt-published" datetime="2024-02-04T05:18:56.000Z" itemprop="datePublished">2024-02-04</time>
 </a>
-
+    
   <div class="article-category">
     <a class="article-category-link" href="/categories/virtualization/">virtualization</a>
   </div>
 
   </div>
   <div class="article-inner">
-
-
+    
+    
       <header class="article-header">
-
-
+        
+  
     <h1 itemprop="name">
       <a class="p-name article-title" href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
     </h1>
-
+  
 
       </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<h2 id="Phenomenon"><a class="headerlink" href="#Phenomenon" title="Phenomenon"></a>Phenomenon</h2><p>check TSC disabled from guest</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">[    0.000004] tsc: Detected 1999.999 MHz processor</span><br/><span class="line">[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized</span><br/></pre></td></tr></table></figure>
+<hr/>
+<h2 id="Steps"><a class="headerlink" href="#Steps" title="Steps"></a>Steps</h2><ol>
+<li><code>lscpu | grep tsc</code> in guest, confirm cpu support tsc</li>
+<li>check vm not runs over IBM’s Summit2 by <code>dmidecode</code></li>
+<li><code>lscpu | grep constant_tsc</code> in both guest and host to confirm this is not in guest</li>
+<li>change kernel cmdline, add <code>tsc=reliable</code> if need ( based on <code>cat /proc/cmdline</code>)</li>
+<li>check cpu Vendor by <code>lscpu</code> if using Intel cpu</li>
+<li>remove <code>acpi</code> from libvirt. xml，but this will let all hot-plug operation fails</li>
+</ol>
+<p>change to using other amd cpu，tsc clocksource still could not be found</p>
+<p>Cpu that do not has vendor intel runs linux kernel will met this issue.</p>
+<h2 id="Resolution"><a class="headerlink" href="#Resolution" title="Resolution"></a>Resolution</h2><p>method 1:</p>
+<p>change guest os linux cmdline add <code>tsc=reliable</code></p>
+<p>method 2:</p>
+<p>remove <code>acpi</code> from libvirt. xml by <code>virsh edit</code></p>
+<h2 id="More-information"><a class="headerlink" href="#More-information" title="More information"></a>More information</h2><p>x86 guest disable constant_tsc in code，see the disscusion: <a href="https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/" rel="noopener" target="_blank">https://lore.kernel.org/qemu-devel/20210426185155.G[A32439@fuller.cnet](mailto:A32439@fuller.cnet)/t/</a></p>
+<p>but linux guest kernel let intel cpu use tsc and as the result intel vs amd cpu has below differences.</p>
+<h2 id="go-through-kernel-code"><a class="headerlink" href="#go-through-kernel-code" title="go through kernel code"></a>go through kernel code</h2><h3 id="Code-snippet-0"><a class="headerlink" href="#Code-snippet-0" title="Code snippet 0"></a><strong>Code snippet 0</strong></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br/><span class="line"><span class="comment"> * TSC can be unstable due to cpufreq or due to unsynced TSCs</span></span><br/><span class="line"><span class="comment"> */</span></span><br/><span class="line"></span><br/><span class="line"><span class="keyword">static</span> <span class="keyword">int</span> __read_mostly tsc_unstable;`</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>The code defines a static integer variable <code>tsc_unstable</code>. The <code>static</code> keyword means that this variable is only visible within the file it’s defined in, limiting its scope to <code>tsc.c</code>. This is a common practice when you want to keep the variable private to a particular file and prevent it from being accessed directly from other files.</p>
+<p>The <code>__read_mostly</code> attribute is a compiler directive specific to the Linux kernel, which suggests that this variable is expected to be read from often, but seldom written to. This can help the compiler optimize the generated code for this access pattern.</p>
+<p>The variable <code>tsc_unstable</code> is used to indicate whether the TSC is unstable. The comment above the variable declaration explains that the TSC can be unstable due to CPU frequency scaling (cpufreq) or due to unsynchronized TSCs across different cores or processors.</p>
+<p>In terms of improvements, the code is quite clear and concise. However, it might be helpful to expand the comment to explain what the implications of an unstable TSC are, and how the <code>tsc_unstable</code> variable is used in the system’s logic.</p>
+<h3 id="Code-snippet-1"><a class="headerlink" href="#Code-snippet-1" title="Code snippet 1"></a><strong>Code snippet 1</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/></pre></td><td class="code"><pre><span class="line">static int __init tsc_setup(char *str)</span><br/><span class="line">{</span><br/><span class="line">    if (!strcmp(str, "reliable"))</span><br/><span class="line">        tsc_clocksource_reliable = 1;</span><br/><span class="line">    if (!strncmp(str, "noirqtime", 9))</span><br/><span class="line">        no_sched_irq_time = 1;</span><br/><span class="line">    if (!strcmp(str, "unstable"))</span><br/><span class="line">        mark_tsc_unstable("boot parameter");</span><br/><span class="line">    if (!strcmp(str, "nowatchdog"))</span><br/><span class="line">        no_tsc_watchdog = 1;</span><br/><span class="line">    return 1;</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>The <code>__init</code> keyword before the function name is a macro used in the Linux kernel to indicate that this function is used only at initialization time. The memory for this function is freed after the initialization is complete to conserve the kernel’s memory footprint.</p>
+<p>Inside the function, there are several <code>if</code> statements that compare the input string <code>str</code> to different string literals using the <code>strcmp</code> and <code>strncmp</code> functions. <code>strcmp</code> compares two strings and returns 0 if they are identical, while <code>strncmp</code> compares up to a specified number of characters from two strings.</p>
+<p>If <code>str</code> is “reliable”, it sets the <code>tsc_clocksource_reliable</code> variable to 1. If <code>str</code> starts with “noirqtime”, it sets the <code>no_sched_irq_time</code> variable to 1. If <code>str</code> is “unstable”, it calls the <code>mark_tsc_unstable</code> function with “boot parameter” as an argument. If <code>str</code> is “nowatchdog”, it sets the <code>no_tsc_watchdog</code> variable to 1.</p>
+<p>Each of these variables or functions presumably controls a different aspect of the TSC’s behavior. For example, <code>tsc_clocksource_reliable</code> might indicate whether the TSC is a reliable source of time, and <code>no_sched_irq_time</code> might control whether the scheduler uses the TSC for interrupt timing.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of each variable and what each string argument represents would improve readability. It would also be beneficial to add error handling to account for the case where <code>str</code> does not match any of the expected values.</p>
+<p>And we could use <code>tsc=reliable</code> to kernel cmdline to changes to tsc clock source.</p>
+<h3 id="Code-snippet-2"><a class="headerlink" href="#Code-snippet-2" title="Code snippet 2"></a><strong>Code snippet 2</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/></pre></td><td class="code"><pre><span class="line">static void tsc_cs_mark_unstable(struct clocksource *cs)</span><br/><span class="line">{</span><br/><span class="line">    if (tsc_unstable)</span><br/><span class="line">        return;</span><br/><span class="line"> </span><br/><span class="line">    tsc_unstable = 1;</span><br/><span class="line">    if (using_native_sched_clock())</span><br/><span class="line">        clear_sched_clock_stable();</span><br/><span class="line">    disable_sched_clock_irqtime();</span><br/><span class="line">    pr_info("Marking TSC unstable due to clocksource watchdog\n");</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>The function first checks if the <code>tsc_unstable</code> variable is already set to 1. If it is, the function immediately returns, as the TSC has already been marked as unstable. This is a common pattern in C programming known as a “guard clause”, which is used to exit a function early when certain conditions are met.</p>
+<p>If <code>tsc_unstable</code> is not set to 1, the function proceeds to mark the TSC as unstable. It does this by setting <code>tsc_unstable</code> to 1, and then calling two functions: <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code>. These functions presumably perform some cleanup or configuration changes related to the TSC becoming unstable.</p>
+<p>Finally, the function logs a message using the <code>pr_info</code> macro, which is a kernel print function that outputs a message to the system log. The message indicates that the TSC has been marked as unstable due to the clocksource watchdog.</p>
+<p>In terms of improvements, the function is quite clear and concise. However, adding comments to explain the purpose of the <code>clear_sched_clock_stable</code> and <code>disable_sched_clock_irqtime</code> functions would improve readability. It would also be beneficial to add error handling to account for any potential issues that could occur when these functions are called.</p>
+<h3 id="Code-snippet-3"><a class="headerlink" href="#Code-snippet-3" title="Code snippet 3"></a><strong>Code snippet 3</strong></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/><span class="line">28</span><br/><span class="line">29</span><br/><span class="line">30</span><br/><span class="line">31</span><br/><span class="line">32</span><br/></pre></td><td class="code"><pre><span class="line">/*</span><br/><span class="line"> * Make an educated guess if the TSC is trustworthy and synchronized</span><br/><span class="line"> * over all CPUs.</span><br/><span class="line"> */</span><br/><span class="line">int unsynchronized_tsc(void)</span><br/><span class="line">{</span><br/><span class="line">    if (!boot_cpu_has(X86_FEATURE_TSC) || tsc_unstable)</span><br/><span class="line">        return 1;</span><br/><span class="line"> </span><br/><span class="line">#ifdef CONFIG_SMP</span><br/><span class="line">    if (apic_is_clustered_box())</span><br/><span class="line">        return 1;</span><br/><span class="line">#endif</span><br/><span class="line"> </span><br/><span class="line">    if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))</span><br/><span class="line">        return 0;</span><br/><span class="line"> </span><br/><span class="line">    if (tsc_clocksource_reliable)</span><br/><span class="line">        return 0;</span><br/><span class="line">    /*</span><br/><span class="line">     * Intel systems are normally all synchronized.</span><br/><span class="line">     * Exceptions must mark TSC as unstable:</span><br/><span class="line">     */</span><br/><span class="line">    if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {</span><br/><span class="line">        /* assume multi socket systems are not synchronized: */</span><br/><span class="line">        if (num_possible_cpus() &gt; 1)</span><br/><span class="line">            return 1;</span><br/><span class="line">    }</span><br/><span class="line"> </span><br/><span class="line">    return 0;</span><br/><span class="line">}</span><br/><span class="line"></span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>The function begins by checking if the boot CPU has the TSC feature and if the TSC is unstable. If either of these conditions is true, the function immediately returns 1, indicating that the TSC is unsynchronized.</p>
+<p>Next, if the system is configured for symmetric multiprocessing (SMP), the function checks if the Advanced Programmable Interrupt Controller (APIC) is clustered. If it is, the function returns 1, again indicating that the TSC is unsynchronized.</p>
+<p>The function then checks if the boot CPU has the constant TSC feature or if the TSC clocksource is reliable. If either of these conditions is true, the function returns 0, indicating that the TSC is synchronized.</p>
+<p>Finally, the function checks if the CPU vendor is not Intel. If it is not, and the system has more than one possible CPU, the function returns 1, indicating that the TSC is unsynchronized. If none of the previous conditions are met, the function returns 0, indicating that the TSC is synchronized.</p>
+<h2 id="More-practice"><a class="headerlink" href="#More-practice" title="More practice"></a>More practice</h2><h3 id="SystemTap"><a class="headerlink" href="#SystemTap" title="SystemTap"></a><strong>SystemTap</strong></h3><p>Because of above issue, I just spent more time to check the tsc value used by guest and from host cpu do have any different. With systemtap.</p>
+<h3 id="observe-rdtsc"><a class="headerlink" href="#observe-rdtsc" title="observe rdtsc"></a><strong>observe rdtsc</strong></h3><h3 id="result"><a class="headerlink" href="#result" title="result"></a><strong>result</strong></h3><p>value of tsc clock，average value and stantard deviation has different</p>
+<p>and the value from guest os is not stable when compared with host</p>
+<p>during live migration, tsc value will be smaller than usual (I think its because live migration has down time, so we need to change tsc to tolerant it)</p>
+<p>so just from the small test, its not a good idea to relay on tsc which is not as specific as it on the host</p>
+<h3 id="data-from-my-test"><a class="headerlink" href="#data-from-my-test" title="data from my test"></a><strong>data from my test</strong></h3><p>The first version, use the script test average value and stantard deviation</p>
+<p>in guest:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/></pre></td><td class="code"><pre><span class="line">TSC mean: 2000170717.800000, TSC std dev: 255861.233545</span><br/><span class="line">Time mean: 1000101683.030000, Time std dev: 162898.956256</span><br/><span class="line">TSC mean: 2000158595.200000, TSC std dev: 340159.343486</span><br/><span class="line">Time mean: 1000092746.020000, Time std dev: 170311.019513</span><br/><span class="line">TSC mean: 2000116749.600000, TSC std dev: 96417.905701</span><br/><span class="line">Time mean: 1000076448.860000, Time std dev: 102460.953979</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>in guest during live migration:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/></pre></td><td class="code"><pre><span class="line">TSC mean: 1990107194.600000, TSC std dev: 71113321.983521</span><br/><span class="line">Time mean: 1000129868.770000, Time std dev: 340417.298586</span><br/><span class="line">TSC mean: 1993829457.200000, TSC std dev: 47439246.502752</span><br/><span class="line">Time mean: 1001882162.230000, Time std dev: 16929541.16989</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>Samples from host:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/></pre></td><td class="code"><pre><span class="line">TSC mean: 2000087563.600000, TSC std dev: 16626.290598</span><br/><span class="line">Time mean: 1000065114.610000, Time std dev: 8341.142215</span><br/><span class="line">TSC mean: 2000084499.400000, TSC std dev: 4760.334824</span><br/><span class="line">Time mean: 1000063541.340000, Time std dev: 2447.439965</span><br/><span class="line">TSC mean: 2000083391.800000, TSC std dev: 11786.744451</span><br/><span class="line">Time mean: 1000062911.800000, Time std dev: 5922.538748</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>TSC average value will be less that normal during migration.</p>
+<p>change the script to check abnormal samples</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/></pre></td><td class="code"><pre><span class="line">Sample 54, TSC diff: 1998893560, Time diff: 1000069363 ns</span><br/><span class="line">Sample 55, TSC diff: 1998887140, Time diff: 1000065570 ns</span><br/><span class="line">Sample 56, TSC diff: 1999007020, Time diff: 1000130480 ns</span><br/><span class="line">Sample 57, TSC diff: 1535293100, Time diff: 1000090774 ns</span><br/><span class="line">Sample 58, TSC diff: 1998899520, Time diff: 1000073836 ns</span><br/><span class="line">Sample 59, TSC diff: 2000588260, Time diff: 1001300447 ns</span><br/><span class="line">Sample 60, TSC diff: 1998899540, Time diff: 1000072444 ns</span><br/></pre></td></tr></table></figure>
+<hr/>
+<p>just paste my test code:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/><span class="line">28</span><br/><span class="line">29</span><br/><span class="line">30</span><br/><span class="line">31</span><br/><span class="line">32</span><br/><span class="line">33</span><br/><span class="line">34</span><br/><span class="line">35</span><br/><span class="line">36</span><br/><span class="line">37</span><br/><span class="line">38</span><br/><span class="line">39</span><br/><span class="line">40</span><br/><span class="line">41</span><br/><span class="line">42</span><br/><span class="line">43</span><br/><span class="line">44</span><br/><span class="line">45</span><br/><span class="line">46</span><br/><span class="line">47</span><br/><span class="line">48</span><br/><span class="line">49</span><br/><span class="line">50</span><br/><span class="line">51</span><br/><span class="line">52</span><br/><span class="line">53</span><br/><span class="line">54</span><br/><span class="line">55</span><br/><span class="line">56</span><br/><span class="line">57</span><br/><span class="line">58</span><br/></pre></td><td class="code"><pre><span class="line"></span><br/><span class="line">#include &lt;stdio.h&gt;</span><br/><span class="line">#include &lt;stdint.h&gt;</span><br/><span class="line">#include &lt;unistd.h&gt;</span><br/><span class="line">#include &lt;time.h&gt;</span><br/><span class="line">#include &lt;math.h&gt;</span><br/><span class="line"> </span><br/><span class="line">#define SAMPLES 100</span><br/><span class="line"> </span><br/><span class="line">uint64_t rdtsc(){</span><br/><span class="line">    unsigned int lo,hi;</span><br/><span class="line">    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));</span><br/><span class="line">    return ((uint64_t)hi &lt;&lt; 32) | lo;</span><br/><span class="line">}</span><br/><span class="line"> </span><br/><span class="line">double calc_std_dev(uint64_t *data, double mean){</span><br/><span class="line">    double sum = 0.0;</span><br/><span class="line">    for(int i = 0; i &lt; SAMPLES; i++){</span><br/><span class="line">        sum += pow(data[i] - mean, 2);</span><br/><span class="line">    }</span><br/><span class="line">    return sqrt(sum / SAMPLES);</span><br/><span class="line">}</span><br/><span class="line"> </span><br/><span class="line">int main(){</span><br/><span class="line">    struct timespec start, end;</span><br/><span class="line">    uint64_t tsc_start, tsc_end;</span><br/><span class="line">    uint64_t tsc_diffs[SAMPLES], time_diffs[SAMPLES];</span><br/><span class="line">    double tsc_sum = 0.0, time_sum = 0.0;</span><br/><span class="line"> </span><br/><span class="line">    for(int i = 0; i &lt; SAMPLES; i++){</span><br/><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;start);</span><br/><span class="line">        tsc_start = rdtsc();</span><br/><span class="line"> </span><br/><span class="line">        sleep(1);</span><br/><span class="line"> </span><br/><span class="line">        tsc_end = rdtsc();</span><br/><span class="line">        clock_gettime(CLOCK_MONOTONIC, &amp;end);</span><br/><span class="line"> </span><br/><span class="line">        tsc_diffs[i] = tsc_end - tsc_start;</span><br/><span class="line">        time_diffs[i] = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);</span><br/><span class="line"> </span><br/><span class="line">        printf("Sample %d, TSC diff: %llu, Time diff: %llu ns\n", i, tsc_diffs[i], time_diffs[i]);</span><br/><span class="line"> </span><br/><span class="line">        tsc_sum += tsc_diffs[i];</span><br/><span class="line">        time_sum += time_diffs[i];</span><br/><span class="line">    }</span><br/><span class="line"> </span><br/><span class="line">    double tsc_mean = tsc_sum / SAMPLES;</span><br/><span class="line">    double time_mean = time_sum / SAMPLES;</span><br/><span class="line"> </span><br/><span class="line">    double tsc_std_dev = calc_std_dev(tsc_diffs, tsc_mean);</span><br/><span class="line">    double time_std_dev = calc_std_dev(time_diffs, time_mean);</span><br/><span class="line"> </span><br/><span class="line">    printf("TSC mean: %f, TSC std dev: %f\n", tsc_mean, tsc_std_dev);</span><br/><span class="line">    printf("Time mean: %f, Time std dev: %f\n", time_mean, time_std_dev);</span><br/><span class="line"> </span><br/><span class="line">    return 0;</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<hr/>
+<h2 id="more-links-for-reading"><a class="headerlink" href="#more-links-for-reading" title="more links for reading"></a>more links for reading</h2><h3 id="TSC"><a class="headerlink" href="#TSC" title="TSC"></a><strong>TSC</strong></h3><p>Time Stamp Counter (TSC)All 80x86 microprocessors include a <code>CLK</code> input pin, which receives the clock signal of an external oscillator. Starting with the Pentium, 80x86 microprocessors sport a counter that is increased at each clock signal, and is accessible through the TSC register which can be read by means of the <code>rdtsc</code> assembly instruction. When using this register the kernel has to take into consideration the frequency of the clock signal: if, for instance, the clock ticks at 1 GHz, the TSC is increased once every nanosecond. Linux may take advantage of this register to get much more accurate time measurements.</p>
+<p><a href="https://access.redhat.com/solutions/18627" rel="noopener" target="_blank">https://access.redhat.com/solutions/18627</a></p>
 
-    <div class="e-content article-entry" itemprop="articleBody"><p>check TSC disabled from guest</p>
-<p class="article-more-link"><a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Read More</a></p></div>
+        
+      
+    </div>
     <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" data-id="clwyjnxe000005jcc1na90x2j" data-title="Linux guest could not access tsc clocksource" class="article-share-link">Share</a>
-
-
-        <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" itemprop="commentCount"></span>
-          Comments
-        </a>
-
-
+      <a data-url="https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/" data-id="cmv297qmx009z4rmi3j7uf4ug" data-title="Linux guest could not access tsc clocksource" class="article-share-link">分享</a>
+      
+      
+      
   <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li></ul>
 
     </footer>
   </div>
-
+  
 </article>
 
 
 
 
-    <article id="post-2023-12-06" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+    
+<article id="post-2023-12-06-2023-12-06" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/12/06/2023-12-06/" class="article-date">
   <time class="dt-published" datetime="2023-12-06T06:14:17.000Z" itemprop="datePublished">2023-12-06</time>
 </a>
-
+    
   </div>
   <div class="article-inner">
-
-
+    
+    
       <header class="article-header">
-
-
+        
+  
     <h1 itemprop="name">
       <a class="p-name article-title" href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
     </h1>
-
+  
 
       </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<p>Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a disk is loaded. During the kernel startup process, the disk (vdb) is recognized, and then qemu receives a device removal event, which is fed back to libvirt. Libvirt updates the XML, causing inconsistency between the disk state recorded in the zstack database and the XML on the host.</p>
+<p>The main issue here is that the libvirt loading device interface returns success, and the XML corresponding to the device is also added. However, this device is deleted according to the event feedback from qemu.</p>
+<p>Important log information: Here, let’s first analyze the system logs in the guest OS:</p>
+<p>Here, we notice the logs related to pciehp because this virtual machine is UEFI-booted, leading to numerous pcie-related logs (due to UEFI boot requiring the q35 machine type, which defaults to pcie devices).</p>
+<p>The initially observed logs include an error log from pcieport:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</span><br/></pre></td></tr></table></figure>
+<p>Followed by the recognition of the vdb device:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB/500 GiB)</span><br/></pre></td></tr></table></figure>
+<p>An external interrupt is sent to the virtual machine:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br/></pre></td></tr></table></figure>
+<p>Subsequently, through ausearch, it is identified that libvirt received a device deletion event, leading to the removal of the mentioned device:</p>
+<p>libvirt received device deleted event, removing the device</p>
+<p>Based on these scenarios, we have summarized the steps to reproduce the issue:</p>
+<ol>
+<li>During the kernel startup process</li>
+<li>Load the data disk.</li>
+<li>Check for inconsistencies between the XML and the database.</li>
+<li>Through repeated testing of VM boot and data disk loading, the issue can be reproduced.</li>
+</ol>
+<p>Regarding the error logs mentioned above, the explanation is as follows:</p>
+<ol>
+<li><p><code>pci 0000:00:02.7: BAR 13: failed to assign [io size 0x1000]</code>:</p>
+<ul>
+<li>According to <a href="https://access.redhat.com/solutions/3144711" rel="noopener" target="_blank">https://access.redhat.com/solutions/3144711</a>, this error may occur because in virtualized environments, there might be more PCIe ports than in a real physical environment, leading to this error. However, it does not have any actual impact.</li>
+</ul>
+</li>
+<li><p><code>_virtio_blk virtio6: [vdb] 104857600 512-byte logical blocks (537 GB/500 GiB)</code>:</p>
+<ul>
+<li>This indicates that the virtio-blk disk has indeed been successfully loaded, as it has been recognized within the virtual machine.</li>
+</ul>
+</li>
+<li><p><code>pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</code>:</p>
+<ul>
+<li>“Attention button pressed” indicates that when resetting the PCIe slot, QEMU sends the corresponding interrupt. When the host receives this interrupt, the corresponding processing logic prints this log.</li>
+</ul>
+</li>
+</ol>
+<p>As for the key QEMU code, by searching the codebase, it has been confirmed that QEMU sends the corresponding interrupt when resetting the PCIe slot, and the host prints the log as part of the corresponding processing logic.</p>
+<p>code from <code>pcie.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/></pre></td><td class="code"><pre><span class="line">pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,</span><br/><span class="line">                             PCI_EXP_SLTSTA_EIS |/* on reset,</span><br/><span class="line">                                                    the lock is released */</span><br/><span class="line">                             PCI_EXP_SLTSTA_CC |</span><br/><span class="line">                             PCI_EXP_SLTSTA_PDC |</span><br/><span class="line">                             PCI_EXP_SLTSTA_ABP);</span><br/></pre></td></tr></table></figure>
+<p>which is used in <code>qdev.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/></pre></td><td class="code"><pre><span class="line">QLIST_FOREACH(bus, &amp;dev-&gt;child_bus, sibling) {</span><br/><span class="line">     object_property_set_bool(OBJECT(bus), true, "realized",</span><br/><span class="line">                                  &amp;local_err);</span><br/><span class="line">     if (local_err != NULL) {</span><br/><span class="line">         goto child_realize_fail;</span><br/><span class="line">     }</span><br/><span class="line"> }</span><br/><span class="line"> if (dev-&gt;hotplugged) {</span><br/><span class="line">     device_reset(dev);</span><br/><span class="line"> }</span><br/><span class="line"> dev-&gt;pending_deleted_event = false;</span><br/><span class="line"> </span><br/><span class="line"> if (hotplug_ctrl) {</span><br/><span class="line">     hotplug_handler_plug(hotplug_ctrl, dev, &amp;local_err);</span><br/><span class="line">     if (local_err != NULL) {</span><br/><span class="line">         goto child_realize_fail;</span><br/><span class="line">     }</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<p>During the device hotplug process, there will be a reset action.</p>
+<p>Kernel-related code:</p>
+<p>from <code>pciehp_hpc.c</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/></pre></td><td class="code"><pre><span class="line">static int pciehp_poll(void *data)</span><br/><span class="line">{</span><br/><span class="line">    struct controller *ctrl = data;</span><br/><span class="line"> </span><br/><span class="line">    schedule_timeout_idle(10 * HZ); /* start with 10 sec delay */</span><br/><span class="line"> </span><br/><span class="line">    while (!kthread_should_stop()) {</span><br/><span class="line">        /* poll for interrupt events or user requests */</span><br/><span class="line">        while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD ||</span><br/><span class="line">               atomic_read(&amp;ctrl-&gt;pending_events))</span><br/><span class="line">            pciehp_ist(IRQ_NOTCONNECTED, ctrl);</span><br/><span class="line"> </span><br/><span class="line">        if (pciehp_poll_time &lt;= 0 || pciehp_poll_time &gt; 60)</span><br/><span class="line">            pciehp_poll_time = 2; /* clamp to sane value */</span><br/><span class="line"> </span><br/><span class="line">        schedule_timeout_idle(pciehp_poll_time * HZ);</span><br/><span class="line">    }</span><br/><span class="line"> </span><br/><span class="line">    return 0;</span><br/><span class="line">}</span><br/><span class="line"> </span><br/><span class="line">    /* Check Attention Button Pressed */</span><br/><span class="line">    if (events &amp; PCI_EXP_SLTSTA_ABP) {</span><br/><span class="line">        ctrl_info(ctrl, "Slot(%s): Attention button pressed\n",</span><br/><span class="line">              slot_name(ctrl));</span><br/><span class="line">        pciehp_handle_button_press(ctrl);</span><br/><span class="line">    }</span><br/></pre></td></tr></table></figure>
+<p>This code represents a kernel function for polling PCIe Hot Plug events. It uses a kernel thread (kthread) to continuously poll for interrupt events or user requests related to PCIe Hot Plug. The function includes a timeout mechanism with an initial delay of 10 seconds and then repeats the polling process based on the specified polling time. The function stops when the kernel thread should stop (kthread_should_stop() returns true).</p>
+<p>And pciehp_handle_button_press is implemented as following:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/><span class="line">28</span><br/><span class="line">29</span><br/><span class="line">30</span><br/><span class="line">31</span><br/><span class="line">32</span><br/><span class="line">33</span><br/><span class="line">34</span><br/><span class="line">35</span><br/><span class="line">36</span><br/><span class="line">37</span><br/><span class="line">38</span><br/><span class="line">39</span><br/><span class="line">40</span><br/><span class="line">41</span><br/><span class="line">42</span><br/><span class="line">43</span><br/><span class="line">44</span><br/><span class="line">45</span><br/><span class="line">46</span><br/><span class="line">47</span><br/><span class="line">48</span><br/></pre></td><td class="code"><pre><span class="line">void pciehp_handle_button_press(struct controller *ctrl)</span><br/><span class="line">{</span><br/><span class="line">	mutex_lock(&amp;ctrl-&gt;state_lock);</span><br/><span class="line">	switch (ctrl-&gt;state) {</span><br/><span class="line">	case OFF_STATE:</span><br/><span class="line">	case ON_STATE:</span><br/><span class="line">		if (ctrl-&gt;state == ON_STATE) {</span><br/><span class="line">			ctrl-&gt;state = BLINKINGOFF_STATE;</span><br/><span class="line">			ctrl_info(ctrl, "Slot(%s): Powering off due to button press\n",</span><br/><span class="line">				  slot_name(ctrl));</span><br/><span class="line">		} else {</span><br/><span class="line">			ctrl-&gt;state = BLINKINGON_STATE;</span><br/><span class="line">			ctrl_info(ctrl, "Slot(%s) Powering on due to button press\n",</span><br/><span class="line">				  slot_name(ctrl));</span><br/><span class="line">		}</span><br/><span class="line">		/* blink power indicator and turn off attention */</span><br/><span class="line">		pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,</span><br/><span class="line">				      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br/><span class="line">		schedule_delayed_work(&amp;ctrl-&gt;button_work, 5 * HZ);</span><br/><span class="line">		break;</span><br/><span class="line">	case BLINKINGOFF_STATE:</span><br/><span class="line">	case BLINKINGON_STATE:</span><br/><span class="line">		/*</span><br/><span class="line">		 * Cancel if we are still blinking; this means that we</span><br/><span class="line">		 * press the attention again before the 5 sec. limit</span><br/><span class="line">		 * expires to cancel hot-add or hot-remove</span><br/><span class="line">		 */</span><br/><span class="line">		ctrl_info(ctrl, "Slot(%s): Button cancel\n", slot_name(ctrl));</span><br/><span class="line">		cancel_delayed_work(&amp;ctrl-&gt;button_work);</span><br/><span class="line">		if (ctrl-&gt;state == BLINKINGOFF_STATE) {</span><br/><span class="line">			ctrl-&gt;state = ON_STATE;</span><br/><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,</span><br/><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br/><span class="line">		} else {</span><br/><span class="line">			ctrl-&gt;state = OFF_STATE;</span><br/><span class="line">			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,</span><br/><span class="line">					      PCI_EXP_SLTCTL_ATTN_IND_OFF);</span><br/><span class="line">		}</span><br/><span class="line">		ctrl_info(ctrl, "Slot(%s): Action canceled due to button press\n",</span><br/><span class="line">			  slot_name(ctrl));</span><br/><span class="line">		break;</span><br/><span class="line">	default:</span><br/><span class="line">		ctrl_err(ctrl, "Slot(%s): Ignoring invalid state %#x\n",</span><br/><span class="line">			 slot_name(ctrl), ctrl-&gt;state);</span><br/><span class="line">		break;</span><br/><span class="line">	}</span><br/><span class="line">	mutex_unlock(&amp;ctrl-&gt;state_lock);</span><br/><span class="line">}</span><br/></pre></td></tr></table></figure>
+<p>Both OFF_STATE and ON_STATE could changed to each other by same press request. </p>
+<p>Based on the test results, we preliminarily conclude that there is a race condition between hot-plug operations and kernel boot, leading to unexpected changes in the PCIe slot’s state from off → on → off. (Note: The crucial point here is that pciehp_handle_button_press(ctrl); simultaneously handles both on and off scenarios.)</p>
+<p>With reference to the above keywords, we identified a related Bugzilla entry for QEMU version 4.2 by searching for ‘qemu pci device kernel boot race condition’:</p>
+<p><a href="https://bugzilla.kernel.org/show_bug.cgi?id=211691" rel="noopener" target="_blank">https://bugzilla.kernel.org/show_bug.cgi?id=211691</a></p>
+<p>“The document mentions a virtio-net failover mechanism introduced by QEMU 4.2, addressing the issue of hot-plugging network cards failing during the VM startup phase. This problem arises from a race condition in the QEMU code that sets the PCIe slot’s state. The provided QEMU patch resolves the issue:</p>
+<p><a href="https://github.com/qemu/qemu/commit/df72184ec15829053b3bb5a0d5801773b6d9ec25" rel="noopener" target="_blank">QEMU Patch Link</a></p>
+<p>The title of this patch is: ‘pcie: don’t set link state active if the slot is empty.’</p>
+<p>Upon reviewing its content, it appears that during PCIe initialization and the hot-plug phase, the ‘reset’ is called, potentially causing inconsistencies in the slot’s state. This patch addresses the problem by preventing the setting of the link state to active if the slot is empty, eliminating the observed issue.”</p>
+<p>TIPs:</p>
+<p>Search for changes related to the virtual machine process using <code>ausearch</code>:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">ausearch -m <span class="string">"VIRT_RESOURCE"</span> -p 63259</span><br/></pre></td></tr></table></figure>
+<p>Libvirt’s XML and QEMU event update mechanism: Details can be found in TIC-1360 - Cloud VM disk does not exist, capacity inconsistency between UI interface and underlying view (Closed).</p>
+<p>Quick reference for PCIe events:</p>
+<p>From linux pci_regs.h:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PCI_EXP_SLTCTL      24  <span class="comment">/* Slot Control */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ABPE    0x0001  <span class="comment">/* Attention Button Pressed Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PFDE    0x0002  <span class="comment">/* Power Fault Detected Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_MRLSCE  0x0004  <span class="comment">/* MRL Sensor Changed Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PDCE    0x0008  <span class="comment">/* Presence Detect Changed Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_CCIE    0x0010  <span class="comment">/* Command Completed Interrupt Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_HPIE    0x0020  <span class="comment">/* Hot-Plug Interrupt Enable */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_AIC 0x00c0  <span class="comment">/* Attention Indicator Control */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_SHIFT 6      <span class="comment">/* Attention Indicator shift */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 <span class="comment">/* Attention Indicator on */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 <span class="comment">/* Attention Indicator blinking */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_ATTN_IND_OFF   0x00c0 <span class="comment">/* Attention Indicator off */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PIC 0x0300  <span class="comment">/* Power Indicator Control */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 <span class="comment">/* Power Indicator on */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 <span class="comment">/* Power Indicator blinking */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 <span class="comment">/* Power Indicator off */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PCC 0x0400  <span class="comment">/* Power Controller Control */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_ON         0x0000 <span class="comment">/* Power On */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_PWR_OFF        0x0400 <span class="comment">/* Power Off */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_EIC 0x0800  <span class="comment">/* Electromechanical Interlock Control */</span></span></span><br/><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  PCI_EXP_SLTCTL_DLLSCE  0x1000  <span class="comment">/* Data Link Layer State Changed Enable */</span></span></span><br/></pre></td></tr></table></figure>
+<p>QEMU systemtap trace, refer to: <a href="https://qemu-project.gitlab.io/qemu/devel/tracing.html" rel="noopener" target="_blank">QEMU Tracing Documentation</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">/usr/bin/qemu-trace-stap run /usr/libexec/qemu-kvm pci_cfg_write</span><br/></pre></td></tr></table></figure>
+<p>Guest os pcie trace analysis:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/></pre></td><td class="code"><pre><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Attention button pressed</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: Slot(0-7): Powering off due to button press</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</span><br/><span class="line"></span><br/><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_get_power_status: SLOTCTRL 6c value read 2f1</span><br/><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_unconfigure_device: domain:bus:dev = 0000:08:00</span><br/><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0010 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 40</span><br/><span class="line"></span><br/><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pending interrupts 0x0018 from Slot Status</span><br/><span class="line">[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300</span><br/><span class="line"></span><br/><span class="line">[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_on: SLOTCTRL 6c write cmd 100</span><br/></pre></td></tr></table></figure>
+<p>cmd 0x0100</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_ON     0x0100 /* Power Indicator on */</span><br/></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br/>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 /* Attention Indicator blinking */</span><br/><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 /* Attention Indicator on */</span><br/></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_blink: SLOTCTRL 6c write cmd 200</p>
+<p>cmd 0x0200</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_BLINK  0x0200 /* Power Indicator blinking */</span><br/></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:48 2023] pciehp 0000:00:02.7:pcie004: pciehp_set_attention_status: SLOTCTRL 6c write cmd c0</p>
+<p>cmd 0x00c0<br/>0000 0000 1100 0000</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_BLINK 0x0080 /* Attention Indicator blinking */</span><br/><span class="line">#define  PCI_EXP_SLTCTL_ATTN_IND_ON    0x0040 /* Attention Indicator on */</span><br/></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:53 2023] pciehp 0000:00:02.7:pcie004: pciehp_power_off_slot: SLOTCTRL 6c write cmd 400</p>
+<p>cmd 0x0400</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_OFF        0x0400 /* Power Off */</span><br/></pre></td></tr></table></figure>
+<p>[一 12月 4 15:06:54 2023] pciehp 0000:00:02.7:pcie004: pciehp_green_led_off: SLOTCTRL 6c write cmd 300<br/>cmd 0x0300</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">#define  PCI_EXP_SLTCTL_PWR_IND_OFF    0x0300 /* Power Indicator off */</span><br/></pre></td></tr></table></figure>
 
-    <div class="e-content article-entry" itemprop="articleBody"><p>Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a disk is loaded. D...</p>
-<p class="article-more-link"><a href="/2023/12/06/2023-12-06/">Read More</a></p></div>
+        
+      
+    </div>
     <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2023/12/06/2023-12-06/" data-id="clpte86eu0000aucafvj0077k" data-title="The disk in the guest OS is unmounted during the kernel startup process." class="article-share-link">Share</a>
-
-
-        <a href="/2023/12/06/2023-12-06/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2023/12/06/2023-12-06/" itemprop="commentCount"></span>
-          Comments
-        </a>
-
-
+      <a data-url="https://hanayo.cn/2023/12/06/2023-12-06/" data-id="cmv297qmz00an4rmidn7u3g7r" data-title="The disk in the guest OS is unmounted during the kernel startup process." class="article-share-link">分享</a>
+      
+      
+      
     </footer>
   </div>
-
+  
 </article>
 
 
 
 
-    <article id="post-understanding-cpu-topology-for-improved-performance" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+    
+<article id="post-2023-05-26-understanding-cpu-topology-for-improved-performance" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/" class="article-date">
   <time class="dt-published" datetime="2023-05-26T05:44:12.000Z" itemprop="datePublished">2023-05-26</time>
 </a>
-
+    
   <div class="article-category">
     <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/cpu/">cpu</a>
   </div>
 
   </div>
   <div class="article-inner">
-
-
+    
+    
       <header class="article-header">
-
-
+        
+  
     <h1 itemprop="name">
       <a class="p-name article-title" href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
     </h1>
-
+  
 
       </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<p>The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the performance of a system, as it determines the effectiveness and efficiency of the cores.</p>
+<h2 id="What-is-CPU-Topology"><a class="headerlink" href="#What-is-CPU-Topology" title="What is CPU Topology?"></a>What is CPU Topology?</h2><p>CPU topology comprises three primary levels:</p>
+<ul>
+<li><strong>Socket:</strong> A physical connector that holds a CPU. A system can have multiple sockets, each of which can hold multiple cores.</li>
+<li><strong>Core:</strong> A single processing unit within a CPU that can run multiple threads simultaneously.</li>
+<li><strong>Thread:</strong> A single flow of execution within a core.</li>
+</ul>
+<p>The CPU topology can be described using a tree-like structure, with the socket level at the top and the thread level at the bottom. The cores in a socket are connected to each other via a bus, and the threads in a core are connected to each other by a shared cache.</p>
+<h2 id="Importance-of-CPU-Topology"><a class="headerlink" href="#Importance-of-CPU-Topology" title="Importance of CPU Topology"></a>Importance of CPU Topology</h2><p>Understanding CPU topology is crucial for improving system performance. The topology can be used to optimize the performance of a system by assigning threads to cores in a way that minimizes the amount of communication between cores. This can enhance the performance of applications that are heavily multithreaded.</p>
+<p>Additionally, the CPU topology can be used to troubleshoot performance issues. For example, if an application is running slowly, the CPU topology can be used to identify which cores are being used the most. This information can help identify the source of the performance problem and take appropriate steps to improve it.</p>
+<p>Here are some benefits of understanding CPU topology:</p>
+<ul>
+<li>It helps to optimize system performance by assigning tasks to the most suitable cores.</li>
+<li>It helps to troubleshoot performance issues by identifying heavily used cores.</li>
+<li>It helps to understand how the system will scale as more cores are added.</li>
+</ul>
+<h2 id="Tools-to-Display-CPU-Topology"><a class="headerlink" href="#Tools-to-Display-CPU-Topology" title="Tools to Display CPU Topology"></a>Tools to Display CPU Topology</h2><p>There are several tools available to display CPU topology, and one of the most commonly used tools is <code>lscpu</code>. Here is an example of using <code>lscpu</code> to display CPU topology:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/></pre></td><td class="code"><pre><span class="line">[root@172-20-1-220 ~]# lscpu</span><br/><span class="line">Architecture:          x86_64</span><br/><span class="line">CPU op-mode(s):        32-bit, 64-bit</span><br/><span class="line">Byte Order:            Little Endian</span><br/><span class="line">CPU(s):                80</span><br/><span class="line">On-line CPU(s) list:   0-79</span><br/><span class="line">Thread(s) per core:    2</span><br/><span class="line">Core(s) per socket:    20</span><br/><span class="line">Socket(s):             2</span><br/><span class="line">NUMA node(s):          2</span><br/><span class="line">Vendor ID:             GenuineIntel</span><br/><span class="line">CPU family:            6</span><br/><span class="line">Model:                 85</span><br/><span class="line">Model name:            Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz</span><br/><span class="line">Stepping:              7</span><br/><span class="line">CPU MHz:               2100.000</span><br/><span class="line">BogoMIPS:              4200.00</span><br/><span class="line">Virtualization:        VT-x</span><br/><span class="line">L1d cache:             32K</span><br/><span class="line">L1i cache:             32K</span><br/><span class="line">L2 cache:              1024K</span><br/><span class="line">L3 cache:              28160K</span><br/><span class="line">NUMA node0 CPU(s):     0-19,40-59</span><br/><span class="line">NUMA node1 CPU(s):     20-39,60-79</span><br/><span class="line">Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch epb cat_l3 cdp_l3 intel_ppin intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts hwp_epp pku ospke avx512_vnni md_clear spec_ctrl intel_stibp flush_l1d arch_capabilities</span><br/></pre></td></tr></table></figure>
+<p><code>hwloc-ls</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/><span class="line">16</span><br/><span class="line">17</span><br/><span class="line">18</span><br/><span class="line">19</span><br/><span class="line">20</span><br/><span class="line">21</span><br/><span class="line">22</span><br/><span class="line">23</span><br/><span class="line">24</span><br/><span class="line">25</span><br/><span class="line">26</span><br/><span class="line">27</span><br/><span class="line">28</span><br/><span class="line">29</span><br/><span class="line">30</span><br/><span class="line">31</span><br/><span class="line">32</span><br/><span class="line">33</span><br/><span class="line">34</span><br/><span class="line">35</span><br/><span class="line">36</span><br/><span class="line">37</span><br/><span class="line">38</span><br/><span class="line">39</span><br/><span class="line">40</span><br/><span class="line">41</span><br/><span class="line">42</span><br/><span class="line">43</span><br/><span class="line">44</span><br/><span class="line">45</span><br/><span class="line">46</span><br/><span class="line">47</span><br/><span class="line">48</span><br/><span class="line">49</span><br/><span class="line">50</span><br/><span class="line">51</span><br/><span class="line">52</span><br/><span class="line">53</span><br/><span class="line">54</span><br/><span class="line">55</span><br/><span class="line">56</span><br/><span class="line">57</span><br/><span class="line">58</span><br/><span class="line">59</span><br/><span class="line">60</span><br/><span class="line">61</span><br/><span class="line">62</span><br/><span class="line">63</span><br/><span class="line">64</span><br/><span class="line">65</span><br/><span class="line">66</span><br/><span class="line">67</span><br/><span class="line">68</span><br/><span class="line">69</span><br/><span class="line">70</span><br/><span class="line">71</span><br/><span class="line">72</span><br/><span class="line">73</span><br/><span class="line">74</span><br/><span class="line">75</span><br/><span class="line">76</span><br/><span class="line">77</span><br/><span class="line">78</span><br/><span class="line">79</span><br/><span class="line">80</span><br/><span class="line">81</span><br/><span class="line">82</span><br/><span class="line">83</span><br/><span class="line">84</span><br/><span class="line">85</span><br/><span class="line">86</span><br/><span class="line">87</span><br/><span class="line">88</span><br/><span class="line">89</span><br/><span class="line">90</span><br/><span class="line">91</span><br/><span class="line">92</span><br/><span class="line">93</span><br/><span class="line">94</span><br/><span class="line">95</span><br/><span class="line">96</span><br/><span class="line">97</span><br/><span class="line">98</span><br/><span class="line">99</span><br/><span class="line">100</span><br/><span class="line">101</span><br/><span class="line">102</span><br/><span class="line">103</span><br/><span class="line">104</span><br/><span class="line">105</span><br/><span class="line">106</span><br/><span class="line">107</span><br/><span class="line">108</span><br/><span class="line">109</span><br/><span class="line">110</span><br/><span class="line">111</span><br/><span class="line">112</span><br/><span class="line">113</span><br/><span class="line">114</span><br/><span class="line">115</span><br/><span class="line">116</span><br/><span class="line">117</span><br/><span class="line">118</span><br/><span class="line">119</span><br/><span class="line">120</span><br/><span class="line">121</span><br/><span class="line">122</span><br/><span class="line">123</span><br/><span class="line">124</span><br/><span class="line">125</span><br/><span class="line">126</span><br/><span class="line">127</span><br/><span class="line">128</span><br/><span class="line">129</span><br/><span class="line">130</span><br/><span class="line">131</span><br/><span class="line">132</span><br/><span class="line">133</span><br/><span class="line">134</span><br/><span class="line">135</span><br/><span class="line">136</span><br/><span class="line">137</span><br/><span class="line">138</span><br/><span class="line">139</span><br/><span class="line">140</span><br/><span class="line">141</span><br/><span class="line">142</span><br/><span class="line">143</span><br/><span class="line">144</span><br/><span class="line">145</span><br/><span class="line">146</span><br/><span class="line">147</span><br/><span class="line">148</span><br/><span class="line">149</span><br/><span class="line">150</span><br/><span class="line">151</span><br/><span class="line">152</span><br/><span class="line">153</span><br/><span class="line">154</span><br/><span class="line">155</span><br/><span class="line">156</span><br/><span class="line">157</span><br/><span class="line">158</span><br/><span class="line">159</span><br/><span class="line">160</span><br/><span class="line">161</span><br/><span class="line">162</span><br/><span class="line">163</span><br/><span class="line">164</span><br/><span class="line">165</span><br/><span class="line">166</span><br/><span class="line">167</span><br/><span class="line">168</span><br/><span class="line">169</span><br/><span class="line">170</span><br/><span class="line">171</span><br/><span class="line">172</span><br/><span class="line">173</span><br/><span class="line">174</span><br/><span class="line">175</span><br/><span class="line">176</span><br/><span class="line">177</span><br/></pre></td><td class="code"><pre><span class="line">[root@172-20-1-220 ~]<span class="comment"># hwloc-ls</span></span><br/><span class="line">Machine (767GB total)</span><br/><span class="line">  NUMANode L<span class="comment">#0 (P#0 383GB)</span></span><br/><span class="line">    Package L<span class="comment">#0 + L3 L#0 (28MB)</span></span><br/><span class="line">      L2 L<span class="comment">#0 (1024KB) + L1d L#0 (32KB) + L1i L#0 (32KB) + Core L#0</span></span><br/><span class="line">        PU L<span class="comment">#0 (P#0)</span></span><br/><span class="line">        PU L<span class="comment">#1 (P#40)</span></span><br/><span class="line">      L2 L<span class="comment">#1 (1024KB) + L1d L#1 (32KB) + L1i L#1 (32KB) + Core L#1</span></span><br/><span class="line">        PU L<span class="comment">#2 (P#1)</span></span><br/><span class="line">        PU L<span class="comment">#3 (P#41)</span></span><br/><span class="line">      L2 L<span class="comment">#2 (1024KB) + L1d L#2 (32KB) + L1i L#2 (32KB) + Core L#2</span></span><br/><span class="line">        PU L<span class="comment">#4 (P#2)</span></span><br/><span class="line">        PU L<span class="comment">#5 (P#42)</span></span><br/><span class="line">      L2 L<span class="comment">#3 (1024KB) + L1d L#3 (32KB) + L1i L#3 (32KB) + Core L#3</span></span><br/><span class="line">        PU L<span class="comment">#6 (P#3)</span></span><br/><span class="line">        PU L<span class="comment">#7 (P#43)</span></span><br/><span class="line">      L2 L<span class="comment">#4 (1024KB) + L1d L#4 (32KB) + L1i L#4 (32KB) + Core L#4</span></span><br/><span class="line">        PU L<span class="comment">#8 (P#4)</span></span><br/><span class="line">        PU L<span class="comment">#9 (P#44)</span></span><br/><span class="line">      L2 L<span class="comment">#5 (1024KB) + L1d L#5 (32KB) + L1i L#5 (32KB) + Core L#5</span></span><br/><span class="line">        PU L<span class="comment">#10 (P#5)</span></span><br/><span class="line">        PU L<span class="comment">#11 (P#45)</span></span><br/><span class="line">      L2 L<span class="comment">#6 (1024KB) + L1d L#6 (32KB) + L1i L#6 (32KB) + Core L#6</span></span><br/><span class="line">        PU L<span class="comment">#12 (P#6)</span></span><br/><span class="line">        PU L<span class="comment">#13 (P#46)</span></span><br/><span class="line">      L2 L<span class="comment">#7 (1024KB) + L1d L#7 (32KB) + L1i L#7 (32KB) + Core L#7</span></span><br/><span class="line">        PU L<span class="comment">#14 (P#7)</span></span><br/><span class="line">        PU L<span class="comment">#15 (P#47)</span></span><br/><span class="line">      L2 L<span class="comment">#8 (1024KB) + L1d L#8 (32KB) + L1i L#8 (32KB) + Core L#8</span></span><br/><span class="line">        PU L<span class="comment">#16 (P#8)</span></span><br/><span class="line">        PU L<span class="comment">#17 (P#48)</span></span><br/><span class="line">      L2 L<span class="comment">#9 (1024KB) + L1d L#9 (32KB) + L1i L#9 (32KB) + Core L#9</span></span><br/><span class="line">        PU L<span class="comment">#18 (P#9)</span></span><br/><span class="line">        PU L<span class="comment">#19 (P#49)</span></span><br/><span class="line">      L2 L<span class="comment">#10 (1024KB) + L1d L#10 (32KB) + L1i L#10 (32KB) + Core L#10</span></span><br/><span class="line">        PU L<span class="comment">#20 (P#10)</span></span><br/><span class="line">        PU L<span class="comment">#21 (P#50)</span></span><br/><span class="line">      L2 L<span class="comment">#11 (1024KB) + L1d L#11 (32KB) + L1i L#11 (32KB) + Core L#11</span></span><br/><span class="line">        PU L<span class="comment">#22 (P#11)</span></span><br/><span class="line">        PU L<span class="comment">#23 (P#51)</span></span><br/><span class="line">      L2 L<span class="comment">#12 (1024KB) + L1d L#12 (32KB) + L1i L#12 (32KB) + Core L#12</span></span><br/><span class="line">        PU L<span class="comment">#24 (P#12)</span></span><br/><span class="line">        PU L<span class="comment">#25 (P#52)</span></span><br/><span class="line">      L2 L<span class="comment">#13 (1024KB) + L1d L#13 (32KB) + L1i L#13 (32KB) + Core L#13</span></span><br/><span class="line">        PU L<span class="comment">#26 (P#13)</span></span><br/><span class="line">        PU L<span class="comment">#27 (P#53)</span></span><br/><span class="line">      L2 L<span class="comment">#14 (1024KB) + L1d L#14 (32KB) + L1i L#14 (32KB) + Core L#14</span></span><br/><span class="line">        PU L<span class="comment">#28 (P#14)</span></span><br/><span class="line">        PU L<span class="comment">#29 (P#54)</span></span><br/><span class="line">      L2 L<span class="comment">#15 (1024KB) + L1d L#15 (32KB) + L1i L#15 (32KB) + Core L#15</span></span><br/><span class="line">        PU L<span class="comment">#30 (P#15)</span></span><br/><span class="line">        PU L<span class="comment">#31 (P#55)</span></span><br/><span class="line">      L2 L<span class="comment">#16 (1024KB) + L1d L#16 (32KB) + L1i L#16 (32KB) + Core L#16</span></span><br/><span class="line">        PU L<span class="comment">#32 (P#16)</span></span><br/><span class="line">        PU L<span class="comment">#33 (P#56)</span></span><br/><span class="line">      L2 L<span class="comment">#17 (1024KB) + L1d L#17 (32KB) + L1i L#17 (32KB) + Core L#17</span></span><br/><span class="line">        PU L<span class="comment">#34 (P#17)</span></span><br/><span class="line">        PU L<span class="comment">#35 (P#57)</span></span><br/><span class="line">      L2 L<span class="comment">#18 (1024KB) + L1d L#18 (32KB) + L1i L#18 (32KB) + Core L#18</span></span><br/><span class="line">        PU L<span class="comment">#36 (P#18)</span></span><br/><span class="line">        PU L<span class="comment">#37 (P#58)</span></span><br/><span class="line">      L2 L<span class="comment">#19 (1024KB) + L1d L#19 (32KB) + L1i L#19 (32KB) + Core L#19</span></span><br/><span class="line">        PU L<span class="comment">#38 (P#19)</span></span><br/><span class="line">        PU L<span class="comment">#39 (P#59)</span></span><br/><span class="line">    HostBridge L<span class="comment">#0</span></span><br/><span class="line">      PCI 8086:a1d2</span><br/><span class="line">      PCI 8086:a182</span><br/><span class="line">      PCIBridge</span><br/><span class="line">        PCIBridge</span><br/><span class="line">          PCI 1a03:2000</span><br/><span class="line">            GPU L<span class="comment">#0 "card0"</span></span><br/><span class="line">            GPU L<span class="comment">#1 "controlD64"</span></span><br/><span class="line">    HostBridge L<span class="comment">#3</span></span><br/><span class="line">      PCIBridge</span><br/><span class="line">        PCI 1000:0097</span><br/><span class="line">          Block(Disk) L<span class="comment">#2 "sda"</span></span><br/><span class="line">  NUMANode L<span class="comment">#1 (P#1 384GB)</span></span><br/><span class="line">    Package L<span class="comment">#1 + L3 L#1 (28MB)</span></span><br/><span class="line">      L2 L<span class="comment">#20 (1024KB) + L1d L#20 (32KB) + L1i L#20 (32KB) + Core L#20</span></span><br/><span class="line">        PU L<span class="comment">#40 (P#20)</span></span><br/><span class="line">        PU L<span class="comment">#41 (P#60)</span></span><br/><span class="line">      L2 L<span class="comment">#21 (1024KB) + L1d L#21 (32KB) + L1i L#21 (32KB) + Core L#21</span></span><br/><span class="line">        PU L<span class="comment">#42 (P#21)</span></span><br/><span class="line">        PU L<span class="comment">#43 (P#61)</span></span><br/><span class="line">      L2 L<span class="comment">#22 (1024KB) + L1d L#22 (32KB) + L1i L#22 (32KB) + Core L#22</span></span><br/><span class="line">        PU L<span class="comment">#44 (P#22)</span></span><br/><span class="line">        PU L<span class="comment">#45 (P#62)</span></span><br/><span class="line">      L2 L<span class="comment">#23 (1024KB) + L1d L#23 (32KB) + L1i L#23 (32KB) + Core L#23</span></span><br/><span class="line">        PU L<span class="comment">#46 (P#23)</span></span><br/><span class="line">        PU L<span class="comment">#47 (P#63)</span></span><br/><span class="line">      L2 L<span class="comment">#24 (1024KB) + L1d L#24 (32KB) + L1i L#24 (32KB) + Core L#24</span></span><br/><span class="line">        PU L<span class="comment">#48 (P#24)</span></span><br/><span class="line">        PU L<span class="comment">#49 (P#64)</span></span><br/><span class="line">      L2 L<span class="comment">#25 (1024KB) + L1d L#25 (32KB) + L1i L#25 (32KB) + Core L#25</span></span><br/><span class="line">        PU L<span class="comment">#50 (P#25)</span></span><br/><span class="line">        PU L<span class="comment">#51 (P#65)</span></span><br/><span class="line">      L2 L<span class="comment">#26 (1024KB) + L1d L#26 (32KB) + L1i L#26 (32KB) + Core L#26</span></span><br/><span class="line">        PU L<span class="comment">#52 (P#26)</span></span><br/><span class="line">        PU L<span class="comment">#53 (P#66)</span></span><br/><span class="line">      L2 L<span class="comment">#27 (1024KB) + L1d L#27 (32KB) + L1i L#27 (32KB) + Core L#27</span></span><br/><span class="line">        PU L<span class="comment">#54 (P#27)</span></span><br/><span class="line">        PU L<span class="comment">#55 (P#67)</span></span><br/><span class="line">      L2 L<span class="comment">#28 (1024KB) + L1d L#28 (32KB) + L1i L#28 (32KB) + Core L#28</span></span><br/><span class="line">        PU L<span class="comment">#56 (P#28)</span></span><br/><span class="line">        PU L<span class="comment">#57 (P#68)</span></span><br/><span class="line">      L2 L<span class="comment">#29 (1024KB) + L1d L#29 (32KB) + L1i L#29 (32KB) + Core L#29</span></span><br/><span class="line">        PU L<span class="comment">#58 (P#29)</span></span><br/><span class="line">        PU L<span class="comment">#59 (P#69)</span></span><br/><span class="line">      L2 L<span class="comment">#30 (1024KB) + L1d L#30 (32KB) + L1i L#30 (32KB) + Core L#30</span></span><br/><span class="line">        PU L<span class="comment">#60 (P#30)</span></span><br/><span class="line">        PU L<span class="comment">#61 (P#70)</span></span><br/><span class="line">      L2 L<span class="comment">#31 (1024KB) + L1d L#31 (32KB) + L1i L#31 (32KB) + Core L#31</span></span><br/><span class="line">        PU L<span class="comment">#62 (P#31)</span></span><br/><span class="line">        PU L<span class="comment">#63 (P#71)</span></span><br/><span class="line">      L2 L<span class="comment">#32 (1024KB) + L1d L#32 (32KB) + L1i L#32 (32KB) + Core L#32</span></span><br/><span class="line">        PU L<span class="comment">#64 (P#32)</span></span><br/><span class="line">        PU L<span class="comment">#65 (P#72)</span></span><br/><span class="line">      L2 L<span class="comment">#33 (1024KB) + L1d L#33 (32KB) + L1i L#33 (32KB) + Core L#33</span></span><br/><span class="line">        PU L<span class="comment">#66 (P#33)</span></span><br/><span class="line">        PU L<span class="comment">#67 (P#73)</span></span><br/><span class="line">      L2 L<span class="comment">#34 (1024KB) + L1d L#34 (32KB) + L1i L#34 (32KB) + Core L#34</span></span><br/><span class="line">        PU L<span class="comment">#68 (P#34)</span></span><br/><span class="line">        PU L<span class="comment">#69 (P#74)</span></span><br/><span class="line">      L2 L<span class="comment">#35 (1024KB) + L1d L#35 (32KB) + L1i L#35 (32KB) + Core L#35</span></span><br/><span class="line">        PU L<span class="comment">#70 (P#35)</span></span><br/><span class="line">        PU L<span class="comment">#71 (P#75)</span></span><br/><span class="line">      L2 L<span class="comment">#36 (1024KB) + L1d L#36 (32KB) + L1i L#36 (32KB) + Core L#36</span></span><br/><span class="line">        PU L<span class="comment">#72 (P#36)</span></span><br/><span class="line">        PU L<span class="comment">#73 (P#76)</span></span><br/><span class="line">      L2 L<span class="comment">#37 (1024KB) + L1d L#37 (32KB) + L1i L#37 (32KB) + Core L#37</span></span><br/><span class="line">        PU L<span class="comment">#74 (P#37)</span></span><br/><span class="line">        PU L<span class="comment">#75 (P#77)</span></span><br/><span class="line">      L2 L<span class="comment">#38 (1024KB) + L1d L#38 (32KB) + L1i L#38 (32KB) + Core L#38</span></span><br/><span class="line">        PU L<span class="comment">#76 (P#38)</span></span><br/><span class="line">        PU L<span class="comment">#77 (P#78)</span></span><br/><span class="line">      L2 L<span class="comment">#39 (1024KB) + L1d L#39 (32KB) + L1i L#39 (32KB) + Core L#39</span></span><br/><span class="line">        PU L<span class="comment">#78 (P#39)</span></span><br/><span class="line">        PU L<span class="comment">#79 (P#79)</span></span><br/><span class="line">    HostBridge L<span class="comment">#5</span></span><br/><span class="line">      PCIBridge</span><br/><span class="line">        PCI 8086:1521</span><br/><span class="line">          Net L<span class="comment">#3 "enp175s0f0"</span></span><br/><span class="line">        PCI 8086:1521</span><br/><span class="line">          Net L<span class="comment">#4 "enp175s0f1"</span></span><br/><span class="line">        PCI 8086:1521</span><br/><span class="line">          Net L<span class="comment">#5 "enp175s0f2"</span></span><br/><span class="line">        PCI 8086:1521</span><br/><span class="line">          Net L<span class="comment">#6 "enp175s0f3"</span></span><br/><span class="line">      PCIBridge</span><br/><span class="line">        PCI 8086:10fb</span><br/><span class="line">          Net L<span class="comment">#7 "enp176s0f0"</span></span><br/><span class="line">        PCI 8086:10fb</span><br/><span class="line">          Net L<span class="comment">#8 "enp176s0f1"</span></span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/><span class="line">  Misc(MemoryModule)</span><br/></pre></td></tr></table></figure>
+<h2 id="Virtual-Machines-and-CPU-Topology"><a class="headerlink" href="#Virtual-Machines-and-CPU-Topology" title="Virtual Machines and CPU Topology"></a>Virtual Machines and CPU Topology</h2><p>Virtual machines (VMs) are software programs that create an isolated environment for running operating systems and applications. VMs are often used to run various operating systems on the same physical machine or to run applications that require more resources than are available on the host machine.</p>
+<p>When a VM is created, the hypervisor, which manages the VMs, assigns a single thread to the VM. This is because assigning multiple threads to a VM can lead to performance issues. Threads share the same resources on a core, and multiple threads can compete for resources, leading to contention and slowdowns. Furthermore, threads may interfere with each other, causing further slowdowns.</p>
+<p>To optimize VM performance, it’s generally best to assign a single thread to a VM. However, there are exceptions to this rule. For example, if a VM is running an application that is specifically designed to take advantage of multiple threads, it may be beneficial to assign multiple threads to the VM.</p>
+<p>To take advantage of multiple threads in a virtual machine, it’s essential to use a hypervisor that supports thread pinning, an operating system that supports thread scheduling, and an application that is designed to take advantage of multiple threads. Multithreaded applications such as web servers, database servers, and media transcoders are good examples of applications that can take advantage of multiple threads.</p>
+<h2 id="Why-thread-of-cpu-toplogy-always-1-or-2"><a class="headerlink" href="#Why-thread-of-cpu-toplogy-always-1-or-2" title="Why thread of cpu toplogy always 1 or 2"></a>Why thread of cpu toplogy always 1 or 2</h2><p>There are two main reasons why the number of threads in a CPU topology is usually limited to 1 or 2:</p>
+<ul>
+<li><strong>Physical constraints:</strong> A CPU core can only run a single thread at a time due to having a single instruction pointer (IP) and a single set of registers. When two threads run on the same core, they compete for the same resources, leading to performance degradation.</li>
+<li><strong>Scheduling overhead:</strong> Scheduling threads on different cores can be expensive, as the operating system has to switch between threads and this may cause context switches. Context switches are costly, as they require the operating system to save the state of the current thread and restore the state of the next.</li>
+</ul>
+<p>In some cases, having more than two threads per core may be beneficial. For instance, heavily multithreaded applications may take advantage of the extra threads. However, in most cases, the costs of having more than two threads per core outweigh the benefits.</p>
+<p>There are a few exceptions to the rule that the number of threads in a CPU topology is usually limited to 1 or 2. For example, some CPUs support hyper-threading, which allows a single core to run two threads simultaneously. However, hyper-threading is not always a good idea, as it can sometimes lead to performance degradation.</p>
+<p>Overall, the number of threads in a CPU topology is usually limited to 1 or 2 due to physical constraints and scheduling overhead. While there are exceptions, in most cases, the costs of having more than two threads per core outweigh the benefits.</p>
+<h2 id="Sockets-and-cores-with-performance"><a class="headerlink" href="#Sockets-and-cores-with-performance" title="Sockets and cores with performance"></a>Sockets and cores with performance</h2><p>Sockets and cores do have an impact on performance.</p>
+<ul>
+<li><strong>Sockets:</strong> A socket is a physical connector that holds a CPU. A system can have multiple sockets, each of which can hold multiple cores. The more sockets a system has, the more cores it can have, which can lead to better performance.</li>
+<li><strong>Cores:</strong> A core is a single processing unit within a CPU. A core can run multiple threads simultaneously. The more cores a system has, the more threads it can run, which can also lead to better performance.</li>
+</ul>
+<p>However, it’s important to note that the number of sockets and cores is not the only factor that affects performance. Other factors, such as the clock speed of the CPU, the amount of cache memory, and the type of memory, can also have a significant impact.</p>
+<p>In general, systems with more sockets and cores will have better performance than systems with fewer sockets and cores. However, it’s important to choose a system that has the right balance of sockets, cores, clock speed, cache memory, and memory type for your needs.</p>
+<p>Here are some examples of how sockets and cores can impact performance:</p>
+<ul>
+<li>A system with two sockets and four cores will have better performance than a system with one socket and two cores. This is because the system with two sockets can run more threads simultaneously.</li>
+<li>A system with a higher clock speed will have better performance than a system with a lower clock speed. This is because the system with a higher clock speed can execute instructions faster.</li>
+<li>A system with more cache memory will have better performance than a system with less cache memory. This is because the system with more cache memory can store more data in memory, which reduces the number of times the CPU has to access slower memory.</li>
+<li>A system with faster memory will have better performance than a system with slower memory. This is because the system with faster memory can transfer data to the CPU faster, which reduces the amount of time the CPU has to wait for data.</li>
+</ul>
+<h2 id="Why-aws-only-offer-single-sockets-instance"><a class="headerlink" href="#Why-aws-only-offer-single-sockets-instance" title="Why aws only offer single sockets instance?"></a>Why aws only offer single sockets instance?</h2><p>There are a few reasons why cloud providers like AWS do not offer multi-socket instances.</p>
+<ul>
+<li><strong>Cost:</strong> Multi-socket instances are more expensive than single-socket instances. This is because they require more hardware, such as more CPUs and more memory.</li>
+<li><strong>Complexity:</strong> Multi-socket instances are more complex to manage than single-socket instances. This is because they have more components, such as more CPUs, more memory, and more storage.</li>
+<li><strong>Performance:</strong> Multi-socket instances do not always offer better performance than single-socket instances. This is because the performance of a multi-socket instance can be limited by the speed of the interconnect between the sockets.</li>
+</ul>
+<p>For these reasons, cloud providers like AWS choose to offer single-socket instances. Single-socket instances are less expensive, easier to manage, and offer the same or better performance than multi-socket instances.</p>
+<p>However, there are some cases where multi-socket instances may be a good choice. For example, if you need a lot of CPU power, or if you need to run applications that are not well-optimized for multi-threading, then a multi-socket instance may be a good option.</p>
+<p>If you are considering using a multi-socket instance, it is important to weigh the costs and benefits carefully. You should also make sure that your applications are well-optimized for multi-threading.</p>
 
-    <div class="e-content article-entry" itemprop="articleBody"><p>The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the performance of a system, as it determines the effe...</p>
-<p class="article-more-link"><a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Read More</a></p></div>
+        
+      
+    </div>
     <footer class="article-footer">
-      <a data-url="https://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/" data-id="cli452qai00005qca451qe2yh" data-title="Understanding CPU Topology for Improved Performance" class="article-share-link">Share</a>
-
-
-        <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/#comments" class="article-comment-link">
-          <span class="post-comments-count valine-comment-count" data-xid="/2023/05/26/understanding-cpu-topology-for-improved-performance/" itemprop="commentCount"></span>
-          Comments
-        </a>
-
-
+      <a data-url="https://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/" data-id="cmv297qmz00av4rmigroi6nsv" data-title="Understanding CPU Topology for Improved Performance" class="article-share-link">分享</a>
+      
+      
+      
   <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li></ul>
 
     </footer>
   </div>
-
+  
 </article>
 
 
 
 
+  
+    
+<article id="post-2023-04-27-virtio-memory-balloon" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/04/27/virtio-memory-balloon/" class="article-date">
+  <time class="dt-published" datetime="2023-04-27T06:20:37.000Z" itemprop="datePublished">2023-04-27</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/virtualization/">virtualization</a>►<a class="article-category-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2023/04/27/virtio-memory-balloon/">Understand virtio memory balloon</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          
+<h2 id="Introduction"><a class="headerlink" href="#Introduction" title="Introduction"></a>Introduction</h2><p>Virtio memory ballooning is a technique that adjusts memory allocation in virtualized environments. The hypervisor can add or remove memory from a virtual machine based on demand, using a balloon driver in the guest operating system. When demand is high, the balloon driver inflates and the guest operating system releases memory. When demand is low, the balloon driver deflates and the guest operating system can use more memory.</p>
+<p>This technique optimizes memory usage and reduces the risk of memory exhaustion, making it useful in cloud computing environments. However, it also has trade-offs to consider. Inflating the balloon driver can cause performance issues if the guest operating system can’t release memory quickly enough. It may also struggle with high memory pressure. Understanding these limitations is key to making informed decisions about using virtio memory ballooning.</p>
+<h2 id="Overview-of-Virtio-Memory-Ballooning"><a class="headerlink" href="#Overview-of-Virtio-Memory-Ballooning" title="Overview of Virtio Memory Ballooning"></a>Overview of Virtio Memory Ballooning</h2><p>Based on wiki <a href="https://en.wikipedia.org/wiki/Memory_ballooning" rel="noopener" target="_blank">memory ballooning</a> is a technique used to eliminate the need to overprovision host memory used by a virtual machine. To implement it, the virtual machine’s kernel implements a “balloon driver” which allocates unused memory within the VM’s address space into a reserved memory pool (the “balloon”) so that it is unavailable to other processes on the VM. However, rather than being reserved for other uses within the VM, the physical memory mapped to those pages within the VM is actually unmapped from the VM by the host operating system’s hypervisor, making it available for other uses by the host machine. Depending on the amount of memory required by the VM, the size of the “balloon” may be increased or decreased dynamically, mapping and unmapping physical memory as required by the VM.</p>
+<p>According to the Virtio v1.2 specification, Virtio Memory Ballooning follows the Virtio protocol. Including:</p>
+<h3 id="Feature-bits"><a class="headerlink" href="#Feature-bits" title="Feature bits"></a>Feature bits</h3><ul>
+<li><strong>VIRTIO_BALLOON_F_MUST_TELL_HOST (0):</strong> Host must be notified before balloon pages are used.</li>
+<li><strong>VIRTIO_BALLOON_F_STATS_VQ (1):</strong> A virtqueue is present for reporting guest memory statistics.</li>
+<li><strong>VIRTIO_BALLOON_F_DEFLATE_ON_OOM (2):</strong> Balloon deflates when guest is out of memory.</li>
+<li><strong>VIRTIO_BALLOON_F_FREE_PAGE_HINT (3):</strong> The device supports free page hinting. The configuration field <em>free_page_hint_cmd_id</em> is valid.</li>
+<li><strong>VIRTIO_BALLOON_F_PAGE_POISON (4):</strong> The driver will immediately write <em>poison_val</em> to pages after deflating them. The configuration field <em>poison_val</em> is valid.</li>
+<li><strong>VIRTIO_BALLOON_F_PAGE_REPORTING (5):</strong> The device supports free page reporting. A virtqueue is present for reporting free guest memory.</li>
+</ul>
+<h3 id="Memory-Statistics-Tags"><a class="headerlink" href="#Memory-Statistics-Tags" title="Memory Statistics Tags"></a>Memory Statistics Tags</h3><ul>
+<li><strong>VIRTIO_BALLOON_S_SWAP_IN (0)</strong>: Amount of memory swapped in (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_SWAP_OUT (1)</strong>: Amount of memory swapped out to disk (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_MAJFLT (2)</strong>: Number of major page faults that have occurred.</li>
+<li><strong>VIRTIO_BALLOON_S_MINFLT (3)</strong>: Number of minor page faults that have occurred.</li>
+<li><strong>VIRTIO_BALLOON_S_MEMFREE (4)</strong>: Amount of memory not being used (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_MEMTOT (5)</strong>: Total amount of memory available (in bytes).</li>
+<li><strong>VIRTIO_BALLOON_S_AVAIL (6)</strong>: Estimate of available memory (in bytes) for starting new applications.</li>
+<li><strong>VIRTIO_BALLOON_S_CACHES (7)</strong>: Amount of memory (in bytes) that can be quickly reclaimed without I/O.</li>
+<li><strong>VIRTIO_BALLOON_S_HTLB_PGALLOC (8)</strong>: Number of successful hugetlb page allocations in the guest.</li>
+<li><strong>VIRTIO_BALLOON_S_HTLB_PGFAIL (9)</strong>: Number of failed hugetlb page allocations in the guest.</li>
+</ul>
+<h3 id="Free-page-hinting"><a class="headerlink" href="#Free-page-hinting" title="Free page hinting"></a>Free page hinting</h3><p>Free page hinting is used during migration to determine which pages within the guest are not being used. These pages are then skipped over while migrating the guest. The device will indicate it is ready to start hinting by setting the <em>free_page_hint_cmd_id</em> to one of the non-reserved values that can be used as a command ID. The driver is notified of the following reserved values:</p>
+<ul>
+<li>VIRTIO_BALLOON_CMD_ID_STOP (0): any previously supplied command ID is invalid. The driver should stop hinting free pages until a new command ID is supplied, but should not release any hinted pages for use by the guest.</li>
+<li>VIRTIO_BALLOON_CMD_ID_DONE (1): any previously supplied command ID is invalid. The driver should stop hinting free pages and release all hinted pages for use by the guest.</li>
+</ul>
+<p>When a hint is provided, it indicates that the data contained in the given page is no longer needed and can be discarded. If the driver writes to the page, this overrides the hint and the data will be retained. Any stale pages that have not been written to since the page was hinted may lose their content. If read, the contents of such pages will be uninitialized memory.</p>
+<h3 id="Page-Poison"><a class="headerlink" href="#Page-Poison" title="Page Poison"></a>Page Poison</h3><p>Page Poison is a feature that lets the host know when the guest is initializing free pages with <em>poison_val</em>. When enabled, the driver immediately writes to pages after deflating and pages reported as free will retain <em>poison_val</em>. If the guest is not initializing freed pages, the driver should reject the VIRTIO_BALLOON_F_PAGE_POISON feature. If the feature has been negotiated, the driver will place the initialization value into the <em>poison_val</em> configuration field data.</p>
+<h3 id="Free-Page-Reporting"><a class="headerlink" href="#Free-Page-Reporting" title="Free Page Reporting"></a>Free Page Reporting</h3><p>Free Page Reporting is a method similar to balloon inflation, but without a deflation queue. Reported free pages can be reused by the driver after the request is acknowledged, without notifying the device.</p>
+<p>The driver initiates reporting by gathering free pages into a scatter-gather list, which is then added to the reporting_vq. The exact timing and selection of free pages is determined by the driver.</p>
+<p>Once the driver has enough pages available, it sends a reporting request to the device, which acknowledges the request using the reporting_vq descriptor. After acknowledgement, the driver can reuse the reported free pages by returning them to the free page lists in the guest operating system.</p>
+<p>The driver can continue to gather and report free pages until it has reached the desired number of pages.</p>
+<h2 id="Comparison-to-Other-Memory-Management-Techniques"><a class="headerlink" href="#Comparison-to-Other-Memory-Management-Techniques" title="Comparison to Other Memory Management Techniques"></a>Comparison to Other Memory Management Techniques</h2><p>Virtio memory ballooning is just one of several memory management techniques available in virtualized environments. Here are some other techniques that are commonly used:</p>
+<h3 id="Overcommitment"><a class="headerlink" href="#Overcommitment" title="Overcommitment"></a>Overcommitment</h3><p>Overcommitment is a technique that allows virtual machines to use more memory than physically available. This is useful when memory demand is highly variable. However, overcommitment can cause performance issues if the host system runs out of memory and needs to swap memory pages to disk.</p>
+<p>KVM hypervisor automatically overcommits CPUs and memory. This means that more virtualized CPUs and memory can be allocated to virtual machines than there are physical resources. This saves system resources, resulting in less power, cooling, and investment in server hardware while still allowing under-utilized virtualized servers or desktops to run on fewer hosts.</p>
+<h3 id="Memory-Compression"><a class="headerlink" href="#Memory-Compression" title="Memory Compression"></a>Memory Compression</h3><p>Memory compression compresses memory pages to free up memory in high demand situations. However, this technique can lead to performance problems if the compression algorithm is slow or if memory demand is high.</p>
+<p>Zram, zcache, and zswap advance in-kernel compression in different ways. Zram and zcache, both found in the staging tree, have improved in design and implementation, but they are not stable enough for promotion into the core kernel. Zswap proposes a simplified frontswap-only fork of zcache for direct merging into the MM subsystem. While simpler than zcache, zswap is entirely dependent on still-in-staging zsmalloc and has limitations. If zswap is merged, it remains to be seen if it will ever be extended adequately.</p>
+<h3 id="Hypervisor-Swapping"><a class="headerlink" href="#Hypervisor-Swapping" title="Hypervisor Swapping"></a>Hypervisor Swapping</h3><p>Hypervisor swapping is a technique in which the hypervisor swaps memory pages between the host and guest operating systems in order to optimize memory usage. This can be useful in situations where there is a high demand for memory or when the host system is running low on memory. However, hypervisor swapping can also lead to performance issues if the guest operating system can’t release memory quickly enough.</p>
+<p>Compared to these techniques, virtio memory ballooning has some unique advantages. It optimizes memory usage within the guest operating system itself, reducing the risk of memory exhaustion and improving performance. However, it also has some trade-offs to consider, such as the potential for performance issues if the guest operating system can’t release memory quickly enough.</p>
+<h2 id="How-to-use-Virtio-Memory-Ballooning-on-linux"><a class="headerlink" href="#How-to-use-Virtio-Memory-Ballooning-on-linux" title="How to use Virtio Memory Ballooning on linux"></a>How to use Virtio Memory Ballooning on linux</h2><h3 id="Environment"><a class="headerlink" href="#Environment" title="Environment"></a>Environment</h3><p>On host side we use libvirt to setup a vm.</p>
+<p>The memory tag means: The maximum allocation of memory for the guest at boot time.</p>
+<p>The currentMemory tag means: The actual allocation of memory for the guest.</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">maxMemory</span> <span class="attr">slots</span>=<span class="string">'16'</span> <span class="attr">unit</span>=<span class="string">'KiB'</span>&gt;</span>1524288<span class="tag">&lt;/<span class="name">maxMemory</span>&gt;</span></span><br/><span class="line"><span class="tag">&lt;<span class="name">memory</span> <span class="attr">unit</span>=<span class="string">'KiB'</span>&gt;</span>8388608<span class="tag">&lt;/<span class="name">memory</span>&gt;</span></span><br/><span class="line"><span class="tag">&lt;<span class="name">currentMemory</span> <span class="attr">unit</span>=<span class="string">'KiB'</span>&gt;</span>8388608<span class="tag">&lt;/<span class="name">currentMemory</span>&gt;</span></span><br/></pre></td></tr></table></figure>
+<aside>
+💡 The maxMemory tag means: the run time maximum memory allocation of the guest. The initial memory specified by either the <memory> element or the NUMA cell size configuration can be increased by hot-plugging of memory to the limit specified by this element.
+
+</memory></aside>
+<p>And add memballoon virtio device in vm xml:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">memballoon</span> <span class="attr">model</span>=<span class="string">'virtio'</span>&gt;</span></span><br/></pre></td></tr></table></figure>
+<p>To use Virtio Memory Ballooning on Linux guest, you’ll need to ensure that your kernel has support for the virtio_balloon driver. You can check for this by running the following command:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">lsmod | grep virtio_balloon</span><br/></pre></td></tr></table></figure>
+<aside>
+💡 If you want to test pm_sleep make sure CONFIG_PM_SLEEP is enabled
+
+</aside>
+<p>If the virtio_balloon driver is not listed, you may need to load it manually by running the following command:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">modprobe virtio_balloon</span><br/></pre></td></tr></table></figure>
+<p>We can do some test to confirm balloon driver is working:</p>
+<h3 id="Basic-usage"><a class="headerlink" href="#Basic-usage" title="Basic usage"></a>Basic usage</h3><p>Explaination from </p>
+<p><a href="https://github.com/libvirt/libvirt/blob/master/docs/manpages/virsh.rst" rel="noopener" target="_blank">libvirt/virsh.rst at master · libvirt/libvirt</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME          </span></span><br/><span class="line">actual 8388608          <span class="comment"># Current balloon value (in KB)</span></span><br/><span class="line">swap_in 7011156         <span class="comment"># The amount of data read from swap space (in kB)</span></span><br/><span class="line">swap_out 664776         <span class="comment"># The amount of memory written out to swap space (in kB)</span></span><br/><span class="line">major_fault 234565      <span class="comment"># The number of page faults where disk IO was required</span></span><br/><span class="line">minor_fault 84722778    <span class="comment"># The number of other page faults</span></span><br/><span class="line">unused 6291308          <span class="comment"># The amount of memory left unused by the system (in kB)</span></span><br/><span class="line">available 8388044       <span class="comment"># The amount of usable memory as seen by the domain (in kB)</span></span><br/><span class="line">usable 6349618          <span class="comment"># The amount of memory which can be reclaimed by balloon without causing host swapping (in KB) *</span></span><br/><span class="line">last_update 1682566755  <span class="comment"># Timestamp of the last update of statistics (in seconds)</span></span><br/><span class="line">disk_caches 116620      <span class="comment"># The amount of memory that can be reclaimed without additional I/O, typically disk caches (in KiB)</span></span><br/><span class="line">rss 8529188             <span class="comment"># Resident Set Size of the running domain's process (in kB)</span></span><br/></pre></td></tr></table></figure>
+<p>with memory balloon we can get details about guest usage which matches the Memory Statistics Tags we metioned above.</p>
+<p>And from dominfo we can see the memory usage directly</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/><span class="line">12</span><br/><span class="line">13</span><br/><span class="line">14</span><br/><span class="line">15</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dominfo YOUR_VM_NAME</span></span><br/><span class="line">Id:             7</span><br/><span class="line">Name:           1970b0ef25e44adc834767fe81f155d5</span><br/><span class="line">UUID:           1970b0ef-25e4-4adc-8347-67fe81f155d5</span><br/><span class="line">OS Type:        hvm</span><br/><span class="line">State:          running</span><br/><span class="line">CPU(s):         4</span><br/><span class="line">CPU time:       214084.1s</span><br/><span class="line">Max memory:     8388608 KiB</span><br/><span class="line">Used memory:    8388608 KiB</span><br/><span class="line">Persistent:     yes</span><br/><span class="line">Autostart:      <span class="built_in">disable</span></span><br/><span class="line">Managed save:   no</span><br/><span class="line">Security model: none</span><br/><span class="line">Security DOI:   0</span><br/></pre></td></tr></table></figure>
+<h3 id="Shrinking-memory"><a class="headerlink" href="#Shrinking-memory" title="Shrinking memory"></a>Shrinking memory</h3><p>At first, check the unused memory of your guest</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME | grep unused</span></span><br/><span class="line">unused 2868704</span><br/></pre></td></tr></table></figure>
+<p>then we try to set memory to a size we want</p>
+<p>Simply, </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">use actual - unused = 8388608 - 2868704 = 5519904</span><br/></pre></td></tr></table></figure>
+<p>Then we use setmem</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh setmem YOUR_VM_NAME --size 5519904KiB --current</span></span><br/></pre></td></tr></table></figure>
+<p>Check the shrink take effects:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME</span></span><br/><span class="line">actual 5519904</span><br/><span class="line">swap_in 0</span><br/><span class="line">swap_out 2592</span><br/><span class="line">major_fault 6236</span><br/><span class="line">minor_fault 181380396</span><br/><span class="line">unused 140212</span><br/><span class="line">available 5139400</span><br/><span class="line">usable 3424496</span><br/><span class="line">last_update 1682567978</span><br/><span class="line">rss 5583008</span><br/></pre></td></tr></table></figure>
+<p>actual changed to 5519904 and we check the guest on the other side</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># free -hm</span></span><br/><span class="line">              total        used        free      shared  buff/cache   available</span><br/><span class="line">Mem:           4.9G        862M        134M        299M        3.9G        3.3G</span><br/><span class="line">Swap:          7.9G        3.5M        7.9G</span><br/></pre></td></tr></table></figure>
+<p>Total memory changed even smaller than 5519904 ~= 5.26G about 7% memory missing and almost same with available 5139400</p>
+<aside>
+💡 Qemu level vm statistics may different from the statistics inside guest.
+
+</aside>
+<h3 id="Expanding-memory"><a class="headerlink" href="#Expanding-memory" title="Expanding memory"></a><strong><strong>Expanding</strong></strong> memory</h3><p>To increase the memory allocation of a virtual machine using virtio memory ballooning, you can use the <code>virsh setmem</code> command. For example, to increase the memory allocation to 8GB, you would run:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">virsh setmem YOUR_VM_NAME --size 8G --current</span><br/></pre></td></tr></table></figure>
+<p>This will increase the memory allocation of the virtual machine to 8GB. However, it’s important to note that the guest operating system must have support for virtio memory ballooning in order to take advantage of this feature.</p>
+<p>In addition, it’s important to monitor the memory usage of virtual machines to ensure that they have enough memory to operate effectively. This can be done using tools like <code>virsh dommemstat</code> to monitor memory usage statistics.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/><span class="line">5</span><br/><span class="line">6</span><br/><span class="line">7</span><br/><span class="line">8</span><br/><span class="line">9</span><br/><span class="line">10</span><br/><span class="line">11</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># virsh dommemstat YOUR_VM_NAME</span></span><br/><span class="line">actual 8388608</span><br/><span class="line">swap_in 0</span><br/><span class="line">swap_out 2592</span><br/><span class="line">major_fault 6236</span><br/><span class="line">minor_fault 181827159</span><br/><span class="line">unused 3008116</span><br/><span class="line">available 8008104</span><br/><span class="line">usable 6293140</span><br/><span class="line">last_update 1682571788</span><br/><span class="line">rss 7545844</span><br/></pre></td></tr></table></figure>
+<aside>
+💡 Unused memory after increase may not changed right now, wait for a minute to see its changes.
+
+</aside>
+<p>Inside guest</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br/><span class="line">2</span><br/><span class="line">3</span><br/><span class="line">4</span><br/></pre></td><td class="code"><pre><span class="line"><span class="comment"># free -hm</span></span><br/><span class="line">              total        used        free      shared  buff/cache   available</span><br/><span class="line">Mem:           7.6G        862M        2.9G        299M        3.9G        6.0G</span><br/><span class="line">Swap:          7.9G        3.5M        7.9G</span><br/></pre></td></tr></table></figure>
+<p>With 8GB memory from qemu side, guest have total 7.6G memory. There is still a 5% missing.</p>
+<h2 id="Industry-Practices"><a class="headerlink" href="#Industry-Practices" title="Industry Practices"></a>Industry Practices</h2><h3 id="Proxmox"><a class="headerlink" href="#Proxmox" title="Proxmox"></a>Proxmox</h3><p><a href="https://pve.proxmox.com/wiki/Dynamic_Memory_Management" rel="noopener" target="_blank">Dynamic memory management</a> shows that KSM and memory balloon works on windows and linux guest, a memory range from min and max will be required and guest’s memory will dynamicly changed between the range to impelement memory ballooning.</p>
+<h3 id="Google-cloud"><a class="headerlink" href="#Google-cloud" title="Google cloud"></a>Google cloud</h3><p><a href="https://cloud.google.com/compute/docs/dynamic-resource-management" rel="noopener" target="_blank">Dynamic resource management</a> Memory ballooning is an interface mechanism between host and guest to dynamically adjust the size of the reserved memory for the guest. A <a href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005" rel="noopener" target="_blank">virtio memory balloon device</a> <br/> is used to implement memory ballooning. Through the virtio memory balloon device, a host can explicitly ask a guest to yield a certain amount of free memory pages (also called memory balloon inflation), and reclaim the memory so that the host can use the free memory for other VMs. Likewise, the virtio memory balloon device can return memory pages back to the guest by deflating the memory balloon.</p>
+<p>Compute Engine E2 VM instances that are based on a <a href="https://cloud.google.com/compute/docs/images#os-compute-support" rel="noopener" target="_blank">public image</a><br/> have a <a href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005" rel="noopener" target="_blank">virtio memory balloon device</a> , which monitors the guest operating system’s memory use. The guest operating system communicates its available memory to the host system. The host reallocates any unused memory to other processes on demand, thereby using memory more effectively. Compute Engine collects and uses this data to make more accurate <a href="https://cloud.google.com/compute/docs/instances/apply-machine-type-recommendations-for-instances" rel="noopener" target="_blank">rightsizing recommendations</a>.</p>
+<p>In <a href="https://en.wikipedia.org/wiki/Linux_kernel_version_history" rel="noopener" target="_blank">Linux kernels</a> before 5.2, the Linux memory system sometimes mistakenly prevents large allocations when the balloon device is present. This is rarely an issue in practice, but we recommend changing the virtual memory <code>overcommit_memory</code> setting to <code>1</code> to prevent the issue from occurring. This change is already made by default in all Google-provided images published since February 9, 2021.</p>
+<p>To fix the setting, use the following command to change the value from <code>0</code> to <code>1</code>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">sudo /sbin/sysctl -w vm.overcommit_memory=1</span><br/></pre></td></tr></table></figure>
+<p>To persist this change across reboots, add the following to your <code>/etc/sysctl.conf</code> file:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br/></pre></td><td class="code"><pre><span class="line">vm.overcommit_memory=1</span><br/></pre></td></tr></table></figure>
+<h3 id="Nutanix"><a class="headerlink" href="#Nutanix" title="Nutanix"></a>Nutanix</h3><p><a href="https://www.nutanix.dev/2022/05/05/squeeze-even-more-out-of-your-hci/" rel="noopener" target="_blank">Squeeze even more memory of your HCI</a> </p>
+<p>Memory overcommit allows more memory to be assigned to VMs than is physically present in the server hardware. Unused memory allocated to a VM can be reclaimed by the hypervisor and made available to other VMs on the host. AHV adjusts memory usage for each VM according to its usage, allowing the host to use excess memory to satisfy the requirements of other VMs. This reduces hardware costs for large deployments or increases the utilization of an existing environment that can’t be immediately expanded with new nodes. VMs without memory overcommit will operate with their pre-assigned memory, and can coexist with overcommit enabled VMs. Nutanix uses a multi-tier approach combining ballooning and hypervisor-level swap to optimize performance. Metrics are presented to the administrator in Prism Central to indicate the gains achieved through overcommit and its impact on VM performance. Memory overcommit may not be appropriate for performance-sensitive workloads due to its dynamic nature.</p>
+<p><a href="https://portal.nutanix.com/page/documents/details?targetId=AHV-Admin-Guide-v6_1:ahv-vm-limitations-memory-overcommit-c.html" rel="noopener" target="_blank">Limits of Memory Overcommit</a></p>
+<p>Memory overcommit has the following limitations:</p>
+<ul>
+<li>You can enable or disable Memory Overcommit only while the VM is powered off.</li>
+<li>Power off the VM enabled with memory overcommit before you change the memory allocation for the VM.<br/>For example, you cannot update the memory of a VM that is enabled with memory overcommit when it is still running. The system displays the following alert: InvalidVmState: Cannot complete request in state on.</li>
+<li>Memory overcommit is not supported with VMs that use GPU passthrough and vNUMA.<br/>For example, you cannot update a VM to a vNUMA VM when it is enabled with memory overcommit. The system displays the following alert: InvalidArgument: Cannot use memory overcommit feature for a vNUMA VM error.</li>
+<li>Memory overcommit feature can slow down the performance and the predictable performance of the VM<br/>For example, migrating a VM enabled with Memory Overcommit takes longer than migrating a VM not enabled with Memory Overcommit.</li>
+<li>There may be a temporary spike in the aggregate memory usage in the cluster during the migration of a VM enabled with Memory Overcommit from one node to another.<br/>For example, when you migrate a VM from Node A to Node B, the total memory used in the cluster during migration is greater than the memory usage before the migration.<br/>The memory usage of the cluster eventually drops back to pre-migration levels when the cluster reclaims the memory for other VM operations.</li>
+<li>Using Memory Overcommit heavily can cause a spike in the disk space utilization in the cluster. This spike is caused because the Host Swap uses some of the disk space in the cluster.<br/>If the VMs do not have a swap disk, then in case of memory pressure, AHV uses space from the swap disk created on ADSF to provide memory to the VM. This can lead to an increase in disk space consumption on the cluster.</li>
+<li>All DR operations except Cross Cluster Live Migration (CCLM) are supported<br/>On the destination side, if a VM fails when you enable Memory Overcommit, the failed VM fails over (creating the VM on the remote site) as a fixed size VM. You can enable Memory Overcommit on this VM after the failover is complete.</li>
+</ul>
+<h2 id="Limitations-and-Challenges"><a class="headerlink" href="#Limitations-and-Challenges" title="Limitations and Challenges"></a>Limitations and Challenges</h2><p>Guest should support virtio memory ballooning, if the balloon driver not available there is no effective way to do it.</p>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>No Balloon Driver</th>
+<th>Partially Supported</th>
+<th>Fully Supported</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CentOS</td>
+<td>6.1, 6.2</td>
+<td>6.3–6.9, 7.1, 7.2</td>
+<td>7.3–7.7, 8.0–8.2</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>7.3</td>
+<td>7.4, 7.5</td>
+<td>7.6, 7.7</td>
+</tr>
+<tr>
+<td>Ubuntu</td>
+<td>See note.</td>
+<td>12.04</td>
+<td>14.04 and newer</td>
+</tr>
+</tbody></table>
+<aside>
+💡 Some Ubuntu versions have a working balloon driver but it may be disabled by default.
+
+</aside>
+<p>Not all situations are suitable for memory ballooning. Frequent expansion and contraction of memory can be harmful if the memory usage changes dynamically.</p>
+<h2 id="Future-Development"><a class="headerlink" href="#Future-Development" title="Future Development"></a>Future Development</h2><p><a href="https://www.linux-kvm.org/page/Projects/auto-ballooning" rel="noopener" target="_blank">https://www.linux-kvm.org/page/Projects/auto-ballooning</a> The auto ballooning project was initiated in 2013. The hypervisor and Linux kernel need to be updated to support the project, which has not been upstreamed yet.</p>
+<h2 id="Real-World-Implementation-Case-Study"><a class="headerlink" href="#Real-World-Implementation-Case-Study" title="Real-World Implementation Case Study"></a>Real-World Implementation Case Study</h2><ul>
+<li><strong><strong><a href="https://www.youtube.com/watch?v=r1wxgLTG40g" rel="noopener" target="_blank">Lessons Learned Building a Production Memory-Overcommit Solution</a></strong></strong></li>
+</ul>
+<h2 id="Conclusion"><a class="headerlink" href="#Conclusion" title="Conclusion"></a>Conclusion</h2><p>Virtualization is important in modern computing for flexible and efficient resource allocation. Memory management is challenging in virtualized environments when multiple virtual machines run on a single physical server. Virtio memory ballooning optimizes memory usage by dynamically adjusting guest memory reservation. It improves performance and reduces the risk of memory exhaustion. This article explains how to use virtio memory ballooning on Linux, compares it to other memory management techniques, and discusses industry practices, limitations, and future developments.</p>
+<h2 id="References"><a class="headerlink" href="#References" title="References"></a>References</h2><ul>
+<li><a href="https://github.com/libvirt/libvirt/blob/master/docs/manpages/virsh.rst" rel="noopener" target="_blank">libvirt/virsh.rst at master · libvirt/libvirt</a></li>
+<li><a href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-2790005" rel="noopener" target="_blank">virtio-v1.1-csprd01/virtio-v1.1-csprd01.html#x1-2790005</a></li>
+<li><a href="https://pve.proxmox.com/wiki/Dynamic_Memory_Management" rel="noopener" target="_blank">Dynamic memory management</a></li>
+<li><a href="https://cloud.google.com/compute/docs/dynamic-resource-management" rel="noopener" target="_blank">Dynamic resource management</a></li>
+<li><a href="https://www.nutanix.dev/2022/05/05/squeeze-even-more-out-of-your-hci/" rel="noopener" target="_blank">Squeeze even more memory of your HCI</a></li>
+<li><a href="https://portal.nutanix.com/page/documents/details?targetId=AHV-Admin-Guide-v6_1:ahv-vm-limitations-memory-overcommit-c.html" rel="noopener" target="_blank">Limits of Memory Overcommit</a></li>
+<li><a href="https://www.linux-kvm.org/page/Projects/auto-ballooning" rel="noopener" target="_blank">https://www.linux-kvm.org/page/Projects/auto-ballooning</a></li>
+<li><a href="https://www.youtube.com/watch?v=r1wxgLTG40g" rel="noopener" target="_blank">Lessons Learned Building a Production Memory-Overcommit Solution</a></li>
+</ul>
+<p>Powered by Notion AI</p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2023/04/27/virtio-memory-balloon/" data-id="cmv297qmx009w4rmi6zirc65k" data-title="Understand virtio memory balloon" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+
+  
 
 
   <nav id="page-nav">
-
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+    
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/2/">下一页 &raquo;</a>
   </nav>
 
 </section>
-
+        
           <aside id="sidebar">
-
-
+  
+    
   <div class="widget-wrap">
     <h3 class="widget-title">分类</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
     </div>
   </div>
 
 
-
-
+  
+    
   <div class="widget-wrap">
     <h3 class="widget-title">标签</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
     </div>
   </div>
 
 
-
-
+  
+    
   <div class="widget-wrap">
     <h3 class="widget-title">标签云</h3>
-    <div class="widget tagcloud"><a href="/tags/architecture/" style="font-size: 18.57px;">architecture</a> <a href="/tags/kernel/" style="font-size: 14.29px;">kernel</a> <a href="/tags/kvm/" style="font-size: 15.71px;">kvm</a> <a href="/tags/linux/" style="font-size: 18.57px;">linux</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/vhost-net/" style="font-size: 17.14px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 14.29px;">virt</a> <a href="/tags/virtio/" style="font-size: 17.14px;">virtio</a> <a href="/tags/virtio-net/" style="font-size: 17.14px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 17.14px;">virtio-networking</a> <a href="/tags/" style="font-size: 12px;">更多</a></div>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.5px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.25px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.5px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.5px;">cpu</a> <a href="/tags/cram/" style="font-size: 11.25px;">cram</a> <a href="/tags/cxl/" style="font-size: 11.25px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.25px;">ft</a> <a href="/tags/incident-analysis/" style="font-size: 11.25px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 11.25px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.5px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 15px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.25px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.5px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.75px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 11.25px;">llm</a> <a href="/tags/lru/" style="font-size: 10px;">lru</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.25px;">perf</a> <a href="/tags/performance/" style="font-size: 15px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.25px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.5px;">software-arch</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.5px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.25px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.75px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.25px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.25px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.25px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
   </div>
 
-
-
+  
+    
   <div class="widget-wrap">
     <h3 class="widget-title">归档</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">February 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">December 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">May 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">April 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">March 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/">更多归档</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
     </div>
   </div>
 
 
-
-
+  
+    
   <div class="widget-wrap">
-    <h3 class="widget-title">最近文章</h3>
+    <h3 class="widget-title">最新文章</h3>
     <div class="widget">
       <ul>
-<li>
-            <a href="/2024/02/04/linux-guest-could-not-access-tsc-clocksource/">Linux guest could not access tsc clocksource</a>
+        
+          <li>
+            <a href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
           </li>
-<li>
-            <a href="/2023/12/06/2023-12-06/">The disk in the guest OS is unmounted during the kernel startup process.</a>
+        
+          <li>
+            <a href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
           </li>
-<li>
-            <a href="/2023/05/26/understanding-cpu-topology-for-improved-performance/">Understanding CPU Topology for Improved Performance</a>
+        
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
           </li>
-</ul>
+        
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/20/deepseek-v32-bw1100-profiler-analysis/">在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</a>
+          </li>
+        
+      </ul>
     </div>
   </div>
 
-
+  
 </aside>
-
+        
       </div>
       <footer id="footer">
-
+  
   <div class="outer">
     <div id="footer-info" class="inner">
-      <p class="footer-license">
-        <a rel="license noopener" target="_blank" href="https://creativecommons.org/licenses/by-nc/4.0/">
-          <img alt="Creative Commons License" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" width="88" height="31">
-        </a>
-        <span>Licensed under <a rel="license noopener" target="_blank" href="https://creativecommons.org/licenses/by-nc/4.0/">CC BY-NC 4.0</a></span>
-      </p>
-      <p class="footer-meta">&copy; 2026 Alan Jager · Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a></p>
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
     </div>
   </div>
 </footer>
 
     </div>
     <nav id="mobile-nav">
-
+  
     <a href="/" class="mobile-nav-link">首页</a>
-
+  
     <a href="/archives" class="mobile-nav-link">归档</a>
-
-  <a class="mobile-nav-link" href="/tools/" title="开源工具">工具</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
 </nav>
-
+    
 
 
 <script src="/js/jquery-3.4.1.min.js"></script>
 
 
 
-
+  
 <script src="/fancybox/jquery.fancybox.min.js"></script>
 
 
@@ -423,29 +1260,6 @@
 
 
 
-
-
-<script src="https://cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js"></script>
-
-<script>
-    var GUEST_INFO = ['nick','mail','link'];
-    var guest_info = 'nick,mail,link'.split(',').filter(function(item){
-        return GUEST_INFO.indexOf(item) > -1
-    });
-    var notify = '' == true;
-    var verify = 'false' == true;
-    new Valine({
-        el: '.vcomment',
-        notify: notify,
-        verify: verify,
-        appId: "r30r51B3r5JFqlxR88Jua6So-gzGzoHsz",
-        appKey: "wnL9j38siXbLqBHGnWpzmVxv",
-        placeholder: "写下你的评论…",
-        pageSize:'10',
-        avatar:'mm',
-        lang:'zh-cn'
-    });
-</script>
 
   </div>
 </body>

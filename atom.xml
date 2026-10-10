@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>花の様に</title>
-  
+  <icon>https://hanayo.cn/icon.png</icon>
   
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-10-10T10:20:00.000Z</updated>
+  <updated>2026-10-09T06:30:00.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -15,7 +15,7 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
-  
+
   <entry>
     <title>CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</title>
     <link href="https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/"/>
@@ -46,8 +46,7 @@
     <category term="lru" scheme="https://hanayo.cn/tags/lru/"/>
     
   </entry>
-  
-  <entry>
+<entry>
     <title>CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</title>
     <link href="https://hanayo.cn/2026/10/09/cram-zram-simulation/"/>
     <id>https://hanayo.cn/2026/10/09/cram-zram-simulation/</id>
@@ -68,135 +67,57 @@
     
     <category term="cram" scheme="https://hanayo.cn/tags/cram/"/>
     
-    <category term="cxl" scheme="https://hanayo.cn/tags/cxl/"/>
-    
     <category term="zram" scheme="https://hanayo.cn/tags/zram/"/>
+    
+    <category term="cxl" scheme="https://hanayo.cn/tags/cxl/"/>
     
     <category term="memory" scheme="https://hanayo.cn/tags/memory/"/>
     
     <category term="page-fault" scheme="https://hanayo.cn/tags/page-fault/"/>
     
   </entry>
-  
   <entry>
     <title>模型量化原理：从单个权重到逐层推理</title>
     <link href="https://hanayo.cn/2026/09/24/model-quantization-principles/"/>
     <id>https://hanayo.cn/2026/09/24/model-quantization-principles/</id>
     <published>2026-09-24T07:00:00.000Z</published>
-    <updated>2026-09-24T07:00:00.000Z</updated>
-    
-    
+    <updated>2026-09-24T08:23:18.967Z</updated>
+
+
     <summary type="html">用图解、交互实验和公式理解大模型权重、激活与 KV Cache 量化，并估算推理时的存储与显存占用。</summary>
-    
-    
-    
-    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
-    
-    <category term="quantization" scheme="https://hanayo.cn/categories/ai-inference/quantization/"/>
-    
-    
+
+
+
+    <category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/>
+
+
     <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
-    
-    <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
-    
+
     <category term="quantization" scheme="https://hanayo.cn/tags/quantization/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</title>
-    <link href="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/"/>
-    <id>https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/</id>
-    <published>2026-09-23T08:00:00.000Z</published>
-    <updated>2026-09-23T08:00:00.000Z</updated>
-    
-    
-    <summary type="html">一次 JuiceFS NFS object storage 的空指针排查：分开理解错误处理缺陷、NFSv3 MOUNT、RPC 错误和 NFSv4 协议边界。</summary>
-    
-    
-    
-    <category term="systems" scheme="https://hanayo.cn/categories/systems/"/>
-    
-    <category term="storage" scheme="https://hanayo.cn/categories/systems/storage/"/>
-    
-    
-    <category term="linux" scheme="https://hanayo.cn/tags/linux/"/>
-    
-    <category term="nfs" scheme="https://hanayo.cn/tags/nfs/"/>
-    
-    <category term="juicefs" scheme="https://hanayo.cn/tags/juicefs/"/>
-    
-    <category term="incident-analysis" scheme="https://hanayo.cn/tags/incident-analysis/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</title>
-    <link href="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/"/>
-    <id>https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/</id>
-    <published>2026-09-20T08:00:00.000Z</published>
-    <updated>2026-09-20T06:15:50.000Z</updated>
-    
-    
-    <summary type="html">在 8 张 BW1100 上运行 DeepSeek-V3.2 W8A8，通过 Rank0 Profiler 对比低并发 Decode、长上下文 Prefill 和高并发 Decode 的 kernel 时间分布，并记录分析边界与后续工作。</summary>
-    
-    
-    
-    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
-    
-    <category term="performance" scheme="https://hanayo.cn/categories/ai-inference/performance/"/>
-    
-    
-    <category term="perf" scheme="https://hanayo.cn/tags/perf/"/>
-    
-    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
-    
-    <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
-    
+
     <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
-    
-    <category term="deepseek" scheme="https://hanayo.cn/tags/deepseek/"/>
-    
-    <category term="profiler" scheme="https://hanayo.cn/tags/profiler/"/>
-    
+
   </entry>
+
+  <entry><title>JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</title><link href="https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/"/><id>https://hanayo.cn/2026/09/23/juicefs-nfs-format-nfs3-nfs4/</id><published>2026-09-23T08:00:00.000Z</published><updated>2026-09-23T08:00:00.000Z</updated><summary type="html">&lt;p&gt;一次 JuiceFS NFS object storage 的空指针排查：分开理解错误处理缺陷、NFSv3 MOUNT、RPC 错误和 NFSv4 协议边界。&lt;/p&gt;</summary><category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/><category term="linux" scheme="https://hanayo.cn/tags/linux/"/><category term="kernel" scheme="https://hanayo.cn/tags/kernel/"/></entry>
   
-  <entry>
-    <title>XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</title>
-    <link href="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/"/>
-    <id>https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/</id>
-    <published>2026-09-02T08:00:00.000Z</published>
-    <updated>2026-09-03T03:07:48.000Z</updated>
-    
-    
-    <summary type="html">两台 Linux 虚拟机先后因 XFS 元数据损坏而 forced shutdown，最终根因却是 uprobe 在边界检查前写出了 per-CPU buffer。本文记录从 XFS symptom、数据签名到内核源码和上游补丁的完整排查过程。</summary>
-    
-    
-    
-    <category term="systems" scheme="https://hanayo.cn/categories/systems/"/>
-    
-    <category term="linux-kernel" scheme="https://hanayo.cn/categories/systems/linux-kernel/"/>
-    
-    
-    <category term="linux" scheme="https://hanayo.cn/tags/linux/"/>
-    
-    <category term="kernel" scheme="https://hanayo.cn/tags/kernel/"/>
-    
-    <category term="security" scheme="https://hanayo.cn/tags/security/"/>
-    
-    <category term="incident-analysis" scheme="https://hanayo.cn/tags/incident-analysis/"/>
-    
-  </entry>
-  
+  <entry><title>在 8×BW1100 上用 Profiler 分析 DeepSeek-V3.2</title><link href="https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/"/><id>https://hanayo.cn/2026/09/20/deepseek-v32-bw1100-profiler-analysis/</id><published>2026-09-20T08:00:00.000Z</published><updated>2026-09-20T06:15:50.225Z</updated><summary type="html">&lt;p&gt;一次 DeepSeek-V3.2 W8A8 的 Profiler 分析练习：对比不同负载下的 kernel 时间分布，并记录数据边界与后续工作。&lt;/p&gt;</summary><category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/><category term="perf" scheme="https://hanayo.cn/tags/perf/"/><category term="performance" scheme="https://hanayo.cn/tags/performance/"/></entry>
+  <entry><title>XFS 报错但根因不在 XFS：一次 uprobe 越界写排查</title><link href="https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/"/><id>https://hanayo.cn/2026/09/02/xfs-error-root-cause-uprobe-out-of-bounds/</id><published>2026-09-02T08:00:00.000Z</published><updated>2026-09-03T03:07:48.001Z</updated><summary type="html">&lt;h2&gt;Phenomenon&lt;/h2&gt;&lt;p&gt;两台 Linux 虚拟机先后出现 XFS forced shutdown，最终定位到 uprobe 参数抓取路径的越界写。&lt;/p&gt;</summary><category term="linux" scheme="https://hanayo.cn/categories/linux/"/><category term="kernel" scheme="https://hanayo.cn/tags/kernel/"/><category term="linux" scheme="https://hanayo.cn/tags/linux/"/><category term="security" scheme="https://hanayo.cn/tags/security/"/></entry>
   <entry>
     <title>Linux guest could not access tsc clocksource</title>
     <link href="https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/"/>
     <id>https://hanayo.cn/2024/02/04/linux-guest-could-not-access-tsc-clocksource/</id>
     <published>2024-02-04T05:18:56.000Z</published>
-    <updated>2024-06-03T05:55:00.000Z</updated>
+    <updated>2024-06-03T05:55:00.866Z</updated>
     
     
-    <summary type="html">Phenomenoncheck TSC disabled from guest 12[    0.000004] tsc: Detected 1999.999 MHz processor[    0.251920] tsc: Marking TSC unstable due to TSCs unsynchronized   Steps lscpu | grep tsc in guest, conf</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Phenomenon&quot;&gt;&lt;a href=&quot;#Phenomenon&quot; class=&quot;headerlink&quot; title=&quot;Phenomenon&quot;&gt;&lt;/a&gt;Phenomenon&lt;/h2&gt;&lt;p&gt;check TSC disabled from</summary>
+        
+      
     
     
     
@@ -216,10 +137,16 @@
     <link href="https://hanayo.cn/2023/12/06/2023-12-06/"/>
     <id>https://hanayo.cn/2023/12/06/2023-12-06/</id>
     <published>2023-12-06T06:14:17.000Z</published>
-    <updated>2023-12-06T06:35:28.000Z</updated>
+    <updated>2023-12-06T06:35:28.031Z</updated>
     
     
-    <summary type="html">Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the qemu process starts), a disk is loaded. During the kernel startu</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;Phenomenon: When creating a new virtual machine, after the virtual machine enters the “running” state (libvirt reports running, and the</summary>
+        
+      
     
     
     
@@ -231,10 +158,16 @@
     <link href="https://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/"/>
     <id>https://hanayo.cn/2023/05/26/understanding-cpu-topology-for-improved-performance/</id>
     <published>2023-05-26T05:44:12.000Z</published>
-    <updated>2023-05-26T05:47:53.000Z</updated>
+    <updated>2023-05-26T05:47:53.234Z</updated>
     
     
-    <summary type="html">The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the performance of a system, as it determines the effectiveness and efficienc</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;The physical layout of CPU cores in a system is known as CPU topology. Understanding CPU topology can significantly impact the</summary>
+        
+      
     
     
     
@@ -243,9 +176,9 @@
     <category term="cpu" scheme="https://hanayo.cn/categories/virtualization/cpu/"/>
     
     
-    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
-    
     <category term="cpu" scheme="https://hanayo.cn/tags/cpu/"/>
+    
+    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
     
     <category term="virtualization" scheme="https://hanayo.cn/tags/virtualization/"/>
     
@@ -256,10 +189,16 @@
     <link href="https://hanayo.cn/2023/04/27/virtio-memory-balloon/"/>
     <id>https://hanayo.cn/2023/04/27/virtio-memory-balloon/</id>
     <published>2023-04-27T06:20:37.000Z</published>
-    <updated>2023-04-27T06:27:29.000Z</updated>
+    <updated>2023-04-27T06:27:29.312Z</updated>
     
     
-    <summary type="html">IntroductionVirtio memory ballooning is a technique that adjusts memory allocation in virtualized environments. The hypervisor can add or remove memory from a virtual machine based on demand, using a</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;p&gt;Virtio memory ballooning is a</summary>
+        
+      
     
     
     
@@ -281,19 +220,25 @@
     <link href="https://hanayo.cn/2023/04/13/qemu-colo-details/"/>
     <id>https://hanayo.cn/2023/04/13/qemu-colo-details/</id>
     <published>2023-04-13T15:49:38.000Z</published>
-    <updated>2023-04-13T16:14:00.000Z</updated>
+    <updated>2023-04-13T16:14:00.290Z</updated>
     
     
-    <summary type="html">qemu quorum block filterBased on the code design of blkverify.c and blkmirror.c, the main purpose is to mirror write requests to all the qcow images hanging in the quorum, and the read operation is to</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;qemu-quorum-block-filter&quot;&gt;&lt;a href=&quot;#qemu-quorum-block-filter&quot; class=&quot;headerlink&quot; title=&quot;qemu quorum block filter&quot;&gt;&lt;/a&gt;qemu quorum</summary>
+        
+      
     
     
     
     <category term="virtualization" scheme="https://hanayo.cn/categories/virtualization/"/>
     
     
-    <category term="ft" scheme="https://hanayo.cn/tags/ft/"/>
-    
     <category term="qemu" scheme="https://hanayo.cn/tags/qemu/"/>
+    
+    <category term="ft" scheme="https://hanayo.cn/tags/ft/"/>
     
     <category term="colo" scheme="https://hanayo.cn/tags/colo/"/>
     
@@ -304,10 +249,17 @@
     <link href="https://hanayo.cn/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/"/>
     <id>https://hanayo.cn/2023/03/13/KVM%E8%99%9A%E6%8B%9F%E5%8C%96%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/</id>
     <published>2023-03-13T14:36:38.000Z</published>
-    <updated>2023-03-13T14:44:02.000Z</updated>
+    <updated>2023-03-13T14:44:02.510Z</updated>
     
     
-    <summary type="html">KVM虚拟化是一种常用的虚拟化技术，它可以将一台物理服务器划分为多个虚拟机，从而提高服务器的利用率和灵活性。然而，由于虚拟化带来的额外开销，KVM虚拟化的性能问题是一个常见的挑战。为了解决这些问题，我们需要使用一些性能诊断工具来分析和优化KVM虚拟化的性能。 以下是一些常用的KVM虚拟化性能诊断工具： PerfPerf是一种Linux性能分析工具，可以用于监视系统性能和调试性能问题。它基于Linu</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;KVM虚拟化是一种常用的虚拟化技术，它可以将一台物理服务器划分为多个虚拟机，从而提高服务器的利用率和灵活性。然而，由于虚拟化带来的额外开销，KVM虚拟化的性能问题是一个常见的挑战。为了解决这些问题，我们需要使用一些性能诊断工具来分析和优化KVM虚拟化的性能。&lt;/p&gt;
+&lt;p&gt;</summary>
+        
+      
     
     
     
@@ -318,11 +270,11 @@
     
     <category term="kvm" scheme="https://hanayo.cn/tags/kvm/"/>
     
-    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
-    
     <category term="sysstat" scheme="https://hanayo.cn/tags/sysstat/"/>
     
     <category term="virt-top" scheme="https://hanayo.cn/tags/virt-top/"/>
+    
+    <category term="performance" scheme="https://hanayo.cn/tags/performance/"/>
     
   </entry>
   
@@ -331,10 +283,17 @@
     <link href="https://hanayo.cn/2023/03/09/cpu-features-about-kvm-hidden/"/>
     <id>https://hanayo.cn/2023/03/09/cpu-features-about-kvm-hidden/</id>
     <published>2023-03-09T13:48:22.000Z</published>
-    <updated>2023-03-13T14:42:01.000Z</updated>
+    <updated>2023-03-13T14:42:01.595Z</updated>
     
     
-    <summary type="html">[TOC] What kvm hidden did to qemuBased on last blog, we can see how libvirt cpu feature configuration changes qemu cpuid. And we figure out hypervisor disable configuration have what kind of influence</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;[TOC]&lt;/p&gt;
+&lt;h2 id=&quot;What-kvm-hidden-did-to-qemu&quot;&gt;&lt;a href=&quot;#What-kvm-hidden-did-to-qemu&quot; class=&quot;headerlink&quot; title=&quot;What kvm hidden did to</summary>
+        
+      
     
     
     
@@ -358,10 +317,17 @@
     <link href="https://hanayo.cn/2023/03/03/virtio-on-linux/"/>
     <id>https://hanayo.cn/2023/03/03/virtio-on-linux/</id>
     <published>2023-03-03T14:38:09.000Z</published>
-    <updated>2023-03-03T14:38:10.000Z</updated>
+    <updated>2023-03-03T14:38:10.667Z</updated>
     
     
-    <summary type="html">Introduction Virtio is an open standard that defines a protocol for communication between drivers and devices of different types, see Chapter 5 (“Device Types”) of the virtio spec ([1]). Originally de</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;blockquote&gt;
+&lt;p&gt;Virtio is an</summary>
+        
+      
     
     
     
@@ -383,10 +349,17 @@
     <link href="https://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/"/>
     <id>https://hanayo.cn/2023/03/01/cpu-feature-configuration-code-diving/</id>
     <published>2023-03-01T12:48:22.000Z</published>
-    <updated>2023-03-01T12:54:51.000Z</updated>
+    <updated>2023-03-01T12:54:51.228Z</updated>
     
     
-    <summary type="html">If disable a feature in libvirt domain xml configuration, what will happen? General code about libvirt cpu confRead cpu_conf.c main entrance is virCPUDefFormatBuf Libvirt have two types format:  CUSTO</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;If disable a feature in libvirt domain xml configuration, what will happen?&lt;/p&gt;
+&lt;h2 id=&quot;General-code-about-libvirt-cpu-conf&quot;&gt;&lt;a</summary>
+        
+      
     
     
     
@@ -408,10 +381,17 @@
     <link href="https://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/"/>
     <id>https://hanayo.cn/2023/02/23/packed-virtqueue-how-to-reduce-overhead-with-virtio/</id>
     <published>2023-02-23T15:13:20.000Z</published>
-    <updated>2023-02-23T15:15:29.000Z</updated>
+    <updated>2023-02-23T15:15:29.577Z</updated>
     
     
-    <summary type="html">This is the final post of a three-post series, the previous posts are “Virtio devices and drivers overview: The headjack and the phone,” and “Virtqueues and virtio ring: How the data travels.”   这是三篇</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This is the final post of a three-post series, the previous posts are “&lt;a</summary>
+        
+      
     
     
     
@@ -435,10 +415,17 @@
     <link href="https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/"/>
     <id>https://hanayo.cn/2023/02/22/virtqueues-and-virtio-ring-how-the-data-travels/</id>
     <published>2023-02-22T15:48:33.000Z</published>
-    <updated>2023-02-22T15:49:00.000Z</updated>
+    <updated>2023-02-22T15:49:00.364Z</updated>
     
     
-    <summary type="html">This post continues where the “Virtio devices and drivers overview“ leaves off. After we have explained the scenario in the previous post, we are reaching the main point: how does the data travel fro</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This post continues where the “&lt;a</summary>
+        
+      
     
     
     
@@ -462,10 +449,17 @@
     <link href="https://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/"/>
     <id>https://hanayo.cn/2023/02/22/virtio-devices-and-drivers-overview-the-headjack-and-the-phone/</id>
     <published>2023-02-22T14:12:09.000Z</published>
-    <updated>2023-02-22T15:43:55.000Z</updated>
+    <updated>2023-02-22T15:43:55.133Z</updated>
     
     
-    <summary type="html">This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed virtqueue. This is the basis for the communication between hosts and virtual enviro</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;This three-part series will take you through the main virtio data plane layouts: the split virtqueue and the packed</summary>
+        
+      
     
     
     
@@ -489,10 +483,16 @@
     <link href="https://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/"/>
     <id>https://hanayo.cn/2023/02/03/windows-install-virtio-then-reboot-met-BSOD/</id>
     <published>2023-02-03T02:05:19.000Z</published>
-    <updated>2023-02-03T02:10:34.000Z</updated>
+    <updated>2023-02-03T02:10:34.900Z</updated>
     
     
-    <summary type="html">ScopeThis blog is a practice search about windows virtio driver installation. BackgroudFor virtualization software, normally guest will install virtio related drivers to get better virtualization perf</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Scope&quot;&gt;&lt;a href=&quot;#Scope&quot; class=&quot;headerlink&quot; title=&quot;Scope&quot;&gt;&lt;/a&gt;Scope&lt;/h2&gt;&lt;p&gt;This blog is a practice search about windows virtio</summary>
+        
+      
     
     
     
@@ -501,9 +501,9 @@
     
     <category term="virtio" scheme="https://hanayo.cn/tags/virtio/"/>
     
-    <category term="BSOD" scheme="https://hanayo.cn/tags/BSOD/"/>
-    
     <category term="windows" scheme="https://hanayo.cn/tags/windows/"/>
+    
+    <category term="BSOD" scheme="https://hanayo.cn/tags/BSOD/"/>
     
   </entry>
   
@@ -512,10 +512,16 @@
     <link href="https://hanayo.cn/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/"/>
     <id>https://hanayo.cn/2023/01/13/live-migration-failed-due-to-libvirt-keepalive-timeout/</id>
     <published>2023-01-13T08:16:33.000Z</published>
-    <updated>2023-01-16T03:23:08.000Z</updated>
+    <updated>2023-01-16T03:23:08.759Z</updated>
     
     
-    <summary type="html">Live migration is a important part of kvm virtualization at the first day it was designed. However when dive into control plane of libvirt live migration, it became quite complex. So I will describe t</summary>
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;Live migration is a important part of kvm virtualization at the first day it was designed. However when dive into control plane of</summary>
+        
+      
     
     
     
@@ -529,6 +535,175 @@
     <category term="libvirt" scheme="https://hanayo.cn/tags/libvirt/"/>
     
     <category term="live-migration" scheme="https://hanayo.cn/tags/live-migration/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Nessus on centos 7</title>
+    <link href="https://hanayo.cn/2022/12/15/nessus-on-centos-7/"/>
+    <id>https://hanayo.cn/2022/12/15/nessus-on-centos-7/</id>
+    <published>2022-12-15T08:27:49.000Z</published>
+    <updated>2023-01-10T10:15:20.616Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;First find download command from official page: &lt;a</summary>
+        
+      
+    
+    
+    
+    <category term="devops" scheme="https://hanayo.cn/categories/devops/"/>
+    
+    
+    <category term="security" scheme="https://hanayo.cn/tags/security/"/>
+    
+    <category term="nessus" scheme="https://hanayo.cn/tags/nessus/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>UEFI Windows guest hang after live migration</title>
+    <link href="https://hanayo.cn/2022/11/16/uefi-windows-guest-hang-after-live-migration/"/>
+    <id>https://hanayo.cn/2022/11/16/uefi-windows-guest-hang-after-live-migration/</id>
+    <published>2022-11-16T12:12:22.000Z</published>
+    <updated>2023-01-10T10:23:26.107Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;Notes about debug windows hang issue.&lt;/p&gt;
+&lt;h2 id=&quot;Test-case&quot;&gt;&lt;a href=&quot;#Test-case&quot; class=&quot;headerlink&quot; title=&quot;Test case&quot;&gt;&lt;/a&gt;Test</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="https://hanayo.cn/categories/virtualization/"/>
+    
+    
+    <category term="qemu" scheme="https://hanayo.cn/tags/qemu/"/>
+    
+    <category term="kvm" scheme="https://hanayo.cn/tags/kvm/"/>
+    
+    <category term="kernel" scheme="https://hanayo.cn/tags/kernel/"/>
+    
+    <category term="perf" scheme="https://hanayo.cn/tags/perf/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Plugable system in practice 00</title>
+    <link href="https://hanayo.cn/2022/11/09/plugable-system-in-practice-00/"/>
+    <id>https://hanayo.cn/2022/11/09/plugable-system-in-practice-00/</id>
+    <published>2022-11-08T17:43:05.000Z</published>
+    <updated>2023-01-10T10:23:26.106Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;p&gt;This blog used to introduce a</summary>
+        
+      
+    
+    
+    
+    <category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/>
+    
+    
+    <category term="software-arch" scheme="https://hanayo.cn/tags/software-arch/"/>
+    
+    <category term="system-design" scheme="https://hanayo.cn/tags/system-design/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>JVM loaded classes rapidly increased issue</title>
+    <link href="https://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/"/>
+    <id>https://hanayo.cn/2022/10/31/jvm-loaded-classes-rapidly-increased-issue/</id>
+    <published>2022-10-31T06:59:31.000Z</published>
+    <updated>2023-01-10T10:23:26.098Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Rapidly-increased-JVM-loaded-classes&quot;&gt;&lt;a href=&quot;#Rapidly-increased-JVM-loaded-classes&quot; class=&quot;headerlink&quot; title=&quot;Rapidly increased</summary>
+        
+      
+    
+    
+    
+    <category term="languages" scheme="https://hanayo.cn/categories/languages/"/>
+    
+    <category term="java" scheme="https://hanayo.cn/categories/languages/java/"/>
+    
+    
+    <category term="java" scheme="https://hanayo.cn/tags/java/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Windows 2003 vmware v2v hands-on</title>
+    <link href="https://hanayo.cn/2022/10/27/windows-2003-vmware-v2v-hands-on/"/>
+    <id>https://hanayo.cn/2022/10/27/windows-2003-vmware-v2v-hands-on/</id>
+    <published>2022-10-27T07:27:12.000Z</published>
+    <updated>2022-10-27T07:48:29.358Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;When use virt-v2v to convert vm from vmware to kvm, windows guest sometimes meet issue after start on kvm. For quite old windows os</summary>
+        
+      
+    
+    
+    
+    <category term="virtualization" scheme="https://hanayo.cn/categories/virtualization/"/>
+    
+    <category term="v2v" scheme="https://hanayo.cn/categories/virtualization/v2v/"/>
+    
+    
+    <category term="virt" scheme="https://hanayo.cn/tags/virt/"/>
+    
+    <category term="v2v" scheme="https://hanayo.cn/tags/v2v/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Plugable module architecture design and thoughts about its implementation</title>
+    <link href="https://hanayo.cn/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/"/>
+    <id>https://hanayo.cn/2022/10/21/plugable-architecture-design-and-thoughts-about-implementation/</id>
+    <published>2022-10-20T16:45:32.000Z</published>
+    <updated>2022-10-20T16:51:17.479Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;Introduction&quot;&gt;&lt;a href=&quot;#Introduction&quot; class=&quot;headerlink&quot; title=&quot;Introduction&quot;&gt;&lt;/a&gt;Introduction&lt;/h2&gt;&lt;p&gt;Software’s complexity grows</summary>
+        
+      
+    
+    
+    
+    <category term="arch-notes" scheme="https://hanayo.cn/categories/arch-notes/"/>
+    
+    
+    <category term="software-arch" scheme="https://hanayo.cn/tags/software-arch/"/>
+    
+    <category term="system-design" scheme="https://hanayo.cn/tags/system-design/"/>
     
   </entry>
   

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>在 RTX 3090 和 32GB 内存上试用 Strata | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="RTX 3090与32GB内存上的Strata上手实测：安装空间、中文多轮、SVG修改、prefill256长输入复测及专家与资源时间线。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在 RTX 3090 和 32GB 内存上试用 Strata">
+<meta property="og:url" content="https://hanayo.cn/2026/10/13/strata-first-use/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="RTX 3090与32GB内存上的Strata上手实测：安装空间、中文多轮、SVG修改、prefill256长输入复测及专家与资源时间线。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-first-use/pelican-first.png">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-first-use/pelican-fresh-edit.png">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-first-use/moe-timeline.png">
+<meta property="article:published_time" content="2026-10-13T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-10-13T04:00:00.000Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="inference">
+<meta property="article:tag" content="strata">
+<meta property="article:tag" content="qwen">
+<meta property="article:tag" content="moe">
+<meta property="article:tag" content="gpu">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hanayo.cn/assets/strata-first-use/pelican-first.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"在 RTX 3090 和 32GB 内存上试用 Strata","description":"RTX 3090与32GB内存上的Strata上手实测：安装空间、中文多轮、SVG修改、prefill256长输入复测及专家与资源时间线。","url":"https://hanayo.cn/2026/10/13/strata-first-use/index.html","datePublished":"2026-10-13T04:00:00.000Z","dateModified":"2026-10-13T04:00:00.000Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/10/13/strata-first-use/index.html"}]}</script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="post-strata-first-use" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/13/strata-first-use/" class="article-date">
+  <time class="dt-published" datetime="2026-10-13T04:00:00.000Z" itemprop="datePublished">2026-10-13</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ai-inference/">ai-inference</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      在 RTX 3090 和 32GB 内存上试用 Strata
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          <p>在一张 24GB 显卡和 32GB 系统内存上，Strata 能完成哪些任务，回答要等多久？本文用 RTX 3090 安装 Qwen3.8-Flash-Next 的 IQ2_XS 模型，依次测试中文多轮对话、SVG 生成和长输入。</p>
+<p>中文四轮对话每轮用了约 17–46 秒，一幅完整的鹈鹕骑自行车 SVG 用了约 70 秒。长输入最初触发引擎退出，把 prefill 分块改为 256 后，约 4K 和 16K 输入都生成了设定的 64 个正文 token。后面继续看这些任务怎样执行，以及等待发生在哪里。</p>
+<h2 id="专家权重放在哪里，谁来计算？"><a href="#专家权重放在哪里，谁来计算？" class="headerlink" title="专家权重放在哪里，谁来计算？"></a>专家权重放在哪里，谁来计算？</h2><p>Strata 是面向 Qwen3.8-Flash-Next 等模型的本地推理引擎，提供聊天界面和兼容常用客户端的 API。本轮使用 0.1.43。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/README.md">项目说明</a></p>
+<p>MoE 模型通过路由器为每个 token 选择一部分专家。Strata 将常用专家的权重缓存到显存，GPU 直接执行这些专家；保存在 RAM 中的专家由 CPU 计算，或通过 PCIe 搬到 GPU 计算。CPU 和 GPU 的结果再合并，继续下一层。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/docs/DETAILS.md#how-it-works">实现说明</a></p>
+<p>以一个被路由器选中的专家为例，执行路径可以展开成三种：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">权重已在显存：GPU 读取权重 → GPU 专家计算</span><br><span class="line">权重在 RAM：  CPU 读取权重 → CPU 专家计算</span><br><span class="line">权重在 RAM：  GPU 经 PCIe 读取或搬运权重 → GPU 专家计算</span><br></pre></td></tr></table></figure>
+
+<p>显存缓存命中时，可以直接使用 GPU 上的权重。走 RAM 路径时，CPU 执行专家计算会使用 CPU 算力和内存带宽；GPU 读取 RAM 中的权重会使用 PCIe 链路和内存带宽。引擎合并各条路径上的计算结果，得到这一层的输出。</p>
+<p>这一层缓存控制的是专家权重放在 RAM 还是显存。模型还会访问 GGUF 中的其他数据，其中一张 PLE / n-gram 表与本轮的磁盘等待有关，后面结合线程栈看这条路径。</p>
+<h2 id="这次使用的机器和配置"><a href="#这次使用的机器和配置" class="headerlink" title="这次使用的机器和配置"></a>这次使用的机器和配置</h2><p>实验运行在一台 Linux 虚拟机里，配置如下。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>本次配置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>系统</td>
+<td>Ubuntu 22.04.4 LTS，内核 5.15.0-161</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>RTX 3090，24GB 显存，SM 8.6</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>Xeon Gold 5318Y，16 个来宾 vCPU，暴露 AVX2 / AVX-512</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>32GB 级别，来宾实际约 31.3GiB；没有 swap</td>
+</tr>
+<tr>
+<td>驱动与编译工具链</td>
+<td>NVIDIA 580.126.09；CUDA 12.8.93</td>
+</tr>
+<tr>
+<td>模型</td>
+<td>原版 Qwen3.8-Flash-Next，IQ2_XS</td>
+</tr>
+<tr>
+<td>上下文与 KV</td>
+<td>32768 token；KV int8</td>
+</tr>
+<tr>
+<td>请求设置</td>
+<td>parallel 1，temperature 0，reasoning_effort none</td>
+</tr>
+<tr>
+<td>其他设置</td>
+<td>视觉关闭，保留安装配置中的 MTP 和自适应专家策略</td>
+</tr>
+</tbody></table>
+<h2 id="安装和-ModelScope-下载"><a href="#安装和-ModelScope-下载" class="headerlink" title="安装和 ModelScope 下载"></a>安装和 ModelScope 下载</h2><p>安装按项目的 <code>docs/AI_SETUP.md</code> 进行，模型明确选择 ModelScope。用于这次安装的主要命令如下，假设已经进入固定版本的源码目录；数据目录可以按自己的磁盘位置修改。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">./setup.sh --<span class="built_in">yes</span> --build --family qwen --model IQ2_XS \</span><br><span class="line">  --context 32768 --parallel 1 --vision no --<span class="built_in">source</span> modelscope \</span><br><span class="line">  --data-dir ../Strata-data --no-start</span><br></pre></td></tr></table></figure>
+
+<p>下载仓库是 <code>ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF</code>。IQ2_XS 的两个 GGUF 分片合计 <strong>68,026,093,024 bytes，约 68.03GB</strong>，下载后通过 ModelScope 提供的 SHA-256 校验。</p>
+<p><strong>本次配置建议预留 130GB 空闲磁盘空间。</strong> 安装后的模型数据实际占用约 112GB，组成如下，GB 按十进制计算：</p>
+<p>GGUF 保存量化权重；专家 pack 是安装器提取、整理生成的专家权重文件，供引擎加载和计算。MTP 数据用于多 token 预测：先提出后续 token 的候选，再由主模型验证，接受符合结果的部分。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/docs/DETAILS.md#how-it-works">数据与推测解码说明</a></p>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th align="right">实际磁盘占用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>两个 GGUF 分片及少量元数据</td>
+<td align="right">68.03GB</td>
+</tr>
+<tr>
+<td>MTP 数据</td>
+<td align="right">6.93GB</td>
+</tr>
+<tr>
+<td>专家 pack 及相关文件</td>
+<td align="right">37.00GB</td>
+</tr>
+<tr>
+<td>模型数据合计</td>
+<td align="right">111.96GB</td>
+</tr>
+</tbody></table>
+<p>130GB 的预算覆盖上述模型数据，并为源码、引擎、Python 环境和安装过程留出余量。这是本次 IQ2_XS 配置的空间预算，其他量化版本可按下载文件和生成 pack 的大小重新估算。</p>
+<p>安装结束后，在 Strata 源码目录启动服务：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">.venv/bin/python serve/server.py --engine strata \</span><br><span class="line">  --config strata-iq2_xs.json --port 8080</span><br></pre></td></tr></table></figure>
+
+<p>模型加载完成时，<code>/health</code> 会返回 <code>loaded: true</code>。请求测试从这一就绪状态开始计时，模型加载耗时单独记录。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/docs/AI_SETUP.md">官方安装说明</a></p>
+<p>服务保持监听 <code>127.0.0.1</code>。最简单的验证可以通过同机 API 完成：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">curl http://127.0.0.1:8080/health</span><br><span class="line"></span><br><span class="line">curl http://127.0.0.1:8080/v1/chat/completions \</span><br><span class="line">  -H <span class="string">&#x27;Content-Type: application/json&#x27;</span> \</span><br><span class="line">  -d <span class="string">&#x27;&#123;</span></span><br><span class="line"><span class="string">    &quot;model&quot;: &quot;strata&quot;,</span></span><br><span class="line"><span class="string">    &quot;messages&quot;: [&#123;&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;用两句话解释 MoE。&quot;&#125;],</span></span><br><span class="line"><span class="string">    &quot;reasoning_effort&quot;: &quot;none&quot;,</span></span><br><span class="line"><span class="string">    &quot;temperature&quot;: 0,</span></span><br><span class="line"><span class="string">    &quot;max_tokens&quot;: 256</span></span><br><span class="line"><span class="string">  &#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>服务就绪后，先测四轮中文对话，再生成和修改 SVG。</p>
+<h2 id="多轮对话能否保留上下文和纠正数据？"><a href="#多轮对话能否保留上下文和纠正数据？" class="headerlink" title="多轮对话能否保留上下文和纠正数据？"></a>多轮对话能否保留上下文和纠正数据？</h2><p>为检查上下文和指令跟随，测试设置了一组假设的排障数据：首字要 240 秒，CPU 利用率 15%、GPU 利用率 10%，存在 D 状态线程和缺页。第一轮让模型给出排查方向，第二轮补充线程栈，第三轮把题目中的磁盘读速率从 80MB/s 纠正为 20MB/s，最后要求整理成 JSON。</p>
+<p>每一轮都把前面的用户消息和实际助手回答一并传回，保持同一段对话。</p>
+<table>
+<thead>
+<tr>
+<th>轮次</th>
+<th>任务</th>
+<th align="right">首字时间</th>
+<th align="right">全部完成</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>给出排障方向</td>
+<td align="right">15.97s</td>
+<td align="right">46.26s</td>
+</tr>
+<tr>
+<td>2</td>
+<td>补充缺页和线程栈</td>
+<td align="right">7.24s</td>
+<td align="right">26.91s</td>
+</tr>
+<tr>
+<td>3</td>
+<td>纠正 80 → 20MB/s</td>
+<td align="right">6.68s</td>
+<td align="right">17.38s</td>
+</tr>
+<tr>
+<td>4</td>
+<td>输出严格 JSON</td>
+<td align="right">9.72s</td>
+<td align="right">23.53s</td>
+</tr>
+</tbody></table>
+<p>四轮都完整结束。最后的 JSON 包含 <code>facts</code>、<code>hypotheses</code>、<code>next_steps</code> 三个字符串数组，保留了纠正后的 20MB/s、CPU / GPU 利用率和 D 状态栈。后续请求也报告了前缀 token 复用。</p>
+<p>诊断回答中，模型将缺页现象解释为“内存严重不足”，并进一步推断随机小 I/O 延迟高；最后给出的动作是检查缺页、验证 I/O 延迟和排查线程同步。它给出了方向，但验证步骤比较笼统，实际排障时还要补上对应的采样工具和数据。</p>
+<p>更早的一次 MoE 问答还给出了“全部专家必须放在 GPU 显存”的错误回答。Strata 的实际运行路径使用 RAM 和显存共同保存专家，这个问题的回答需要纠正。</p>
+<h2 id="让它画一只鹈鹕骑自行车"><a href="#让它画一只鹈鹕骑自行车" class="headerlink" title="让它画一只鹈鹕骑自行车"></a>让它画一只鹈鹕骑自行车</h2><p>接下来用 Simon Willison 的趣味测试：</p>
+<blockquote>
+<p>Generate an SVG of a pelican riding a bicycle</p>
+</blockquote>
+<p>通过文本接口让模型返回 SVG 代码，再用浏览器渲染，便能直接看到图形效果。<a target="_blank" rel="noopener" href="https://github.com/simonw/pelican-bicycle">原始测试项目</a></p>
+<p>首轮约 <strong>2.17 秒</strong>开始输出，<strong>69.81 秒</strong>完整结束，共生成 1881 token，低于设置的 4096 上限。代码能解析为 SVG，并实际在 Chrome 中渲染。</p>
+<p><img src="/assets/strata-first-use/pelican-first.png" alt="Strata 首轮生成的鹈鹕骑自行车"></p>
+<p>画面能辨认出鸟和自行车。不过，左侧脚停在 <code>(190,165)</code>，下方踏板的端点是 <code>(190,195)</code>，两者没接上；翅膀也没有接触车把。嘴和喉囊是简单的卡通表达，整体还谈不上精细。</p>
+<h3 id="两次修改都返回了原图"><a href="#两次修改都返回了原图" class="headerlink" title="两次修改都返回了原图"></a>两次修改都返回了原图</h3><p>根据渲染结果，在同一段对话中反馈：脚要踩住踏板、翅膀要接触车把，并保留车轮和白天背景。第二轮约 30.62 秒完成，但回答与首轮逐字相同，SVG 哈希也相同。</p>
+<p>第三轮进一步指出它没有执行修改，给出脚与踏板的坐标，并要求黄昏背景。约 31.06 秒后，仍然拿到了同一份回答。</p>
+<p>两轮日志中的输出速度分别约为 94 和 105 tokens/s，生成的代码与首轮完全相同，脚、翅膀和背景都保持原样。</p>
+<h3 id="新会话和明确坐标得到了一份修改结果"><a href="#新会话和明确坐标得到了一份修改结果" class="headerlink" title="新会话和明确坐标得到了一份修改结果"></a>新会话和明确坐标得到了一份修改结果</h3><p>先让原对话停止画图、只回答四个汉字，模型能正确响应。随后把原 SVG 和明确的修改要求放进一条新的用户消息：</p>
+<blockquote>
+<p>左脚移到下方踏板端点，翅膀延伸到车把，天空改成黄昏橙紫渐变，车轮坐标和尺寸保持不变。</p>
+</blockquote>
+<p>这次约 <strong>11.59 秒</strong>开始输出，<strong>45.92 秒</strong>完成，生成 2049 token。左脚和腿的端点、翼尖、天空和太阳位置都有实际变化，车轮圆形的坐标与尺寸保持。</p>
+<p><img src="/assets/strata-first-use/pelican-fresh-edit.png" alt="新会话明确坐标后生成的修改结果"></p>
+<p>这张图的腿仍很生硬，但脚和踏板已经接上，翼尖伸到了车把，天空也变成黄昏渐变。这个案例中，把原代码和具体坐标集中放进一条新消息，得到了一份执行了修改的结果。</p>
+<p>两张图片均由 Strata 生成 SVG 后经浏览器渲染。可以下载 <a href="/assets/strata-first-use/pelican-first.svg">首轮 SVG</a> 和 <a href="/assets/strata-first-use/pelican-fresh-edit.svg">新会话修改后的 SVG</a>。</p>
+<h2 id="长输入触发退出，缩小分块后怎样？"><a href="#长输入触发退出，缩小分块后怎样？" class="headerlink" title="长输入触发退出，缩小分块后怎样？"></a>长输入触发退出，缩小分块后怎样？</h2><p>短任务跑通之后，运行项目的官方 benchmark。默认 <code>prefill auto</code> 下，这台机器实际使用的最大分块是 8192；约 4K 和 16K 输入各跑三次，六次都触发 watchdog 中止，引擎退出。watchdog 用来检查执行步骤是否长时间停滞，触发时记录诊断信息并中止引擎。</p>
+<p>已有文本先经过 tokenizer 转成 token，随后进入 prefill：逐层处理输入 token，建立后续生成使用的上下文状态。分块大小控制一次处理多少个输入 token；<code>--prefill 256</code> 表示每块最多 256 个，约 4K 的输入会拆成多块依次处理，随后开始生成回答。</p>
+<p>把配置 <code>args</code> 中的 <code>--prefill</code> 值改为 <code>256</code>，重启服务后再测，保留相同的模型、量化、上下文和单请求设置。</p>
+<p>这轮复测沿用官方 benchmark 的合成输入方式：将 <code>orbit</code>、<code>stone</code>、<code>river</code>、<code>needle</code> 等 20 个英文词重复组成长词表，构造约 4K 和 16K token 的输入，末尾要求模型“用五句话概括词表里有哪些类型的词”。为了观察长输入处理后的首字时间和短段生成，设置 <code>reasoning_effort: none</code>、<code>max_tokens: 64</code>，结果如下。</p>
+<table>
+<thead>
+<tr>
+<th>输入规模</th>
+<th align="right">实际输入 token</th>
+<th align="right">正文输出 token</th>
+<th align="right">首字时间</th>
+<th align="right">请求结束</th>
+<th>结束原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>约 4K，第一个样本</td>
+<td align="right">3939</td>
+<td align="right">64</td>
+<td align="right">252.73s</td>
+<td align="right">267.79s</td>
+<td><code>length</code></td>
+</tr>
+<tr>
+<td>约 4K，后续重叠文本</td>
+<td align="right">3939</td>
+<td align="right">64</td>
+<td align="right">6.26s</td>
+<td align="right">15.20s</td>
+<td><code>length</code></td>
+</tr>
+<tr>
+<td>约 16K，部分重叠语料</td>
+<td align="right">15716</td>
+<td align="right">64</td>
+<td align="right">225.87s</td>
+<td align="right">235.10s</td>
+<td><code>length</code></td>
+</tr>
+</tbody></table>
+<p>三个请求都处理完输入，开始生成词语分类的正文，并在输出第 64 个 token 后结束。响应均为 HTTP 200，流式连接收到结束标记，引擎在这三个样本中持续运行。</p>
+<p>实际回答包含对自然、地质、物体等词语的分类。例如 16K 样本先提到 <code>stone</code>、<code>quartz</code>、<code>canyon</code>、<code>river</code>、<code>meadow</code> 等景观词，第三句写到 <code>household or decorative items</code> 时就停止了，五句话的要求尚未完成。记录中的思考内容为空，64 token 都是正文输出；<code>length</code> 表示正文达到本次设置的输出上限。</p>
+<p>把 prefill 分块从 8192 改为 256 后，这三个样本都走完了“长输入处理 → 首字输出 → 生成 64 个正文 token”的运行过程。</p>
+<p>分块变小后，日志中的驻留专家 RAM 从 18.79GiB 降到 15.28GiB，prefill 借用的 GPU 槽位也从 2812 降到 199。更小的输入块同时改变了这一阶段的内存占用和专家布局。</p>
+<p>第二次约 4K 输入的文本主体与第一次大幅重叠，首字时间从 252.73 秒降到 6.26 秒。两次请求的 KV token 复用数都为 0，运行期间保留了系统页缓存和自适应专家策略。</p>
+<h3 id="线程停在文件页读取路径"><a href="#线程停在文件页读取路径" class="headerlink" title="线程停在文件页读取路径"></a>线程停在文件页读取路径</h3><p>模型的 PLE / n-gram 表按输入 token 和前面的 token 计算行号，再取出对应的向量参与后续计算。这张表约 28.8GB，本机通过 mmap 保留文件映射。访问某一行时，相应文件页若尚未驻留内存，读取会进入文件页加载路径。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/src/prefill/prefill.cpp#L2111">取行和读表实现</a></p>
+<p>在约 16K 请求中截取一个 30 秒窗口，可以看到 3038 次 major fault、约 359MB 的进程实际存储读取。线程栈停在：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">filemap_fault</span><br><span class="line">  -&gt; wait_on_page_bit_common</span><br></pre></td></tr></table></figure>
+
+<p>同一窗口的来宾虚拟块设备约 103 次读 I/O/s，平均读请求耗时约 9.86ms；四个 GPU 利用率采样点有三个为 0。日志同时显示，这个请求的专家 blob 文件读取为 0。</p>
+<p>这个 16K 请求的窗口里，线程在等待文件页，进程持续发生缺页和存储读取，专家 blob 的读取计数为 0。结合 PLE 的查表路径，下一步排查重点落在这张 mmap 表的页访问上。</p>
+<h2 id="首字前的等待，时间线上能看到什么？"><a href="#首字前的等待，时间线上能看到什么？" class="headerlink" title="首字前的等待，时间线上能看到什么？"></a>首字前的等待，时间线上能看到什么？</h2><p>为了看清等待期间发生了什么，另开一轮带观测的运行：在固定源码上加入可选的主机观测，记录专家执行计划和缓存映射，再与 RAM、显存、CPU / GPU 利用率、磁盘吞吐和读等待对齐。</p>
+<p><img src="/assets/strata-first-use/moe-timeline.png" alt="独立观测轮次中约4K请求的专家与资源时间线"></p>
+<p>可以打开 <a href="/assets/strata-first-use/moe-timeline.html">专家与资源时间线</a>，选择“约4K文本阅读”，拖动游标看专家分布和资源数值，也可以播放这段记录。这个页面自带数据，下载后能离线查看。</p>
+<p>这段记录来自一次带观测的运行，依次执行中文解释、Python 修复和约 4K 输入三个请求，共采集 6720 个路由事件。</p>
+<p>横向是采集开始后的时间，纵向是 48 个主模型层，每一列汇总一秒内的事件。蓝色表示选中专家的 GPU 缓存占比超过 70%，橙色表示占比在 70% 及以下；明暗表示选择次数。沿着同一层向右看，可以看到这层在不同时间窗口里的专家选择。右侧再展开该层，查看具体专家编号和缓存状态。</p>
+<p>截图选中了“约4K文本阅读”，游标位于采集开始后的 <strong>485 秒</strong>。此时磁盘读取约 <strong>9.2MB/s</strong>，平均读请求耗时约 <strong>12.7ms</strong>，GPU 利用率采样为 <strong>0%**，引擎有 **1 个 D 状态线程</strong>；这个请求在约 <strong>496.49 秒</strong>才开始输出正文。</p>
+<p>这段 4K 记录呈现了一个首字前的等待现场：磁盘持续读取，线程处于 D 状态，GPU 在该采样点空闲。前面的 16K 请求另采到了文件页等待栈，两段记录都把排查方向指向存储访问。进一步定位 PLE 的耗时，可以在取行和读表处记录时间，再与同一请求的缺页和资源曲线对齐。</p>
+<h2 id="这轮实际用起来怎样"><a href="#这轮实际用起来怎样" class="headerlink" title="这轮实际用起来怎样"></a>这轮实际用起来怎样</h2><p>短中文对话的首字等待约 7–16 秒，完整回答约 17–46 秒；第三轮的数据纠正保留到了第四轮 JSON。完整 SVG 生成约 70 秒。两次同会话修改各花了约 31 秒，返回原样代码；把原代码和坐标要求放进新会话，约 46 秒得到修改结果。</p>
+<p>等待最集中的是本轮第一个长输入：约 4K 词表的首字用了 252.73 秒，整个请求用了 267.79 秒，首字之后约 15 秒生成完设定的 64 个正文 token。对使用者来说，这段时间主要是在等待输入处理后的第一段回答。</p>
+<p>这台机器已经可以用来做本地任务实验。下一步计划换成自己的代码和文档，记录完整回答和修改结果，再用同一组任务比较思考模式、内存配置和候选显卡。</p>
+<h2 id="数据与复现"><a href="#数据与复现" class="headerlink" title="数据与复现"></a>数据与复现</h2><p>测试日期为 2026-10-12 至 2026-10-13。下面保留请求耗时、实际回答、生成的 SVG 和观测回放。</p>
+<ul>
+<li><a href="/assets/strata-first-use/evidence-summary.json">脱敏实验摘要</a>：请求耗时、复用量、结束状态和分块复测。</li>
+<li><a href="/assets/strata-first-use/prefill-retest-answers.json">长输入复测的实际回答</a>：三次 64-token 正文、思考内容和结束原因。</li>
+<li><a href="/assets/strata-first-use/chinese-dialogue.txt">中文多轮对话全文</a>：包含假设题目、纠正过程和实际回答。</li>
+<li><a href="/assets/strata-first-use/pelican-dialogue.txt">鹈鹕对话全文</a>：保留两次修改失败、短控制与新会话修改。</li>
+<li><a href="/assets/strata-first-use/moe-timeline.html">离线时间线</a>：已采集的专家计划和资源回放。</li>
+</ul>
+<p><a href="/assets/strata-first-use/request-replay.zip">请求复测脚本包</a>包含流式请求采集脚本、四轮中文题目和鹈鹕对话题目。脚本逐轮传回实际历史，保存完整请求、回答、首字时间、结束原因和服务指标。在服务就绪后，解压脚本包并运行：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">python3 run_dialogue.py --out replay-chinese --session chinese \</span><br><span class="line">  --plan dialogue-plan.json</span><br><span class="line"></span><br><span class="line">python3 run_dialogue.py --out replay-pelican --session pelican \</span><br><span class="line">  --plan pelican-plan.json</span><br></pre></td></tr></table></figure>
+
+<p>每次复测使用新的 <code>--out</code> 目录。已有会话目录会继续追加历史；运行参数和目录说明见包内 <code>README.txt</code>。</p>
+<h2 id="注意"><a href="#注意" class="headerlink" title="注意"></a>注意</h2><ol>
+<li><strong>环境。</strong> 本轮运行在 Linux 虚拟机，CPU 配置为来宾看到的 16 vCPU。块设备统计来自来宾 <code>vda</code>；物理存储后端和宿主机调度情况未采集。来宾没有 swap。RTX 3090 的架构为 SM 8.6，编译产物包含 <code>sm_86</code>。</li>
+<li><strong>版本与安装。</strong> Strata 源码固定在 <code>7695859aa13afb248bdb4d36f9b2e95707db079d</code>。GGUF 与 ModelScope 提供的 SHA-256 一致，下载文件未固定到不可变 revision。本机遇到 Fabric Manager 的 APT 依赖冲突和系统 CMake 3.22.1 版本偏低，最终使用项目内的 virtualenv 和 CMake 构建，保留全局 NVIDIA 包和驱动。</li>
+<li><strong>请求和计时。</strong> 中文、鹈鹕及控制请求共 9 个，每个案例各测一次，结束原因为 <code>stop</code>。这些请求使用标准引擎、prefill 256、thinking none、temperature 0、parallel 1，保留 MTP 和自适应专家策略。客户端在服务端通过 loopback 请求，从请求发出计到首段正文及请求结束；模型加载、截图渲染和事后指标读取另记。</li>
+<li><strong>长输入复测。</strong> 输入为 20 个英文词构成的合成词表，正文上限 64 token，三次均以 <code>length</code> 结束，watchdog 沿用默认配置。第二次约 4K 与第一次主体重叠，两次 KV 复用均为 0，系统页缓存保留。默认 benchmark、分块复测和带观测运行各自保留配置与结果。</li>
+<li><strong>任务结果。</strong> 中文排障数据是预设题目。鹈鹕修改用文字反馈和 SVG 代码，视觉功能关闭；新会话同时改变了历史和提示布局。更高精度模型、思考模式和并发的对照留给后续测试。</li>
+<li><strong>观测范围。</strong> 路由事件记录主模型 MMQ prefill 和验证窗口中的主机计划，验证窗口含被拒绝的推测候选。MTP 草稿与旧的单 token 路径未覆盖，CUDA kernel 起止时间未采集。缓存映射变化含槽位借用、归还和自适应替换；资源采样缺口留空。观测数据来自独立的三个请求。</li>
+<li><strong>作者速度表。</strong> 固定版本 README 中，RTX 5070 的 IQ2_XS 数据对应 Ryzen 5 7600、64GB RAM 和引擎 0.1.26；本文使用 RTX 3090、32GB 内存虚拟机和引擎 0.1.43。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/README.md#how-fast-is-it">作者测试条件</a></li>
+</ol>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/13/strata-first-use/" data-id="cmv65lw4d00ba4smi55ia4brx" data-title="在 RTX 3090 和 32GB 内存上试用 Strata" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/gpu/" rel="tag">gpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/moe/" rel="tag">moe</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qwen/" rel="tag">qwen</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/strata/" rel="tag">strata</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/10/10/cram-lru-pcp-tail/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gpu/" rel="tag">gpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/moe/" rel="tag">moe</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qwen/" rel="tag">qwen</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/strata/" rel="tag">strata</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.5px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.25px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.5px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.5px;">cpu</a> <a href="/tags/cram/" style="font-size: 11.25px;">cram</a> <a href="/tags/cxl/" style="font-size: 11.25px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.25px;">ft</a> <a href="/tags/gpu/" style="font-size: 10px;">gpu</a> <a href="/tags/incident-analysis/" style="font-size: 11.25px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 12.5px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.5px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 15px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.25px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.5px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.75px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 12.5px;">llm</a> <a href="/tags/lru/" style="font-size: 10px;">lru</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/moe/" style="font-size: 10px;">moe</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.25px;">perf</a> <a href="/tags/performance/" style="font-size: 15px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/qwen/" style="font-size: 10px;">qwen</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.25px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.5px;">software-arch</a> <a href="/tags/strata/" style="font-size: 10px;">strata</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.5px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.25px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.75px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.25px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.25px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.25px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/13/strata-first-use/">在 RTX 3090 和 32GB 内存上试用 Strata</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/09/cram-zram-simulation/">CRAM 为什么读不触发 fault：一次与 zram 的模拟对照</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/24/model-quantization-principles/">模型量化原理：从单个权重到逐层推理</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/23/juicefs-nfs-format-nfs3-nfs4/">JuiceFS format 为什么在 NFSv3 失败时 panic：从一次空指针到 NFSv3/v4</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

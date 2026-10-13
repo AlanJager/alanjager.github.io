@@ -6,7 +6,7 @@
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-10-09T06:30:00.000Z</updated>
+  <updated>2026-10-13T04:00:00.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -17,6 +17,34 @@
   <generator uri="https://hexo.io/">Hexo</generator>
 
   <entry>
+    <title>在 RTX 3090 和 32GB 内存上试用 Strata</title>
+    <link href="https://hanayo.cn/2026/10/13/strata-first-use/"/>
+    <id>https://hanayo.cn/2026/10/13/strata-first-use/</id>
+    <published>2026-10-13T04:00:00.000Z</published>
+    <updated>2026-10-13T04:00:00.000Z</updated>
+    
+    
+    <summary type="html">RTX 3090与32GB内存上的Strata上手实测：安装空间、中文多轮、SVG修改、prefill256长输入复测及专家与资源时间线。</summary>
+    
+    
+    
+    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
+    
+    
+    <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
+    
+    <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
+    
+    <category term="strata" scheme="https://hanayo.cn/tags/strata/"/>
+    
+    <category term="qwen" scheme="https://hanayo.cn/tags/qwen/"/>
+    
+    <category term="moe" scheme="https://hanayo.cn/tags/moe/"/>
+    
+    <category term="gpu" scheme="https://hanayo.cn/tags/gpu/"/>
+    
+  </entry>
+<entry>
     <title>CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</title>
     <link href="https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/"/>
     <id>https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/</id>

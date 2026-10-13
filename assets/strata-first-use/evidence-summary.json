@@ -1,0 +1,283 @@
+{
+  "experience": {
+    "tested_on": "2026-10-13 Asia/Shanghai",
+    "strata": "0.1.43",
+    "strata_commit": "7695859aa13afb248bdb4d36f9b2e95707db079d",
+    "engine_sha256_verified_current": "6cc0dda09c0327810d590c4e15d610e8a7a8f3ab05fcfc7376da77b18054e42e",
+    "model": "qwen3.8-flash-next-iq2_xs",
+    "config": {
+      "context": 32768,
+      "prefill": 256,
+      "parallel": 1,
+      "kv": "int8",
+      "vision": false,
+      "reasoning_effort": "none",
+      "temperature": 0,
+      "moe_instrumentation": false
+    },
+    "requests": [
+      {
+        "session": "chinese-dialogue",
+        "turn": 1,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 15.966090703004738,
+        "e2e_seconds": 46.25897292699665,
+        "input_tokens": 126,
+        "output_tokens": 178,
+        "cached_tokens": 0,
+        "engine_decode_tps": 5.9,
+        "error": null
+      },
+      {
+        "session": "chinese-dialogue",
+        "turn": 2,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 7.24351614099578,
+        "e2e_seconds": 26.913201265997486,
+        "input_tokens": 366,
+        "output_tokens": 90,
+        "cached_tokens": 304,
+        "engine_decode_tps": 4.6,
+        "error": null
+      },
+      {
+        "session": "chinese-dialogue",
+        "turn": 3,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 6.6795737909997115,
+        "e2e_seconds": 17.38428501599992,
+        "input_tokens": 535,
+        "output_tokens": 84,
+        "cached_tokens": 457,
+        "engine_decode_tps": 7.8,
+        "error": null
+      },
+      {
+        "session": "chinese-dialogue",
+        "turn": 4,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 9.724326389987255,
+        "e2e_seconds": 23.52638425299665,
+        "input_tokens": 713,
+        "output_tokens": 121,
+        "cached_tokens": 619,
+        "engine_decode_tps": 8.8,
+        "error": null
+      },
+      {
+        "session": "pelican",
+        "turn": 1,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 2.1709411649935646,
+        "e2e_seconds": 69.80984544899547,
+        "input_tokens": 22,
+        "output_tokens": 1881,
+        "cached_tokens": 0,
+        "engine_decode_tps": 27.8,
+        "error": null
+      },
+      {
+        "session": "pelican",
+        "turn": 2,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 10.708527315000538,
+        "e2e_seconds": 30.618319273999077,
+        "input_tokens": 2002,
+        "output_tokens": 1881,
+        "cached_tokens": 1904,
+        "engine_decode_tps": 94.4,
+        "error": null
+      },
+      {
+        "session": "pelican",
+        "turn": 3,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 13.127202471005148,
+        "e2e_seconds": 31.064240987005178,
+        "input_tokens": 4039,
+        "output_tokens": 1881,
+        "cached_tokens": 3882,
+        "engine_decode_tps": 104.7,
+        "error": null
+      },
+      {
+        "session": "pelican",
+        "turn": 4,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 3.646410918998299,
+        "e2e_seconds": 4.31951247600955,
+        "input_tokens": 5955,
+        "output_tokens": 4,
+        "cached_tokens": 5920,
+        "engine_decode_tps": 5.7,
+        "error": null
+      },
+      {
+        "session": "pelican-fresh-edit",
+        "turn": 1,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "stop",
+        "ttft_content_seconds": 11.591988202999346,
+        "e2e_seconds": 45.92012439398968,
+        "input_tokens": 2014,
+        "output_tokens": 2049,
+        "cached_tokens": 0,
+        "engine_decode_tps": 59.7,
+        "error": null
+      }
+    ],
+    "completion_check": true,
+    "fresh_edit_geometry_checks": {
+      "wheel_circles_unchanged": true,
+      "left_foot_on_lower_crank_endpoint": true,
+      "right_foot_retained": true,
+      "left_leg_reaches_foot": true,
+      "wing_reaches_handlebar_coordinate": true,
+      "dusk_gradient_present": true,
+      "sun_lowered": true
+    },
+    "quality_scope": "9 requests, each task once; not reliability, general quality, quantization, hardware or performance benchmark"
+  },
+  "prefill_retest": {
+    "captured_at_utc": "2026-10-13T02:21:08.467928+00:00",
+    "strata_version": "0.1.43",
+    "configuration": {
+      "gpu": "RTX 3090 24GB",
+      "ram": "31.3 GiB",
+      "cpu": "Xeon Gold 5318Y, 16 guest vCPU",
+      "compile_cuda": "12.8.93",
+      "context_tokens": 32768,
+      "quantization": "IQ2_XS",
+      "parallel": 1,
+      "reasoning_effort": "none",
+      "temperature": 0,
+      "max_tokens": 64,
+      "prefill": 256,
+      "PLE_enabled": true,
+      "source_changed": false
+    },
+    "baseline": {
+      "prefill": "auto, effective maximum 8192",
+      "4k_failures": 3,
+      "4k_runs": 3,
+      "16k_failures": 3,
+      "16k_runs": 3,
+      "failure": "watchdog abort after a step failed to make progress; exit -6"
+    },
+    "retest_requests": [
+      {
+        "id": "4k_repro_0",
+        "prompt_tokens": 3939,
+        "completion_tokens": 64,
+        "kv_reused_tokens": 0,
+        "ttft_seconds": 252.73470411200105,
+        "e2e_seconds": 267.7908317620022,
+        "prefill_tokens_per_second": 15.6,
+        "decode_tokens_per_second": 4.2,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "length",
+        "error": null
+      },
+      {
+        "id": "4k_repro_1",
+        "prompt_tokens": 3939,
+        "completion_tokens": 64,
+        "kv_reused_tokens": 0,
+        "ttft_seconds": 6.263960215001134,
+        "e2e_seconds": 15.20159733699984,
+        "prefill_tokens_per_second": 632.2,
+        "decode_tokens_per_second": 7.2,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "length",
+        "error": null
+      },
+      {
+        "id": "16k_repro_0",
+        "prompt_tokens": 15716,
+        "completion_tokens": 64,
+        "kv_reused_tokens": 0,
+        "ttft_seconds": 225.86787449899566,
+        "e2e_seconds": 235.10131674599688,
+        "prefill_tokens_per_second": 69.6,
+        "decode_tokens_per_second": 6.9,
+        "http_status": 200,
+        "sse_done": true,
+        "finish_reason": "length",
+        "error": null
+      }
+    ],
+    "resource_change": {
+      "resident_expert_ram_gib_before": 18.79,
+      "resident_expert_ram_gib_after": 15.28,
+      "prompt_borrowed_gpu_slots_before": 2812,
+      "prompt_borrowed_gpu_slots_after": 199
+    },
+    "io_evidence": "results/prefill256-16k-io-summary.json",
+    "io_assessment": {
+      "observed": "Blocked thread stack filemap_fault -> wait_on_page_bit_common, ongoing major faults and disk reads, no per-request expert blob reads from files",
+      "supported_inference": "Storage-backed table/page fetches are a major latency bottleneck; the PLE n-gram table is the main source-level suspect",
+      "not_proven": [
+        "Physical backend storage type or host QoS",
+        "Exclusive attribution of all cold/warm improvement to disk I/O",
+        "Production stability, long-output performance, concurrent capacity"
+      ]
+    },
+    "test_scope": [
+      "Two approximately 4K inputs and one approximately 16K input, official synthetic word-list pattern",
+      "Second 4K body largely overlaps the first, nonce differs; the 16K input has overlapping corpus too",
+      "No manual OS cache flush; model-loading time excluded",
+      "All responses end at the requested 64-token cap; semantic completeness is not claimed",
+      "No KV reuse in these requests"
+    ],
+    "health_after_loaded": true,
+    "task": "Synthetic English word list; request a five-sentence classification; 64-token visible-output cap; no thinking output"
+  },
+  "prefill_io_window": {
+    "interval_seconds": 30.163772276006057,
+    "process_read_bytes": 359022592,
+    "process_major_faults": 3038,
+    "process_cpu_seconds": 19.22,
+    "vda_completed_reads": 3103,
+    "vda_read_iops": 102.87174865287983,
+    "vda_mean_read_ms": 9.864969384466646,
+    "vda_read_ms_delta": 30611,
+    "vda_read_sectors_delta": 701600,
+    "attribution_scope": "Guest virtual block device statistics, not a measurement of the physical backend; no synthetic disk load.",
+    "field_definition_source": "https://docs.kernel.org/admin-guide/iostats.html"
+  },
+  "artifact_note": "Different test batches are separate. Timeline is a separate instrumented run; experience and prefill timings use standard engine.",
+  "disk_space": {
+    "captured_date": "2026-10-13",
+    "method": "du -B1 -s, allocated filesystem bytes; each category counted once",
+    "allocated_bytes": {
+      "gguf_and_metadata": 68026126336,
+      "mtp": 6927724544,
+      "expert_packs": 37002997760,
+      "model_data_total": 111956856832,
+      "entire_test_installation_with_logs": 112917946368
+    },
+    "unit": "GB uses 1e9 bytes",
+    "suggested_free_bytes": 130000000000,
+    "budget_scope": "recommendation for this IQ2_XS installation with headroom; not an official minimum"
+  },
+  "prefill_answer_examples": "prefill-retest-answers.json"
+}

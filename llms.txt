@@ -38,3 +38,5 @@
 本文快照与 hexo-seo/scripts/seo-geo-aeo.js 对应；源项目接上后由 hexo generate 覆盖。
 
 - [CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用](https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/): LRU 同步、MMIO 长尾与逐页复用证据。
+
+- [在 RTX 3090 和 32GB 内存上试用 Strata](https://hanayo.cn/2026/10/13/strata-first-use/): 安装、中文多轮、SVG 修改和长输入等待的本机记录。

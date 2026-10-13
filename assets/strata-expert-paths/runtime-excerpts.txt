@@ -1,0 +1,28 @@
+Strata 0.1.43 · 既有独立 MoE 观测日志摘录
+所选行不包含内网地址、凭据和本机路径。日志中的速度提升或质量判断为程序原文，本文未将其用作本机对照结果。
+
+原日志第 3 行：strata generate: PCIe probe: 17.9 GB/s host->device (best of 14.9 17.3 17.9 16.3) -> pcie_frac 0.49 (default 0.55)
+
+原日志第 7 行：strata generate: --ple-io direct measures slow here (510 rows/s, about 2 MB/s of random 4 KiB reads): using --ple-io mmap instead (the OS file cache holds the pages; --ple-io direct forces the old mode, --ple-io ram keeps the table in RAM)
+
+原日志第 18 行：strata generate: expert cache 13432 slots, 18.00 GiB of VRAM; policy is
+
+原日志第 39 行：strata generate: resident RAM mode: 15.28 GiB of experts in RAM (page-locked), 13432 in the GPU cache; adaptive swaps exchange them with the GPU cache (no file reads)
+
+原日志第 40 行：prefill: the CPU share is ON by default for prompt chunks below 1024 tokens (the idle CPU takes some of the experts the GPU would stream; answers can differ slightly from 0.1.40.3, mean KL ~0.004). STRATA_PREFILL_CPU_SHARE=0 turns it off.
+
+原日志第 41 行：strata serve: the prompt path borrows 199 CUDA0 cache slots (0.26 GiB)
+
+原日志第 45 行：strata serve: STRATA_ROUTE_TAIL_SKIP=7 is ON (default): a missed expert that every token of a verify window routes at rank 7 or lower is skipped (+10..20% decode on 12-16 GB cards that miss experts, answers differ slightly from 0.1.41); STRATA_ROUTE_TAIL_SKIP=0 turns it off
+
+原日志第 65 行：strata serve: PCIe share: the CPU pool takes 243 us per missed expert (5.9 GB/s of expert bytes), the link 17.9 GB/s -> pcie_frac 0.60 (was 0.49; --pcie-frac N fixes it, STRATA_PCIE_FRAC_DEFAULT=old keeps the start-up rule)
+
+原日志第 73 行：strata serve: prompt 3939 tokens = 0 reused + 3939 read in 232794 ms (16.9 tok/s), 64 generated in 13243 ms (4.8 tok/s), drafts accepted 26 of 51, 1 checkpoints
+
+原日志第 74 行：strata serve: decode expert cache hit rate: 93.5% (36572 hits / 39106 lookups); 1479 more read by the GPU over PCIe or from another GPU (3.6% of all 40585 routed)
+
+原日志第 75 行：strata serve: route tail skip: 10111 missed experts skipped (10991 entries) since the start
+
+原日志第 76 行：strata serve: resident RAM: 15.28 GiB of experts in RAM, 2321 exchanged with the VRAM tier, 0 blob reads from the file
+
+原日志第 78 行：strata serve: file tier I/O this request: the OS read 2900.5 MB from storage (23081 major faults) for 0.0 MB of expert reads

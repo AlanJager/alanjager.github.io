@@ -40,3 +40,5 @@
 - [CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用](https://hanayo.cn/2026/10/10/cram-lru-pcp-tail/): LRU 同步、MMIO 长尾与逐页复用证据。
 
 - [在 RTX 3090 和 32GB 内存上试用 Strata](https://hanayo.cn/2026/10/13/strata-first-use/): 安装、中文多轮、SVG 修改和长输入等待的本机记录。
+
+- [Strata 怎样把 MoE 专家分给 CPU 和 GPU](https://hanayo.cn/2026/10/13/strata-expert-paths/): 专家缓存、CPU/GPU分工、PCIe重叠与尾部跳过的速度和质量代价。

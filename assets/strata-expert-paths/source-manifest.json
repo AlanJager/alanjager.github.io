@@ -1,0 +1,110 @@
+{
+  "commit": "7695859aa13afb248bdb4d36f9b2e95707db079d",
+  "files": [
+    {
+      "path": "src/core/expert_cache.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/core/expert_cache.cpp",
+      "bytes": 33351,
+      "sha256": "91eb2373d1893ff2e6fe88887a121f525549ad0d66184dee190e1ad8d07946d2",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/core/expert_cache.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/core/expert_cache.hpp",
+      "bytes": 17437,
+      "sha256": "ff3cd4357e397ff944bc8c814e769975ecd243b3445b050234cbb62d9260bd54",
+      "nul_bytes": 0
+    },
+    {
+      "path": "src/core/expert_source.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/core/expert_source.cpp",
+      "bytes": 249900,
+      "sha256": "a985b6623fe94d907edc9b298ae75f41146da6114445e8c20f4e33c843bbacba",
+      "nul_bytes": 1
+    },
+    {
+      "path": "src/core/verify.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/core/verify.cpp",
+      "bytes": 194432,
+      "sha256": "f10915f3811ce0aef3bdd34b408227ed6611f80ba4128cda606353c5c2ed266f",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/prefill/prefill.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/prefill/prefill.hpp",
+      "bytes": 14478,
+      "sha256": "35dfafeaa196b1ac12e8b89f4a00131a416ba33067ef66cb98cc0d34b0480603",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/prefill/share_rules.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/prefill/share_rules.hpp",
+      "bytes": 3591,
+      "sha256": "a5443dcddca118b2f039550d837bbe5c24e1fe9769e882a2e2cbfa773309b85b",
+      "nul_bytes": 0
+    },
+    {
+      "path": "src/prefill/prefill.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/prefill/prefill.cpp",
+      "bytes": 272145,
+      "sha256": "219b5ba8751f0ec983363bf8a2a8335413b54c47101129772521fad3f3728009",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/core/dma_batch.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/core/dma_batch.hpp",
+      "bytes": 5861,
+      "sha256": "9b485734a866bee6ef0c927b838905ab7770cfdc1f7a7b19b97c4dea4fbbb07a",
+      "nul_bytes": 0
+    },
+    {
+      "path": "src/kernels/cpu/pool.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/kernels/cpu/pool.cpp",
+      "bytes": 39273,
+      "sha256": "4b9b8ec1eeaabca0524a3a4aef39907ad90583e798d1e03a2ae1f6318e9105bc",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/kernels/cpu/pool.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/kernels/cpu/pool.hpp",
+      "bytes": 18201,
+      "sha256": "5f7e7ee3f48ce6505ad25975c320310e647551df3304a87052ce3c7e2b414936",
+      "nul_bytes": 0
+    },
+    {
+      "path": "src/core/mtp.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/core/mtp.cpp",
+      "bytes": 81474,
+      "sha256": "ba02ba5ab21a49b3ae315ad27f939168b4d5d970a1152eae340b528895ba0aa6",
+      "nul_bytes": 0
+    },
+    {
+      "path": "src/program/generate.cpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/src/program/generate.cpp",
+      "bytes": 906556,
+      "sha256": "23c2b4d0aba33b9f891f52ad10ef988e11b29ffe079aae6cbae1888900c1c47d",
+      "nul_bytes": 0
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/LICENSE",
+      "bytes": 1093,
+      "sha256": "949b9b0aada7476006469e58ee4ffb0e0f68c2d9137e90a356757b61a09d37f0",
+      "nul_bytes": 0
+    },
+    {
+      "path": "docs/DETAILS.md",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/docs/DETAILS.md",
+      "bytes": 179699,
+      "sha256": "1930b3cf6605facdfc2ed967cdd2765226bea34a5f323b94ee69675a3e6f3e3a",
+      "nul_bytes": 0
+    },
+    {
+      "path": "include/strata/core/expert_source.hpp",
+      "url": "https://raw.githubusercontent.com/Niko1221/Strata/7695859aa13afb248bdb4d36f9b2e95707db079d/include/strata/core/expert_source.hpp",
+      "bytes": 68779,
+      "sha256": "05574c05979da63c8156b402b4c4066807110624f9cfefbea224da30904966db",
+      "nul_bytes": 0
+    }
+  ]
+}

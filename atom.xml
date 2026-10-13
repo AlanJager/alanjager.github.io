@@ -6,7 +6,7 @@
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-10-13T04:00:00.000Z</updated>
+  <updated>2026-10-13T10:30:00.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -17,6 +17,34 @@
   <generator uri="https://hexo.io/">Hexo</generator>
 
   <entry>
+    <title>Strata 怎样把 MoE 专家分给 CPU 和 GPU</title>
+    <link href="https://hanayo.cn/2026/10/13/strata-expert-paths/"/>
+    <id>https://hanayo.cn/2026/10/13/strata-expert-paths/</id>
+    <published>2026-10-13T10:30:00.000Z</published>
+    <updated>2026-10-13T10:30:00.000Z</updated>
+    
+    
+    <summary type="html">从固定版本源码解释Strata专家缓存、CPU行任务、PCIe搬运与prefill重叠，并结合已有日志讨论KV复用和尾部专家跳过的性能与质量代价。</summary>
+    
+    
+    
+    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
+    
+    
+    <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
+    
+    <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
+    
+    <category term="strata" scheme="https://hanayo.cn/tags/strata/"/>
+    
+    <category term="qwen" scheme="https://hanayo.cn/tags/qwen/"/>
+    
+    <category term="moe" scheme="https://hanayo.cn/tags/moe/"/>
+    
+    <category term="gpu" scheme="https://hanayo.cn/tags/gpu/"/>
+    
+  </entry>
+<entry>
     <title>在 RTX 3090 和 32GB 内存上试用 Strata</title>
     <link href="https://hanayo.cn/2026/10/13/strata-first-use/"/>
     <id>https://hanayo.cn/2026/10/13/strata-first-use/</id>

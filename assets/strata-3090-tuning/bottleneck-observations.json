@@ -1,0 +1,516 @@
+{
+  "provenance": "Re-extracted from existing 2026-10-13/14 recordings; no new benchmark.",
+  "selected_requests": [
+    {
+      "group": "confirm-candidate-off",
+      "id": "r1--long_read",
+      "case_id": "long_read",
+      "complete": true,
+      "finish_reason": "stop",
+      "ttft_s": 3.43465989199467,
+      "e2e_s": 4.1846920079988195,
+      "input_tokens": 4392,
+      "output_tokens": 67,
+      "reused_tokens": 0,
+      "prefill_tps": 1287.1,
+      "decode_tps": 87.8,
+      "decode_s": 0.7632000000000001,
+      "draft_accepted": 51,
+      "draft_offered": 55,
+      "acceptance": 0.9272727272727272,
+      "tail_skipped_experts": 0,
+      "read_mb": 0.18432,
+      "major_faults": 2,
+      "cpu_core_equiv": 3.8115110907833625,
+      "output_sha256": "97e20fe77c97f95265f9b7ce825fac930f247754d7e92b2c6d580ee16e507184",
+      "gpu_util_mean": 89.0,
+      "gpu_power_mean_w": 291.985,
+      "gpu_temperature_max": 72.0,
+      "gpu_vram_peak_mib": 24093.0,
+      "ram_available_min_gib": 11.480022430419922,
+      "bare_json": false,
+      "task_passed": true,
+      "parsed": {
+        "cancelled_id": "R017",
+        "cancelled_owner": "林青",
+        "cancel_reason": "容量评估未通过",
+        "approved_id": "R089",
+        "rollback_threshold": "错误率超过2%"
+      },
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/confirm-candidate-off/r1--long_read.json",
+      "decode_expert_cache_hit_pct": 88.2,
+      "expert_blob_file_reads": 0
+    },
+    {
+      "group": "confirm-candidate-off",
+      "id": "r2--code_retry_fix",
+      "case_id": "code_retry",
+      "complete": false,
+      "finish_reason": "length",
+      "ttft_s": 0.6348157239990542,
+      "e2e_s": 77.5349321350077,
+      "input_tokens": 343,
+      "output_tokens": 1024,
+      "reused_tokens": 280,
+      "prefill_tps": 102.0,
+      "decode_tps": 13.3,
+      "decode_s": 76.91,
+      "draft_accepted": 664,
+      "draft_offered": 1084,
+      "acceptance": 0.6125461254612546,
+      "tail_skipped_experts": 0,
+      "read_mb": 533.024768,
+      "major_faults": 4382,
+      "cpu_core_equiv": 1.3832474866070812,
+      "output_sha256": "7ae3f1740e2d97f3d4f0b2548c79343ee5a8c9edef4b9af19d2e9cb5ca3c4024",
+      "gpu_util_mean": 98.78947368421052,
+      "gpu_power_mean_w": 181.65684210526317,
+      "gpu_temperature_max": 68.0,
+      "gpu_vram_peak_mib": 24095.0,
+      "ram_available_min_gib": 11.231781005859375,
+      "tests_passed": null,
+      "tests_total": null,
+      "tests_all_passed": false,
+      "task_passed": false,
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/confirm-candidate-off/r2--code_retry_fix.json",
+      "decode_expert_cache_hit_pct": 97.5,
+      "expert_blob_file_reads": 0
+    },
+    {
+      "group": "confirm-candidate-off",
+      "id": "r2--code_log",
+      "case_id": "code_log",
+      "complete": true,
+      "finish_reason": "stop",
+      "ttft_s": 0.5215514339943184,
+      "e2e_s": 61.2905201829999,
+      "input_tokens": 166,
+      "output_tokens": 751,
+      "reused_tokens": 0,
+      "prefill_tps": 329.6,
+      "decode_tps": 12.4,
+      "decode_s": 60.7805,
+      "draft_accepted": 526,
+      "draft_offered": 676,
+      "acceptance": 0.7781065088757396,
+      "tail_skipped_experts": 0,
+      "read_mb": 366.20288,
+      "major_faults": 3009,
+      "cpu_core_equiv": 1.2427696774733397,
+      "output_sha256": "ee97ecee2167ad8188027c9a99b03ed5e24f2fb9953144621ac6a3e1412a2227",
+      "gpu_util_mean": 97.6774193548387,
+      "gpu_power_mean_w": 173.71774193548387,
+      "gpu_temperature_max": 66.0,
+      "gpu_vram_peak_mib": 24095.0,
+      "ram_available_min_gib": 11.345470428466797,
+      "tests_passed": 10,
+      "tests_total": 10,
+      "tests_all_passed": true,
+      "task_passed": true,
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/confirm-candidate-off/r2--code_log.json",
+      "decode_expert_cache_hit_pct": 95.4,
+      "expert_blob_file_reads": 0
+    },
+    {
+      "group": "off-a",
+      "id": "code_merge",
+      "case_id": "code_merge",
+      "complete": true,
+      "finish_reason": "stop",
+      "ttft_s": 29.440613753002253,
+      "e2e_s": 66.29333852800482,
+      "input_tokens": 117,
+      "output_tokens": 160,
+      "reused_tokens": 0,
+      "prefill_tps": 4.0,
+      "decode_tps": 4.3,
+      "decode_s": 36.8658,
+      "draft_accepted": 110,
+      "draft_offered": 128,
+      "acceptance": 0.859375,
+      "tail_skipped_experts": 0,
+      "read_mb": 344.7808,
+      "major_faults": 2800,
+      "cpu_core_equiv": 0.725864786243527,
+      "output_sha256": "94e9d577b8fca71083a22ae5aa7bb15caff8843c29c1f20e7b074a073b7963f1",
+      "gpu_util_mean": 55.125,
+      "gpu_power_mean_w": 125.1128125,
+      "gpu_temperature_max": 62.0,
+      "gpu_vram_peak_mib": 24085.0,
+      "ram_available_min_gib": 12.309764862060547,
+      "tests_passed": 67,
+      "tests_total": 67,
+      "tests_all_passed": true,
+      "task_passed": true,
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/off-a/code_merge.json",
+      "decode_expert_cache_hit_pct": 86.7,
+      "expert_blob_file_reads": 0
+    },
+    {
+      "group": "off-b",
+      "id": "code_merge",
+      "case_id": "code_merge",
+      "complete": true,
+      "finish_reason": "stop",
+      "ttft_s": 0.42451930900278967,
+      "e2e_s": 2.748027740002726,
+      "input_tokens": 117,
+      "output_tokens": 160,
+      "reused_tokens": 0,
+      "prefill_tps": 286.1,
+      "decode_tps": 68.6,
+      "decode_s": 2.3314,
+      "draft_accepted": 114,
+      "draft_offered": 138,
+      "acceptance": 0.8260869565217391,
+      "tail_skipped_experts": 0,
+      "read_mb": 1.961984,
+      "major_faults": 16,
+      "cpu_core_equiv": 12.765518880812024,
+      "output_sha256": "94e9d577b8fca71083a22ae5aa7bb15caff8843c29c1f20e7b074a073b7963f1",
+      "gpu_util_mean": 100.0,
+      "gpu_power_mean_w": 256.73,
+      "gpu_temperature_max": 64.0,
+      "gpu_vram_peak_mib": 24087.0,
+      "ram_available_min_gib": 12.150337219238281,
+      "tests_passed": 67,
+      "tests_total": 67,
+      "tests_all_passed": true,
+      "task_passed": true,
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/off-b/code_merge.json",
+      "decode_expert_cache_hit_pct": 82.5,
+      "expert_blob_file_reads": 0
+    },
+    {
+      "group": "sweep-p2048-w7-s4",
+      "id": "sweep-0-mtp07-code_merge",
+      "case_id": "code_merge",
+      "complete": true,
+      "finish_reason": "stop",
+      "ttft_s": 0.4360485250072088,
+      "e2e_s": 1.4955128069996135,
+      "input_tokens": 117,
+      "output_tokens": 160,
+      "reused_tokens": 0,
+      "prefill_tps": 277.6,
+      "decode_tps": 149.7,
+      "decode_s": 1.0691,
+      "draft_accepted": 113,
+      "draft_offered": 128,
+      "acceptance": 0.8828125,
+      "tail_skipped_experts": 0,
+      "read_mb": 0.0,
+      "major_faults": 0,
+      "cpu_core_equiv": 6.927389689684333,
+      "output_sha256": "94e9d577b8fca71083a22ae5aa7bb15caff8843c29c1f20e7b074a073b7963f1",
+      "gpu_util_mean": 95.0,
+      "gpu_power_mean_w": 253.32,
+      "gpu_temperature_max": 69.0,
+      "gpu_vram_peak_mib": 24085.0,
+      "ram_available_min_gib": 11.390975952148438,
+      "tests_passed": 67,
+      "tests_total": 67,
+      "tests_all_passed": true,
+      "task_passed": true,
+      "recording_archive": "strata-3090-evidence.zip",
+      "recording": "recordings/sweep-p2048-w7-s4/sweep-0-mtp07-code_merge.json",
+      "decode_expert_cache_hit_pct": 97.1,
+      "expert_blob_file_reads": 0
+    }
+  ],
+  "prefill_ablation": [
+    {
+      "chunk": 256,
+      "share": "auto",
+      "n": 6,
+      "fields_all_correct": 6,
+      "zero_reuse": true,
+      "ttft_s": {
+        "mean": 13.281485168006233,
+        "median": 13.221309856002335,
+        "min": 11.671712854004,
+        "max": 14.909158762020525
+      },
+      "prefill_ms": {
+        "mean": 13248.5,
+        "median": 13182.0,
+        "min": 11650.0,
+        "max": 14868.0
+      },
+      "prefill_tps": {
+        "mean": 335.01666666666665,
+        "median": 334.85,
+        "min": 295.4,
+        "max": 377.0
+      },
+      "io_MB": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "cpu_seconds": {
+        "mean": 63.321666666666665,
+        "median": 63.475,
+        "min": 45.5,
+        "max": 82.58
+      },
+      "e2e_s": {
+        "mean": 14.119787230001142,
+        "median": 13.987620906002121,
+        "min": 12.49839396198513,
+        "max": 15.799006858986104
+      },
+      "blocks": [
+        {
+          "group": "01-p256-auto",
+          "ttft_mean": 11.953733112013046,
+          "io_MB_max": 0.0
+        },
+        {
+          "group": "08-p256-auto",
+          "ttft_mean": 14.60923722399942,
+          "io_MB_max": 0.0
+        }
+      ]
+    },
+    {
+      "chunk": 256,
+      "share": "off",
+      "n": 6,
+      "fields_all_correct": 6,
+      "zero_reuse": true,
+      "ttft_s": {
+        "mean": 16.113288147826097,
+        "median": 14.021417344993097,
+        "min": 11.716514083993388,
+        "max": 26.140193678991636
+      },
+      "prefill_ms": {
+        "mean": 16085.833333333334,
+        "median": 13993.0,
+        "min": 11675.0,
+        "max": 26119.0
+      },
+      "prefill_tps": {
+        "mean": 291.71666666666664,
+        "median": 313.9,
+        "min": 168.2,
+        "max": 376.2
+      },
+      "io_MB": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "cpu_seconds": {
+        "mean": 22.955000000000002,
+        "median": 21.205,
+        "min": 18.45,
+        "max": 33.84
+      },
+      "e2e_s": {
+        "mean": 17.220172933656915,
+        "median": 15.21962438848277,
+        "min": 12.844750733987894,
+        "max": 27.286243626003852
+      },
+      "blocks": [
+        {
+          "group": "02-p256-off",
+          "ttft_mean": 18.29183800199341,
+          "io_MB_max": 0.0
+        },
+        {
+          "group": "07-p256-off",
+          "ttft_mean": 13.934738293658787,
+          "io_MB_max": 0.0
+        }
+      ]
+    },
+    {
+      "chunk": 1024,
+      "share": "off",
+      "n": 6,
+      "fields_all_correct": 6,
+      "zero_reuse": true,
+      "ttft_s": {
+        "mean": 6.1358481408339385,
+        "median": 5.65961030300241,
+        "min": 5.069840067997575,
+        "max": 8.557597228005761
+      },
+      "prefill_ms": {
+        "mean": 6108.166666666667,
+        "median": 5629.5,
+        "min": 5042.0,
+        "max": 8536.0
+      },
+      "prefill_tps": {
+        "mean": 743.9666666666667,
+        "median": 781.8499999999999,
+        "min": 514.5,
+        "max": 871.1
+      },
+      "io_MB": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "cpu_seconds": {
+        "mean": 17.538333333333334,
+        "median": 17.29,
+        "min": 13.32,
+        "max": 21.62
+      },
+      "e2e_s": {
+        "mean": 7.092880115170071,
+        "median": 6.7507419975008816,
+        "min": 5.645317306014476,
+        "max": 9.16050857200753
+      },
+      "blocks": [
+        {
+          "group": "03-p1024-off",
+          "ttft_mean": 5.203280210999462,
+          "io_MB_max": 0.0
+        },
+        {
+          "group": "06-p1024-off",
+          "ttft_mean": 7.068416070668415,
+          "io_MB_max": 0.0
+        }
+      ]
+    },
+    {
+      "chunk": 2048,
+      "share": "off",
+      "n": 6,
+      "fields_all_correct": 6,
+      "zero_reuse": true,
+      "ttft_s": {
+        "mean": 3.5422005238360725,
+        "median": 3.547208837015205,
+        "min": 3.400591968995286,
+        "max": 3.6359843389946036
+      },
+      "prefill_ms": {
+        "mean": 3504.6666666666665,
+        "median": 3512.5,
+        "min": 3364.0,
+        "max": 3601.0
+      },
+      "prefill_tps": {
+        "mean": 1253.8166666666666,
+        "median": 1250.4,
+        "min": 1219.7,
+        "max": 1305.7
+      },
+      "io_MB": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "cpu_seconds": {
+        "mean": 11.698333333333334,
+        "median": 11.745000000000001,
+        "min": 10.38,
+        "max": 13.24
+      },
+      "e2e_s": {
+        "mean": 4.399800813999415,
+        "median": 4.361849003005773,
+        "min": 4.113352790998761,
+        "max": 4.644212639017496
+      },
+      "blocks": [
+        {
+          "group": "04-p2048-off",
+          "ttft_mean": 3.4895625696711554,
+          "io_MB_max": 0.0
+        },
+        {
+          "group": "05-p2048-off",
+          "ttft_mean": 3.5948384780009897,
+          "io_MB_max": 0.0
+        }
+      ]
+    }
+  ],
+  "startup_pcie_probes": [
+    {
+      "group": "01-p256-auto",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 16.1,
+      "initial_pcie_frac": 0.44,
+      "recording": "recordings/01-p256-auto/engine.log"
+    },
+    {
+      "group": "02-p256-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 16.5,
+      "initial_pcie_frac": 0.45,
+      "recording": "recordings/02-p256-off/engine.log"
+    },
+    {
+      "group": "03-p1024-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 3.8,
+      "initial_pcie_frac": 0.1,
+      "recording": "recordings/03-p1024-off/engine.log"
+    },
+    {
+      "group": "04-p2048-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 19.7,
+      "initial_pcie_frac": 0.54,
+      "recording": "recordings/04-p2048-off/engine.log"
+    },
+    {
+      "group": "05-p2048-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 16.8,
+      "initial_pcie_frac": 0.46,
+      "recording": "recordings/05-p2048-off/engine.log"
+    },
+    {
+      "group": "06-p1024-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 14.5,
+      "initial_pcie_frac": 0.4,
+      "recording": "recordings/06-p1024-off/engine.log"
+    },
+    {
+      "group": "07-p256-off",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 16.9,
+      "initial_pcie_frac": 0.46,
+      "recording": "recordings/07-p256-off/engine.log"
+    },
+    {
+      "group": "08-p256-auto",
+      "recording_archive": "prefill-ablation-evidence.zip",
+      "startup_h2d_GB_s": 22.8,
+      "initial_pcie_frac": 0.55,
+      "recording": "recordings/08-p256-auto/engine.log"
+    }
+  ],
+  "methods": {
+    "read_mb": "Delta /proc/PID/io read_bytes / 1e6 over request; includes prefill and decode, excludes model load",
+    "major_faults": "Delta /proc/PID/stat field 12 (majflt), process only, excluding child faults",
+    "cpu_seconds": "Delta process utime+stime divided by CLK_TCK=100 on tested Linux; all threads, both stages",
+    "gpu": "nvidia-smi util/memory/power/temp/clocks sampled every 2 seconds and filtered by request interval",
+    "ram_available": "Minimum /proc/meminfo MemAvailable among samples inside request interval",
+    "acceptance": "Sum draft_n_accepted / sum draft_n within the stated task set",
+    "startup_h2d": "Engine startup probe, best of four; initialization/calibration only",
+    "pcie_activity": "Reverse groups only, nvidia-smi dmon -s t -d 1 -o DT; local timestamps UTC+08:00; sampled rates, not total bytes"
+  }
+}

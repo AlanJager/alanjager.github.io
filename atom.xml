@@ -6,7 +6,7 @@
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-10-13T10:30:00.000Z</updated>
+  <updated>2026-10-14T02:58:34.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -17,6 +17,34 @@
   <generator uri="https://hexo.io/">Hexo</generator>
 
   <entry>
+    <title>在 RTX 3090 上优化 Strata：做了什么，快在哪里，下一步还有多少空间</title>
+    <link href="https://hanayo.cn/2026/10/14/strata-3090-tuning/"/>
+    <id>https://hanayo.cn/2026/10/14/strata-3090-tuning/</id>
+    <published>2026-10-14T02:58:34.000Z</published>
+    <updated>2026-10-14T02:58:34.000Z</updated>
+    
+    
+    <summary type="html">在RTX 3090与32GB RAM上实测Strata的分块、CPU分担、MTP及尾部跳过，结合163个请求与分层资源观测，分析首字延迟、代码质量和数据等待。</summary>
+    
+    
+    
+    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
+    
+    
+    <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
+    
+    <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
+    
+    <category term="strata" scheme="https://hanayo.cn/tags/strata/"/>
+    
+    <category term="qwen" scheme="https://hanayo.cn/tags/qwen/"/>
+    
+    <category term="moe" scheme="https://hanayo.cn/tags/moe/"/>
+    
+    <category term="gpu" scheme="https://hanayo.cn/tags/gpu/"/>
+    
+  </entry>
+<entry>
     <title>Strata 怎样把 MoE 专家分给 CPU 和 GPU</title>
     <link href="https://hanayo.cn/2026/10/13/strata-expert-paths/"/>
     <id>https://hanayo.cn/2026/10/13/strata-expert-paths/</id>

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里 | 花の様に</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在RTX 3090与64GiB内存上测试Strata的PLE常驻、CPU&#x2F;GPU分工、HumanEval+及Aider Polyglot，记录通过率、完整任务耗时与云服务费用参考。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里">
+<meta property="og:url" content="https://hanayo.cn/2026/10/15/strata-3090-memory-coding/index.html">
+<meta property="og:site_name" content="花の様に">
+<meta property="og:description" content="在RTX 3090与64GiB内存上测试Strata的PLE常驻、CPU&#x2F;GPU分工、HumanEval+及Aider Polyglot，记录通过率、完整任务耗时与云服务费用参考。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-3090-memory-coding/memory-budget.png">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-3090-memory-coding/capacity-comparison.png">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-3090-memory-coding/coding-results.png">
+<meta property="og:image" content="https://hanayo.cn/assets/strata-3090-memory-coding/cpp-workflow.png">
+<meta property="article:published_time" content="2026-10-15T13:00:00.000Z">
+<meta property="article:modified_time" content="2026-10-15T13:00:00.000Z">
+<meta property="article:author" content="Alan Jager">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="inference">
+<meta property="article:tag" content="strata">
+<meta property="article:tag" content="qwen">
+<meta property="article:tag" content="moe">
+<meta property="article:tag" content="gpu">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://hanayo.cn/assets/strata-3090-memory-coding/memory-budget.png">
+  
+    <link rel="alternate" href="/atom.xml" title="花の様に" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.1.1"><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"花の様に","url":"https://hanayo.cn/","inLanguage":"zh-CN","publisher":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]}},{"@type":"BlogPosting","headline":"3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里","description":"在RTX 3090与64GiB内存上测试Strata的PLE常驻、CPU&#x2F;GPU分工、HumanEval+及Aider Polyglot，记录通过率、完整任务耗时与云服务费用参考。","url":"https://hanayo.cn/2026/10/15/strata-3090-memory-coding/index.html","datePublished":"2026-10-15T13:00:00.000Z","dateModified":"2026-10-15T13:00:00.000Z","inLanguage":"zh-CN","author":{"@type":"Person","name":"Alan Jager","url":"https://hanayo.cn/","sameAs":["https://github.com/AlanJager"]},"mainEntityOfPage":"https://hanayo.cn/2026/10/15/strata-3090-memory-coding/index.html"}]}</script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">花の様に</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+          <a class="main-nav-link" href="/tools">工具</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://hanayo.cn"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+<article id="post-strata-3090-memory-coding" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/15/strata-3090-memory-coding/" class="article-date">
+  <time class="dt-published" datetime="2026-10-15T13:00:00.000Z" itemprop="datePublished">2026-10-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ai-inference/">ai-inference</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+          <p><a href="https://hanayo.cn/2026/10/14/strata-3090-tuning/">上一篇</a>在 3090 上调整 Strata，把 prefill 分块增大到 2048 后，4K 输入的首 token 延迟降到了约 3.4 秒。不过，让模型根据报错修代码时，仍然要等二三十秒。请求期间，进程会从磁盘读取两百多 MB 数据，decode 吞吐约为 30 token/s。</p>
+<p>这台机器当时只有 32GiB 内存。Strata 已经把一部分专家权重放进显存，剩下的主机数据是否也能常驻？内存扩到 64GiB 后，等待会缩短多少？接到编码工具上，它又能完成哪些工作？</p>
+<p>本文继续使用同一张 RTX 3090 和 <strong>Qwen3.8-Flash-Next-GSQ-RCO IQ2_XS</strong>。把 PLE 表常驻内存后，修复请求的平均 decode 吞吐从约 30 提高到 111 token/s，请求期读盘降为零。随后固定配置跑公开编码题：HumanEval+ 通过 <strong>156/164</strong>，函数生成中位数 <strong>3.17 秒</strong>；Aider Polyglot 的文件编辑与一次反馈修复通过 <strong>112/225</strong>，任务耗时中位数 <strong>47.5 秒</strong>。</p>
+<p>这两组编码任务的差别，正好说明了后半篇要观察什么：模型写一个函数需要多久，接上编辑、编译和报错修复后，时间又花在哪里。</p>
+<h2 id="64GiB-内存里，实际要放多少数据"><a href="#64GiB-内存里，实际要放多少数据" class="headerlink" title="64GiB 内存里，实际要放多少数据"></a>64GiB 内存里，实际要放多少数据</h2><p>先把内存里的数据算清楚。这套模型除了 GPU 上的权重，还要在主机侧访问两块较大的数据。</p>
+<p>一块是<strong>显存外的专家权重</strong>，本次约 <strong>16.17GiB</strong>。GPU 的 18GiB 专家缓存保存 13432 个专家槽，其他专家权重放在主机锁页内存中，供 CPU 计算或经 PCIe 交给 GPU。</p>
+<p>另一块是 <strong>PLE 查找表</strong>。引擎根据当前及前面的 token 组合计算行号，读取表中的记录，参与后续模型计算。当前模型的表有 320001536 行，每行 90 字节，合计 <strong>26.82GiB</strong>。<code>mmap</code> 模式按访问需求把文件页带进内存；<code>--ple-io ram</code> 在加载时触碰全表，再用 <code>mlock</code> 保持驻留。<a target="_blank" rel="noopener" href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/src/kernels/ngram.cpp">PLE 实现</a></p>
+<p><img src="/assets/strata-3090-memory-coding/memory-budget.png" alt="主机内存与显存的数据预算"></p>
+<p>两块主机数据合计约 <strong>43GiB</strong>。这台虚拟机系统可见内存为 63.3GiB，RAM 模式加载完成后，<code>MemAvailable</code> 约 16.2GiB，用于系统、其他运行数据和请求工作区。本轮单请求、32K 上下文在这个预算内完成测试。</p>
+<p>本文用加载日志核对两块数据的大小，再查看系统的 <code>Mlocked</code> 和 <code>MemAvailable</code>：前者确认 PLE 锁页量，后者观察加载后还剩多少可用内存。GPU 的 18GiB 专家缓存单独计量，其他显存用于模型其余计算、KV、MTP 和工作缓冲。</p>
+<h2 id="内存已经扩容，为什么还在读盘"><a href="#内存已经扩容，为什么还在读盘" class="headerlink" title="内存已经扩容，为什么还在读盘"></a>内存已经扩容，为什么还在读盘</h2><p>容量对照保留同一张 3090、16 vCPU、模型与引擎，依次测试 32GiB mmap、64GiB mmap 和 64GiB RAM。每组两次独立启动，每次两轮任务，下面每项为四次请求的均值。TTFT 记录请求发出到首 token 的等待，decode 吞吐记录输出阶段的生成速度，E2E 记录请求开始到结束的完整耗时。</p>
+<p>修复题是生成 <code>retry_delays(attempts, base, cap)</code>：第 i 项为 <code>min(cap, base × 2^i)</code>，同时处理非法参数、零值和 10000 次尝试。首答在大次数测试中出现溢出，再把实际报错交回模型修复。该轮输出上限为 1024 token，CPU/PCIe 使用自动分工。</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th align="right">32GiB mmap</th>
+<th align="right">64GiB mmap</th>
+<th align="right">64GiB RAM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>4392-token 提取，平均 TTFT</td>
+<td align="right">3.35 s</td>
+<td align="right">3.73 s</td>
+<td align="right">3.74 s</td>
+</tr>
+<tr>
+<td>17352-token 提取，平均 TTFT</td>
+<td align="right">11.62 s</td>
+<td align="right">13.11 s</td>
+<td align="right">12.21 s</td>
+</tr>
+<tr>
+<td>修复请求，平均 decode 吞吐</td>
+<td align="right">30.0 token/s</td>
+<td align="right">27.2 token/s</td>
+<td align="right">110.7 token/s</td>
+</tr>
+<tr>
+<td>修复请求，平均端到端耗时</td>
+<td align="right">26.35 s</td>
+<td align="right">26.05 s</td>
+<td align="right">9.45 s</td>
+</tr>
+<tr>
+<td>每个修复请求，平均进程读盘</td>
+<td align="right">218.54 MB</td>
+<td align="right">209.22 MB</td>
+<td align="right">0 MB</td>
+</tr>
+<tr>
+<td>每个修复请求，平均 major fault</td>
+<td align="right">1817.75</td>
+<td align="right">1736.75</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>修复完整且通过测试</td>
+<td align="right">3/4</td>
+<td align="right">3/4</td>
+<td align="right">1/4</td>
+</tr>
+<tr>
+<td>达到 1024-token 输出上限</td>
+<td align="right">1/4</td>
+<td align="right">1/4</td>
+<td align="right">3/4</td>
+</tr>
+</tbody></table>
+<p><img src="/assets/strata-3090-memory-coding/capacity-comparison.png" alt="三组容量配置下的请求表现"></p>
+<p>扩到 64GiB 后继续用 mmap，修复请求仍平均读取约 209MB。新增内存给文件缓存提供了空间，第一次访问尚未缓存的 PLE 页时，仍需从存储读取。切换 RAM 模式后，整张表在模型加载时预读，请求直接访问驻留页。</p>
+<p>观测方法是分别记录请求前后的进程读盘字节和 major fault 计数。后者记录需要 I/O 才能处理的缺页。三组各 36 个请求累计读盘分别为 <strong>1494.47MB、1253.20MB、0MB</strong>，major fault 累计为 <strong>12451、10418、0</strong>。切到 RAM 模式后，这两项等待来源在请求期间消失，修复生成的平均 decode 吞吐提高到 <strong>110.7 token/s</strong>；长输入提取的 TTFT 则变化较小。</p>
+<p>RAM 组四份修复中，三份写满 1024 token 后被截断，一份完整通过。平均 9.45 秒包含这些截断回答。下一步把输出预算提高到 2048，同时固定 CPU/PCIe 分工，观察生成能否写完，以及哪些资源仍在影响等待。三组容量实验中的自动分工取值保留在文末。</p>
+<p>主动常驻还把读取成本移到了启动阶段。两次 RAM 模式的 PLE 装载分别用了 <strong>84.1 秒和 2.6 秒</strong>，完整加载分别为 <strong>226.3 秒和 142.2 秒</strong>，操作系统文件缓存状态不同。服务保持运行，可以把这次装载摊到后续请求中。</p>
+<h2 id="数据常驻以后，CPU-和-GPU-怎样分工"><a href="#数据常驻以后，CPU-和-GPU-怎样分工" class="headerlink" title="数据常驻以后，CPU 和 GPU 怎样分工"></a>数据常驻以后，CPU 和 GPU 怎样分工</h2><p>专家权重在主机内存中时，有两种处理方式：CPU 直接计算，再把结果交给 GPU；或者把权重经 PCIe 搬到 GPU 上计算。<code>pcie_frac</code> 控制未命中显存的专家如何分配。设为 1 时，尽量走 GPU 路径；设为 0.5 时，CPU 专家池承担一部分计算。</p>
+<p>为了观察实际取舍，分别用 0.5 和 1 做三次独立启动。每次从同一份专家热度记录开始，按相同顺序执行区间合并、JSONL 日志汇总，以及两份退避修复。修复 A、B 分别使用预先保存的对话和报错，每组重放相同内容。共 48 个请求，输出上限统一为 2048；前缀复用、请求期读盘和 major fault 全部为零。</p>
+<table>
+<thead>
+<tr>
+<th>任务</th>
+<th align="right">pcie_frac</th>
+<th align="right">TTFT 中位数</th>
+<th align="right">decode 中位数</th>
+<th align="right">E2E 中位数</th>
+<th align="right">完整通过</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>区间合并</td>
+<td align="right">0.5</td>
+<td align="right">0.53 s</td>
+<td align="right">48.5 token/s</td>
+<td align="right">3.77 s</td>
+<td align="right">6/6</td>
+</tr>
+<tr>
+<td>区间合并</td>
+<td align="right">1</td>
+<td align="right">0.82 s</td>
+<td align="right">51.7 token/s</td>
+<td align="right">4.00 s</td>
+<td align="right">6/6</td>
+</tr>
+<tr>
+<td>日志汇总</td>
+<td align="right">0.5</td>
+<td align="right">0.52 s</td>
+<td align="right">60.0 token/s</td>
+<td align="right">9.11 s</td>
+<td align="right">6/6</td>
+</tr>
+<tr>
+<td>日志汇总</td>
+<td align="right">1</td>
+<td align="right">0.51 s</td>
+<td align="right">68.6 token/s</td>
+<td align="right">7.88 s</td>
+<td align="right">6/6</td>
+</tr>
+<tr>
+<td>退避修复 A</td>
+<td align="right">0.5</td>
+<td align="right">0.78 s</td>
+<td align="right">76.9 token/s</td>
+<td align="right">11.31 s</td>
+<td align="right">5/6</td>
+</tr>
+<tr>
+<td>退避修复 A</td>
+<td align="right">1</td>
+<td align="right">0.72 s</td>
+<td align="right">83.8 token/s</td>
+<td align="right">17.03 s</td>
+<td align="right">5/6</td>
+</tr>
+<tr>
+<td>退避修复 B</td>
+<td align="right">0.5</td>
+<td align="right">0.77 s</td>
+<td align="right">97.4 token/s</td>
+<td align="right">10.58 s</td>
+<td align="right">3/6</td>
+</tr>
+<tr>
+<td>退避修复 B</td>
+<td align="right">1</td>
+<td align="right">0.70 s</td>
+<td align="right">97.7 token/s</td>
+<td align="right">7.69 s</td>
+<td align="right">5/6</td>
+</tr>
+</tbody></table>
+<p>每行来自三次启动、每次两轮，共六个请求。区间合并的 12 份输出逐字相同，均为 160 token，全部通过 67 项检查。分工从 0.5 改为 1 后，该任务的 CPU 等效占用中位数从 <strong>5.26 核降到 1.70 核</strong>；日志汇总从 <strong>5.60 核降到 1.00 核</strong>。GPU 承担更多专家计算，为主机上的应用与工具执行留出了 CPU。</p>
+<p>等待时间还受到缓存和输出长度影响。区间合并首轮的显存命中比例为 <strong>74.2%–74.6%</strong>，第二轮提高到 <strong>90.1%–94.3%</strong>。重复后，需要 CPU 或 PCIe 处理的路由减少，两种分工的影响也随之变化。</p>
+<p>修复 A 在参数 1 下生成更快，E2E 却更长：输出 token 中位数从约 <strong>775 增到 1281</strong>。修复 B 的输出中位数则从 <strong>981 降到 608</strong>。因此，本文同时记录 decode 吞吐、完整等待和通过数；三者分别描述生成速度、使用体验和功能结果。</p>
+<h2 id="生成更快以后，为什么还有代码没修好"><a href="#生成更快以后，为什么还有代码没修好" class="headerlink" title="生成更快以后，为什么还有代码没修好"></a>生成更快以后，为什么还有代码没修好</h2><p>先前固定 <code>pcie_frac=0.5</code>，对同两份退避修复历史比较过 1024 与 2048 输出上限：</p>
+<table>
+<thead>
+<tr>
+<th>输出上限</th>
+<th align="right">请求数</th>
+<th align="right">自然结束</th>
+<th align="right">完整通过</th>
+<th align="right">截断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1024 token</td>
+<td align="right">8</td>
+<td align="right">5</td>
+<td align="right">4</td>
+<td align="right">3</td>
+</tr>
+<tr>
+<td>2048 token</td>
+<td align="right">8</td>
+<td align="right">8</td>
+<td align="right">4</td>
+<td align="right">0</td>
+</tr>
+</tbody></table>
+<p>增加预算后，八份回答都自然结束，通过数仍为四份。失败可以发生在很具体的地方：一份代码在外层 <code>for i in range(attempts)</code> 中又嵌入同样的循环，每轮重复追加整段结果。输入 <code>(5, 0.5, 4)</code> 时，预期五项被重复五遍，返回长度变成 25；10000 次用例触发 <code>MemoryError</code>。<a href="/assets/strata-3090-memory-coding/examples/failed.grade.json">完整失败回答与测试</a></p>
+<p>同轮另一份代码在计算每一项时逐步翻倍，达到 cap 就结束这一项的乘法循环，再继续追加后续项。同一输入得到 <code>[0.5, 1, 2, 4, 4]</code>，10000 次用例及其余边界检查也全部通过。<a href="/assets/strata-3090-memory-coding/examples/passed.txt">完整成功回答</a> · <a href="/assets/strata-3090-memory-coding/examples/passed.grade.json">测试结果</a></p>
+<p>前节的 48 请求对照统一采用 2048 上限，两种分工各有 12 次修复：0.5 组通过 <strong>8/12</strong>，1 组通过 <strong>10/12</strong>，各有两次截断。结合较低的主机 CPU 占用，后续编码测试固定使用 <strong>PLE RAM、<code>pcie_frac=1</code>、prefill 2048、尾部跳过关闭</strong>。</p>
+<p>退避修复已经暴露了两类失败：预算用尽时，代码被截断；自然结束时，代码仍可能有循环和边界错误。接下来用公开题集记录更多任务的通过率和完整等待。</p>
+<h2 id="HumanEval-：写一个函数，通常等几秒"><a href="#HumanEval-：写一个函数，通常等几秒" class="headerlink" title="HumanEval+：写一个函数，通常等几秒"></a>HumanEval+：写一个函数，通常等几秒</h2><p>第一组公开题集使用 HumanEval 的全部 164 道 Python 函数题。模型收到函数签名、题目说明和示例，每题生成一份答案，之后由 EvalPlus 分别执行原版测试和 HumanEval+ 增强测试。<a target="_blank" rel="noopener" href="https://github.com/evalplus/evalplus/blob/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e/docs/cli.md">固定版本评测说明</a></p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th align="right">本次实测</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HumanEval pass@1</td>
+<td align="right">161/164，98.17%</td>
+</tr>
+<tr>
+<td>HumanEval+ pass@1</td>
+<td align="right">156/164，95.12%</td>
+</tr>
+<tr>
+<td>整套生成墙钟时间</td>
+<td align="right">10 分 37.2 秒</td>
+</tr>
+<tr>
+<td>单题生成 E2E 中位数 / P95</td>
+<td align="right">3.17 / 7.52 s</td>
+</tr>
+<tr>
+<td>TTFT 中位数 / P95</td>
+<td align="right">0.50 / 1.29 s</td>
+</tr>
+<tr>
+<td>后处理与评分</td>
+<td align="right">另计 50.9 s</td>
+</tr>
+<tr>
+<td>自然结束 / 截断</td>
+<td align="right">164 / 0</td>
+</tr>
+</tbody></table>
+<p>本轮每题一次、输出上限 4096，不追加修复。pass@1 按每题全部对应测试通过计分。HumanEval+ 的八道失败都已自然结束；其中五道通过原版测试，在新增测试中失败。</p>
+<p>这批函数题通常几秒就能生成一份实现。八份 HumanEval+ 失败答案都已经写完，接下来需要修正测试暴露的逻辑和边界问题。</p>
+<p>日常编码还经常需要修改已有文件：读懂接口、按格式写回，再根据测试报错修复。下一组把这些步骤交给 Aider，计时也覆盖完整任务。</p>
+<h2 id="Aider-Polyglot：改文件并修复一次，通过了多少题"><a href="#Aider-Polyglot：改文件并修复一次，通过了多少题" class="headerlink" title="Aider Polyglot：改文件并修复一次，通过了多少题"></a>Aider Polyglot：改文件并修复一次，通过了多少题</h2><p>第二组使用 <a target="_blank" rel="noopener" href="https://github.com/Aider-AI/polyglot-benchmark/tree/7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f">Aider Polyglot</a> 的全部 225 道任务，覆盖 C++、Go、Java、JavaScript、Python、Rust。Aider 读取说明和可编辑源文件，模型输出完整修改文件，随后编译并运行验收测试。首次测试失败，就把错误反馈给模型，再修复一次。</p>
+<p>Aider 的语法检查、编辑格式纠错和对话摘要也会调用模型。因此，“首次测试通过”可能已经经过内部纠错；“一次测试反馈”对应两次验收机会。每题 E2E 从任务开始计到结束，包含生成、摘要、修改应用、编译与测试。本轮单次输出上限为 8192。</p>
+<p>完整初轮运行 <strong>4 小时 30 分 36 秒</strong>，首次通过 <strong>43/225</strong>，最终通过 <strong>111/225</strong>。检查日志发现，Aider 把 C++ 的 <code>.h</code> 头文件交给了 C 语法解析器，触发大量额外纠错。修正检查器后，全部 26 道 C++ 重跑一遍，另用 <strong>22 分 58 秒</strong>，具体过程放在下一节。</p>
+<p>下表采用 <strong>199 道初轮非 C++ + 全部 26 道修正复测 C++</strong> 汇总，包含复测中的新增通过与退步。</p>
+<table>
+<thead>
+<tr>
+<th>语言</th>
+<th align="right">题数</th>
+<th align="right">首次测试通过</th>
+<th align="right">一次反馈后通过</th>
+<th align="right">E2E 中位数</th>
+<th align="right">P95</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>C++</td>
+<td align="right">26</td>
+<td align="right">2</td>
+<td align="right">14（53.8%）</td>
+<td align="right">49.6 s</td>
+<td align="right">82.5 s</td>
+</tr>
+<tr>
+<td>Go</td>
+<td align="right">39</td>
+<td align="right">6</td>
+<td align="right">15（38.5%）</td>
+<td align="right">33.2 s</td>
+<td align="right">209.1 s</td>
+</tr>
+<tr>
+<td>Java</td>
+<td align="right">47</td>
+<td align="right">7</td>
+<td align="right">20（42.6%）</td>
+<td align="right">67.6 s</td>
+<td align="right">157.7 s</td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td align="right">49</td>
+<td align="right">11</td>
+<td align="right">26（53.1%）</td>
+<td align="right">47.5 s</td>
+<td align="right">102.4 s</td>
+</tr>
+<tr>
+<td>Python</td>
+<td align="right">34</td>
+<td align="right">10</td>
+<td align="right">23（67.6%）</td>
+<td align="right">41.3 s</td>
+<td align="right">138.7 s</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td align="right">30</td>
+<td align="right">7</td>
+<td align="right">14（46.7%）</td>
+<td align="right">40.7 s</td>
+<td align="right">181.3 s</td>
+</tr>
+<tr>
+<td>全部</td>
+<td align="right">225</td>
+<td align="right">43（19.11%）</td>
+<td align="right">112（49.78%）</td>
+<td align="right">47.5 s</td>
+<td align="right">147.0 s</td>
+</tr>
+</tbody></table>
+<p>一次测试反馈额外挽回了 <strong>69 题</strong>。例如 Python REST API 题，首次混淆 JSON 文本与 Python 对象，反馈后补上输入解析和输出序列化，52.1 秒完成并通过。JavaScript REST API 题则首次通过，用时 22.7 秒。</p>
+<p>逐题汇总的 E2E 合计为 <strong>227.38 分钟</strong>，其中模型调用 <strong>185.92 分钟（81.8%）</strong>、编译测试 <strong>40.69 分钟（17.9%）</strong>，其余为客户端处理。这是两轮逐题时间的累计；完整运行的墙钟分别按上面的初轮与专项记录。</p>
+<p><img src="/assets/strata-3090-memory-coding/coding-results.png" alt="六种语言的完成率与C++修正复测"></p>
+<h2 id="C-的-250-次调用，怎样降到了-72-次"><a href="#C-的-250-次调用，怎样降到了-72-次" class="headerlink" title="C++ 的 250 次调用，怎样降到了 72 次"></a>C++ 的 250 次调用，怎样降到了 72 次</h2><p>初轮 C++ 的不少任务会连续收到语法错误提示。检查 Aider 使用的语言映射发现，<code>.h</code> 被识别为 C，而这些题目使用的是 C++ 头文件。语法检查器把类、命名空间等内容标成错误，模型收到反馈后继续尝试修改。</p>
+<p>用官方参考答案验证，26 份头文件都已通过真实编译和验收，却全部被 C 语法检查报错。将 <code>.h</code> 映射为 C++ 后，26 份头文件全部通过 lint；故意构造的错误 C++ 仍能被检出。<a target="_blank" rel="noopener" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/linter.py">固定版本语法检查实现</a></p>
+<p>只修改这项语言映射，保留模型、预算和测试规则，全部 26 题按原相对顺序复测：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th align="right">默认头文件解析</th>
+<th align="right">按 C++ 解析</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型调用数</td>
+<td align="right">250</td>
+<td align="right">72</td>
+</tr>
+<tr>
+<td>26 题 E2E 合计</td>
+<td align="right">66.16 min</td>
+<td align="right">22.97 min</td>
+</tr>
+<tr>
+<td>单题 E2E 中位数</td>
+<td align="right">156.7 s</td>
+<td align="right">49.6 s</td>
+</tr>
+<tr>
+<td>最终通过</td>
+<td align="right">13/26</td>
+<td align="right">14/26</td>
+</tr>
+</tbody></table>
+<p><img src="/assets/strata-3090-memory-coding/cpp-workflow.png" alt="C++检查修正前后的调用次数和任务等待"></p>
+<p>比如 space-age，两轮都最终通过，调用数从 11 次降到 3 次，E2E 从 237.8 秒降到 58.2 秒。crypto-square 也保持通过，调用数从 10 次降到 3 次，E2E 从 242.9 秒降到 47.8 秒。</p>
+<p>复测新增通过 <code>diamond</code>、<code>all-your-base</code>、<code>gigasecond</code>，同时 <code>circular-buffer</code>、<code>bank-account</code> 从通过变为失败，净增加一题。工作流的主要变化是少了大量纠错调用。注意：两轮的专家缓存历史不同，耗时包含这一条件差异。</p>
+<h2 id="磁盘等待消失后，还会卡在哪里"><a href="#磁盘等待消失后，还会卡在哪里" class="headerlink" title="磁盘等待消失后，还会卡在哪里"></a>磁盘等待消失后，还会卡在哪里</h2><p>Polyglot 初轮 798 次模型调用期间，引擎累计读盘 <strong>96KiB</strong>，major fault 为 1；采用修正 C++ 结果后的 620 次调用汇总中，两项均为零。这里测量的是每次调用前后引擎进程的计数差值，范围覆盖模型请求；加载阶段和编译器的文件访问另计。</p>
+<p>读盘量降下来以后，下面几道题把剩余等待表现得很清楚。</p>
+<p><strong>输出很长，任务仍未通过。</strong> JavaScript scale-generator 两次调用都生成满 8192 token，整题耗时 173.6 秒，最终未通过。第二次调用的 decode 为 107.3 token/s、请求期零读盘，输出中反复解释音名转换。生成速度足够快，重复内容仍会消耗预算和时间。</p>
+<p><strong>测试反馈占满上下文。</strong> Go paasio 的并发读写计数出现丢失，随后的大量一致性检查报错生成约 933KiB 日志。Aider 把反馈交回模型时，输入达到 415070 token，引擎按 32K 上限拒绝请求。这道题既有初始实现的并发错误，也有修复阶段的反馈长度问题。</p>
+<p><strong>工具执行与历史压缩也需要时间。</strong> 初轮单独统计的对话摘要约 45.05 分钟；汇总后的编译测试约 40.69 分钟。完整任务时间包含这些操作，生成吞吐只是其中一个环节。</p>
+<p>定位这类等待时，先用 Aider 的逐题记录拆出模型调用、摘要和编译测试，再用引擎日志核对输出长度、结束原因及请求期读盘。重复输出对应生成预算，超长报错对应反馈处理，额外纠错对应工具配置。GPU 计算与 PCIe 搬运的完整时间占比，仍需兼容的采集器补测。</p>
+<h2 id="与-GPT-6、Claude-相比，等待和费用怎样取舍"><a href="#与-GPT-6、Claude-相比，等待和费用怎样取舍" class="headerlink" title="与 GPT-6、Claude 相比，等待和费用怎样取舍"></a>与 GPT-6、Claude 相比，等待和费用怎样取舍</h2><h3 id="Polyglot：同一套文件编辑题"><a href="#Polyglot：同一套文件编辑题" class="headerlink" title="Polyglot：同一套文件编辑题"></a>Polyglot：同一套文件编辑题</h3><p>先看同一套 Aider Polyglot 225 题。下表把完成率与时间放在一起：逐题累计记录工具处理任务的耗时，整轮墙钟还包含任务之间的调度等开销。本文本地结果来自 199 道初轮题目与 26 道 C++ 复测的汇总。</p>
+<table>
+<thead>
+<tr>
+<th>模型与设置</th>
+<th align="right">首次通过</th>
+<th align="right">修复后通过</th>
+<th align="right">逐题累计处理时间</th>
+<th>整轮墙钟时间</th>
+<th>该轮费用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>本文 Qwen IQ2_XS / 3090，推理关闭</td>
+<td align="right">43/225（19.11%）</td>
+<td align="right">112/225（49.78%）</td>
+<td align="right">3 h 47 min 23 s</td>
+<td>初轮 4 h 30 min 36 s；C++ 专项另计 22 min 58 s</td>
+<td>本地运行；电费、硬件摊销待测</td>
+</tr>
+<tr>
+<td>GPT-6 Sol，medium</td>
+<td align="right">126/225（56.0%）</td>
+<td align="right">199/225（88.4%）</td>
+<td align="right">46 min 42 s</td>
+<td>51 min 56 s</td>
+<td>作者未公开</td>
+</tr>
+<tr>
+<td>GPT-6 Luna，medium</td>
+<td align="right">85/225（37.8%）</td>
+<td align="right">173/225（76.9%）</td>
+<td align="right">1 h 9 min 55 s</td>
+<td>1 h 15 min 11 s</td>
+<td>作者未公开</td>
+</tr>
+</tbody></table>
+<p>GPT-6 两行来自 <a target="_blank" rel="noopener" href="https://blog.orgal.jp/wp/archives/793">ORGAL 的 2026-09-23 实测</a>。对方同样使用 whole 编辑、两次验收和单请求串行；模型开启 medium 推理，输入/输出预算和评分容器也更大，详细配置见文末。Sol 比本文本地多通过 87 题，Luna 多 61 题。对这套文件编辑任务，公开服务记录的完成率更高，整轮等待也更短；费用一栏等待作者补充账单或完整计费 token 记录。</p>
+<h3 id="Terminal-Bench：新版-Claude-的长任务参考"><a href="#Terminal-Bench：新版-Claude-的长任务参考" class="headerlink" title="Terminal-Bench：新版 Claude 的长任务参考"></a>Terminal-Bench：新版 Claude 的长任务参考</h3><p>新版 Claude 的时间和费用参考采用另一套题集。<strong>Terminal-Bench 4.0 衡量长流程终端任务</strong>，覆盖软件、科学计算等领域；Vals AI 用 Mini-SWE-agent 跑 66 题、重复三轮，取通过率均值。下表采用其 2026-10-13 榜单，时间与费用均按单任务口径展示。<a target="_blank" rel="noopener" href="https://www.vals-ai.com/benchmarks/terminal-bench-4">实测与方法</a></p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th align="right">榜单通过率</th>
+<th align="right">单任务耗时（Duration）</th>
+<th align="right">单任务 API 费用（美元）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Claude Opus 5.5*</td>
+<td align="right">65.15%</td>
+<td align="right">1 h 04 min</td>
+<td align="right">$13.20</td>
+</tr>
+<tr>
+<td>Claude Sonnet 5.5*</td>
+<td align="right">64.14%</td>
+<td align="right">1 h 22 min</td>
+<td align="right">$16.51</td>
+</tr>
+<tr>
+<td>GPT-6 Astra</td>
+<td align="right">59.60%</td>
+<td align="right">35 min 42 s</td>
+<td align="right">$9.58</td>
+</tr>
+<tr>
+<td>GPT-6 Sol</td>
+<td align="right">44.44%</td>
+<td align="right">34 min 56 s</td>
+<td align="right">$5.79</td>
+</tr>
+</tbody></table>
+<p>带星号的 Claude 两行含供应商回退：Opus 有 22/198 次尝试由旧版服务，Sonnet 有 4/198 次。将这些尝试全部计失败，通过率分别为 <strong>58.08% 和 62.63%</strong>。费用包含这些实际运行。<a target="_blank" rel="noopener" href="https://www.vals-ai.com/benchmarks/terminal-bench-4">回退记录</a></p>
+<p>在这次长任务测试中，Sonnet 的每题费用高于 Opus，说明任务最终花费还取决于模型走了多少轮、生成多少内容。选服务时，把完成率、任务等待和实际费用一起记录，才容易判断它适合接手哪类工作。</p>
+<p>本文 Qwen 尚未运行 Terminal-Bench。选个人编码工具时，可以先用 Polyglot 观察小文件修改与报错修复，再用长任务测试观察持续执行能力；本地与云服务的直接复测沿用同一套工具和预算。</p>
+<p>注意：Terminal-Bench 时间沿用榜单 Duration，表示任务完成墙钟；页面未说明该列采用均值还是中位数。费用为 API 使用成本，运行环境另计。<a target="_blank" rel="noopener" href="https://www.vals-ai.com/methodology">指标定义</a></p>
+<h2 id="这台机器适合接手哪些编码工作"><a href="#这台机器适合接手哪些编码工作" class="headerlink" title="这台机器适合接手哪些编码工作"></a>这台机器适合接手哪些编码工作</h2><p>这台 64GiB / 3090 已有一套可继续使用的配置：<strong>PLE RAM、prefill 2048、pcie_frac=1、tail skip=0</strong>。数据驻留后，请求期读盘接近零；更多专家交给 GPU 计算，也给编译和其他工具留出了 CPU。按本轮结果，个人使用可以从以下任务开始：</p>
+<table>
+<thead>
+<tr>
+<th>工作</th>
+<th>本轮依据</th>
+<th>使用方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>写一个边界明确的 Python 函数</td>
+<td>HumanEval+ 156/164；生成中位数 3.17 s</td>
+<td>提供签名、输入输出和边界例子，生成后运行测试</td>
+</tr>
+<tr>
+<td>修改已有小文件</td>
+<td>Polyglot 最终112/225；E2E中位数47.5 s</td>
+<td>提供相关接口，检查修改差异，以验收测试决定是否采用</td>
+</tr>
+<tr>
+<td>根据报错修复</td>
+<td>一次反馈额外挽回69题</td>
+<td>回传最相关的错误与失败用例，修复后执行回归测试</td>
+</tr>
+<tr>
+<td>跨文件检索、依赖升级、持续多轮开发</td>
+<td>本轮尚未测试</td>
+<td>下一步用自己的小仓库任务验证</td>
+</tr>
+</tbody></table>
+<p>本轮函数题使用 4096 输出上限，Aider 使用 8192。32K 总上下文预留 8192 输出后，输入预算为 <strong>24576 token</strong>，系统提示、文件内容、历史和测试反馈共同使用这部分空间。回传报错时，保留相关接口、失败用例和关键错误；完整长日志另存文件，按需读取。</p>
+<p>本文会让这台机器先完成一个函数或一处局部修改，运行测试后再决定是否继续修复。遇到重复输出，就收缩任务；遇到大段报错，就整理反馈。内存常驻已经解决了这一轮最明显的 I/O 等待，接下来改善个人编码体验，更值得投入的地方是任务拆分、工具配置和测试反馈。</p>
+<h2 id="注：环境、计时和复现"><a href="#注：环境、计时和复现" class="headerlink" title="注：环境、计时和复现"></a>注：环境、计时和复现</h2><ul>
+<li><p>横向参考查询于 2026-10-15。GPT-6 Sol/Luna 数字来自评测作者的公开报告，本文尚未复跑该 API；对方使用 whole、tries=2、并行数 1、medium 推理、temperature=1、131072-token 输入和 65536-token 最大输出，评分容器为 16 CPU/12GiB。本文采用推理关闭、temperature=0、32K 总上下文、8192 最大输出和 4 CPU/6GiB 评分容器，另有同步摘要与 C++ lint 修正。GPT 的累计时间沿用作者 Aider duration，本地累计时间为逐题 E2E；整轮墙钟单列。</p>
+</li>
+<li><p>新版 Claude 参考采用 Vals AI Terminal-Bench 4.0 的独立实测，表中已标出供应商回退。该套题每题最多运行 8 小时，无步骤数和费用上限；通过率取三轮均值。榜单费用按美元/任务记录。两套题集分别展示；新版 Claude 的同协议 Polyglot 成绩与费用仍待补测。</p>
+</li>
+<li><p>硬件为 RTX 3090 24GiB、Xeon Gold 5318Y 虚拟机的16 vCPU，扩容后系统可见63.305GiB。Strata 0.1.43固定提交为<code>7695859aa13afb248bdb4d36f9b2e95707db079d</code>，驱动580.126.09，构建包含sm_86；模型为Qwen3.8-Flash-Next-GSQ-RCO IQ2_XS。</p>
+</li>
+<li><p>引擎使用18GiB/13432专家槽、7 workers、32K/int8 KV、MTP 4/minP 0.5，关闭尾部专家跳过和prompt/conversation缓存。固定分工与公开题集测试使用prefill CPU share=0，自适应专家缓存保持开启。正式请求在模型loaded后开始，加载与预热另计。</p>
+</li>
+<li><p>PLE 全表按页对齐后为 28800139264 字节，与系统 <code>Mlocked</code> 观测一致；CUDA 锁页专家补集另行计量。容量实验保留操作系统文件缓存，自动分工校准在0.35–0.60间变化；每任务每组四次。0.5/1固定分工每任务每参数六次，来自三次启动。CPU等效占用为进程CPU秒数除以请求墙钟秒数；显存命中比例按显存命中路由数除以全部路由数计算，包含PCIe路由。</p>
+</li>
+<li><p>HumanEval每题只提交首次答案，输出上限4096；生成结束后单独评分。EvalPlus提交<code>26d6d00bb1fd0fa37f39c99d5290da67891d1c5e</code>，HumanEvalPlus v0.1.10。参考程序原版与增强测试均164/164通过。题集公开已久，训练数据重合和题集上限会影响跨模型解释。</p>
+</li>
+<li><p>Aider提交<code>5dc9490bb35f9729ef2c95d00a19ccd30c26339c</code>，Polyglot题库提交<code>7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f</code>。采用whole完整文件编辑、最多两次验收，保留默认lint与格式纠错；摘要阈值2048 token，由同一本地模型同步完成。该同步安排保证请求串行、耗时归属明确，也属于复测协议的一部分。题序固定为seed 20261015的打乱顺序。</p>
+</li>
+<li><p>公开题集使用temperature=0、top_p=0.95、reasoning_effort=none。P95采用线性插值，表示本轮不同题目的时间分布；固定seed后的输出仍可能变化，重复整轮可以观察波动。Polyglot的199+26统计是逐题汇总，原始完整轮次与C++专项墙钟分别保留。非流式Aider调用没有客户端TTFT记录。</p>
+</li>
+<li><p>Polyglot官方参考程序225/225通过；初轮657份、专项130份验收及构建文件核验通过。头文件修正后，参考lint审计还有C++预处理宏和Rust生命周期两处解析提示，两份参考实现均通过编译验收，其他默认lint行为在本轮保留。全部失败、上下文拒绝和复测退步均进入统计。</p>
+</li>
+<li><p>生成程序在无网络、非root、4 CPU/6GiB的容器中评分。所有模型输出与测试日志保留；早期自建评分器遗漏的OverflowError已修正并重评。内存/分工实验与两套公开题集各自保留原始记录、配置和统计口径。</p>
+</li>
+<li><p>独立Nsight诊断受到采集器2024.6与驱动接口兼容限制，CUDA事件仅覆盖请求前约3.2秒，完整请求约17.5秒；带采集的长输入另有停滞，根因待定位。诊断样本独立保存。本文没有给出完整GPU/PCIe等待占比。</p>
+</li>
+<li><p>本轮为单请求实测，尚未测试多人服务和真实仓库持续开发。本文尚未实测公共 API；本地电费、硬件摊销及同协议 API 账单保持待填。日常服务已恢复并完成健康及对话检查。</p>
+</li>
+</ul>
+<p><a href="/assets/strata-3090-memory-coding/matched-results.csv">固定分工逐请求数据</a> · <a href="/assets/strata-3090-memory-coding/strata-memory-evidence.zip">容量与分工证据包</a></p>
+<p><a href="/assets/strata-3090-memory-coding/benchmarks/humaneval-results.csv">HumanEval逐题数据</a> · <a href="/assets/strata-3090-memory-coding/benchmarks/humaneval-REPLAY.md">重放协议</a> · <a href="/assets/strata-3090-memory-coding/benchmarks/strata-humaneval-evidence.zip">HumanEval证据包</a></p>
+<p><a href="/assets/strata-3090-memory-coding/benchmarks/polyglot-corrected-results.csv">Polyglot逐题数据</a> · <a href="/assets/strata-3090-memory-coding/benchmarks/polyglot-cpp-control-results.csv">C++对照数据</a> · <a href="/assets/strata-3090-memory-coding/benchmarks/polyglot-REPLAY.md">重放协议</a> · <a href="/assets/strata-3090-memory-coding/benchmarks/strata-polyglot-evidence.zip">Polyglot证据包</a></p>
+
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://hanayo.cn/2026/10/15/strata-3090-memory-coding/" data-id="cmv9mdve500b9bgmi4ku07l0j" data-title="3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/gpu/" rel="tag">gpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/moe/" rel="tag">moe</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/qwen/" rel="tag">qwen</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/strata/" rel="tag">strata</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/10/14/strata-3090-tuning/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">在 RTX 3090 上优化 Strata：做了什么，快在哪里，下一步还有多少空间</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/">ai-inference</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/performance/">performance</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ai-inference/quantization/">quantization</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/arch-notes/">arch-notes</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/devops/">devops</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/">languages</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/languages/java/">java</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/languages/python/">python</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/memory-management/">memory management</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/management/">management</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/project-related-works/">project-related-works</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/">systems</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/systems/linux-kernel/">linux-kernel</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/systems/storage/">storage</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/">virtualization</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/cpu/">cpu</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/edk2-ovmf/">edk2-ovmf</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/kvm/">kvm</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/">translation</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio/">virtio</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/translation/virtio-networking/">virtio-networking</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/v2v/">v2v</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/virtualization/virtio-balloon/">virtio-balloon</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/BSOD/" rel="tag">BSOD</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DPDK/" rel="tag">DPDK</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ElementTree/" rel="tag">ElementTree</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TDP/" rel="tag">TDP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TLB/" rel="tag">TLB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/architecture/" rel="tag">architecture</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/clocksource/" rel="tag">clocksource</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/code-reading/" rel="tag">code-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/colo/" rel="tag">colo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cpu/" rel="tag">cpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cram/" rel="tag">cram</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cxl/" rel="tag">cxl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/deepseek/" rel="tag">deepseek</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/edk2-ovmf/" rel="tag">edk2-ovmf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ft/" rel="tag">ft</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gpu/" rel="tag">gpu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/incident-analysis/" rel="tag">incident-analysis</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/inference/" rel="tag">inference</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/interview/" rel="tag">interview</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/juicefs/" rel="tag">juicefs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel/" rel="tag">kernel</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kvm/" rel="tag">kvm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libvirt/" rel="tag">libvirt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/" rel="tag">linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/live-migration/" rel="tag">live-migration</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/llm/" rel="tag">llm</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lru/" rel="tag">lru</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/maven/" rel="tag">maven</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory/" rel="tag">memory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/memory-balloon/" rel="tag">memory balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/moe/" rel="tag">moe</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nessus/" rel="tag">nessus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nexus/" rel="tag">nexus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/" rel="tag">nfs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/others/" rel="tag">others</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page-fault/" rel="tag">page-fault</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/paper-reading/" rel="tag">paper-reading</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/perf/" rel="tag">perf</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/performance/" rel="tag">performance</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/profiler/" rel="tag">profiler</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/python/" rel="tag">python</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qemu/" rel="tag">qemu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/quantization/" rel="tag">quantization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/qwen/" rel="tag">qwen</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/reading-notes/" rel="tag">reading notes</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/security/" rel="tag">security</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/software-arch/" rel="tag">software-arch</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/strata/" rel="tag">strata</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sysstat/" rel="tag">sysstat</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/system-design/" rel="tag">system-design</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tsc/" rel="tag">tsc</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/v2v/" rel="tag">v2v</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vDPA/" rel="tag">vDPA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vhost-net/" rel="tag">vhost-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt/" rel="tag">virt</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virt-top/" rel="tag">virt-top</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio/" rel="tag">virtio</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-balloon/" rel="tag">virtio-balloon</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-net/" rel="tag">virtio-net</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtio-networking/" rel="tag">virtio-networking</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/virtualization/" rel="tag">virtualization</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows/" rel="tag">windows</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/zram/" rel="tag">zram</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/BSOD/" style="font-size: 10px;">BSOD</a> <a href="/tags/DPDK/" style="font-size: 12.22px;">DPDK</a> <a href="/tags/ElementTree/" style="font-size: 10px;">ElementTree</a> <a href="/tags/TDP/" style="font-size: 11.11px;">TDP</a> <a href="/tags/TLB/" style="font-size: 10px;">TLB</a> <a href="/tags/architecture/" style="font-size: 17.78px;">architecture</a> <a href="/tags/clocksource/" style="font-size: 10px;">clocksource</a> <a href="/tags/code-reading/" style="font-size: 10px;">code-reading</a> <a href="/tags/colo/" style="font-size: 10px;">colo</a> <a href="/tags/cpu/" style="font-size: 12.22px;">cpu</a> <a href="/tags/cram/" style="font-size: 11.11px;">cram</a> <a href="/tags/cxl/" style="font-size: 11.11px;">cxl</a> <a href="/tags/deepseek/" style="font-size: 10px;">deepseek</a> <a href="/tags/edk2-ovmf/" style="font-size: 10px;">edk2-ovmf</a> <a href="/tags/ft/" style="font-size: 11.11px;">ft</a> <a href="/tags/gpu/" style="font-size: 13.33px;">gpu</a> <a href="/tags/incident-analysis/" style="font-size: 11.11px;">incident-analysis</a> <a href="/tags/inference/" style="font-size: 15.56px;">inference</a> <a href="/tags/interview/" style="font-size: 10px;">interview</a> <a href="/tags/java/" style="font-size: 12.22px;">java</a> <a href="/tags/juicefs/" style="font-size: 10px;">juicefs</a> <a href="/tags/kernel/" style="font-size: 14.44px;">kernel</a> <a href="/tags/kvm/" style="font-size: 16.67px;">kvm</a> <a href="/tags/libvirt/" style="font-size: 12.22px;">libvirt</a> <a href="/tags/linux/" style="font-size: 18.89px;">linux</a> <a href="/tags/live-migration/" style="font-size: 10px;">live-migration</a> <a href="/tags/llm/" style="font-size: 15.56px;">llm</a> <a href="/tags/lru/" style="font-size: 10px;">lru</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/memory/" style="font-size: 10px;">memory</a> <a href="/tags/memory-balloon/" style="font-size: 10px;">memory balloon</a> <a href="/tags/moe/" style="font-size: 13.33px;">moe</a> <a href="/tags/nessus/" style="font-size: 10px;">nessus</a> <a href="/tags/nexus/" style="font-size: 10px;">nexus</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/others/" style="font-size: 10px;">others</a> <a href="/tags/page-fault/" style="font-size: 10px;">page-fault</a> <a href="/tags/paper-reading/" style="font-size: 10px;">paper-reading</a> <a href="/tags/perf/" style="font-size: 11.11px;">perf</a> <a href="/tags/performance/" style="font-size: 14.44px;">performance</a> <a href="/tags/profiler/" style="font-size: 10px;">profiler</a> <a href="/tags/python/" style="font-size: 10px;">python</a> <a href="/tags/qemu/" style="font-size: 20px;">qemu</a> <a href="/tags/quantization/" style="font-size: 10px;">quantization</a> <a href="/tags/qwen/" style="font-size: 13.33px;">qwen</a> <a href="/tags/reading-notes/" style="font-size: 10px;">reading notes</a> <a href="/tags/security/" style="font-size: 11.11px;">security</a> <a href="/tags/software-arch/" style="font-size: 12.22px;">software-arch</a> <a href="/tags/strata/" style="font-size: 13.33px;">strata</a> <a href="/tags/sysstat/" style="font-size: 10px;">sysstat</a> <a href="/tags/system-design/" style="font-size: 12.22px;">system-design</a> <a href="/tags/tsc/" style="font-size: 10px;">tsc</a> <a href="/tags/v2v/" style="font-size: 10px;">v2v</a> <a href="/tags/vDPA/" style="font-size: 10px;">vDPA</a> <a href="/tags/vhost-net/" style="font-size: 16.67px;">vhost-net</a> <a href="/tags/virt/" style="font-size: 13.33px;">virt</a> <a href="/tags/virt-top/" style="font-size: 10px;">virt-top</a> <a href="/tags/virtio/" style="font-size: 16.67px;">virtio</a> <a href="/tags/virtio-balloon/" style="font-size: 10px;">virtio-balloon</a> <a href="/tags/virtio-net/" style="font-size: 16.67px;">virtio-net</a> <a href="/tags/virtio-networking/" style="font-size: 16.67px;">virtio-networking</a> <a href="/tags/virtualization/" style="font-size: 10px;">virtualization</a> <a href="/tags/windows/" style="font-size: 10px;">windows</a> <a href="/tags/zram/" style="font-size: 10px;">zram</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/02/">二月 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/12/">十二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/04/">四月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/03/">三月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/01/">一月 2023</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/12/">十二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/10/">十月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/07/">七月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/06/">六月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/04/">四月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/02/">二月 2022</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/12/">十二月 2021</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/15/strata-3090-memory-coding/">3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/14/strata-3090-tuning/">在 RTX 3090 上优化 Strata：做了什么，快在哪里，下一步还有多少空间</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/13/strata-expert-paths/">Strata 怎样把 MoE 专家分给 CPU 和 GPU</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/13/strata-first-use/">在 RTX 3090 和 32GB 内存上试用 Strata</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/10/cram-lru-pcp-tail/">CRAM 迁入为什么慢：从 LRU 等待追到 CPU 与页复用</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Alan Jager<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+    <a href="/tools" class="mobile-nav-link">工具</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

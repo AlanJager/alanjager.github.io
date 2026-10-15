@@ -44,3 +44,5 @@
 - [Strata 怎样把 MoE 专家分给 CPU 和 GPU](https://hanayo.cn/2026/10/13/strata-expert-paths/): 专家缓存、CPU/GPU分工、PCIe重叠与尾部跳过的速度和质量代价。
 
 - [在 RTX 3090 上优化 Strata](https://hanayo.cn/2026/10/14/strata-3090-tuning/): 分块与CPU分担实测、代码质量，以及分层瓶颈观测。
+
+- [3090 跑 Qwen 写代码：内存加到 64GiB 之后](https://hanayo.cn/2026/10/15/strata-3090-memory-coding/): 内存常驻、编码完成率、工具耗时与云服务费用参考。

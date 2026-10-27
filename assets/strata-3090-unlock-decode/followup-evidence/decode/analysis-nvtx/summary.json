@@ -1,0 +1,216 @@
+[
+  {
+    "request_index": 0,
+    "decode_wall_ms": 5189.764681,
+    "gpu": {
+      "routed_expert": {
+        "union_ms": 662.752055,
+        "sum_ms": 662.752055,
+        "events": 34752
+      },
+      "hyper_connection": {
+        "union_ms": 671.04932,
+        "sum_ms": 672.721803,
+        "events": 52671
+      },
+      "attention_dense_other": {
+        "union_ms": 1526.63082,
+        "sum_ms": 1598.166229,
+        "events": 283311
+      },
+      "MTP_GPU": {
+        "union_ms": 255.233078,
+        "sum_ms": 267.78009,
+        "events": 25664
+      },
+      "PCIe_GPU_fetch": {
+        "union_ms": 599.434409,
+        "sum_ms": 599.434409,
+        "events": 8688
+      },
+      "sync_spin": {
+        "union_ms": 179.357752,
+        "sum_ms": 179.357752,
+        "events": 26064
+      },
+      "all_kernel": {
+        "union_ms": 3685.828998,
+        "sum_ms": 3980.212338,
+        "events": 431150
+      },
+      "math_kernel": {
+        "union_ms": 3054.238546,
+        "sum_ms": 3201.420177,
+        "events": 396398
+      }
+    },
+    "cpu": {
+      "decode.verify": {
+        "ms": 4216.987462,
+        "events": 181
+      },
+      "decode.commit_emit": {
+        "ms": 72.929297,
+        "events": 181
+      },
+      "decode.mtp": {
+        "ms": 330.773025,
+        "events": 181
+      },
+      "decode.adapt_join": {
+        "ms": 159.989899,
+        "events": 45
+      },
+      "other_ms": 409.08499799999936
+    },
+    "copies": {
+      "H2D": {
+        "count": 892,
+        "bytes": 1222318080,
+        "sum_ms": 104.125477,
+        "union_ms": 104.125477,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 104.125477
+      },
+      "D2H": {
+        "count": 782,
+        "bytes": 1124966400,
+        "sum_ms": 87.774765,
+        "union_ms": 87.774765,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 87.774765
+      },
+      "D2D": {
+        "count": 21,
+        "bytes": 860160,
+        "sum_ms": 0.021598,
+        "union_ms": 0.021598,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 0.021598
+      }
+    },
+    "gpu_any_union_ms": 3877.750838,
+    "gpu_no_activity_ms": 1312.0138429999997,
+    "sync_roles": {
+      "waitA": {
+        "union_ms": 118.673003,
+        "events": 8688
+      },
+      "waitB": {
+        "union_ms": 32.876498,
+        "events": 8688
+      },
+      "waitCPU": {
+        "union_ms": 27.808251,
+        "events": 8688
+      }
+    }
+  },
+  {
+    "request_index": 1,
+    "decode_wall_ms": 8129.797728,
+    "gpu": {
+      "routed_expert": {
+        "union_ms": 783.302037,
+        "sum_ms": 783.302037,
+        "events": 43584
+      },
+      "hyper_connection": {
+        "union_ms": 806.896026,
+        "sum_ms": 808.989628,
+        "events": 66057
+      },
+      "attention_dense_other": {
+        "union_ms": 1868.329939,
+        "sum_ms": 1956.435637,
+        "events": 351198
+      },
+      "MTP_GPU": {
+        "union_ms": 296.624111,
+        "sum_ms": 311.224585,
+        "events": 29712
+      },
+      "PCIe_GPU_fetch": {
+        "union_ms": 1197.584115,
+        "sum_ms": 1197.584115,
+        "events": 10896
+      },
+      "sync_spin": {
+        "union_ms": 231.583277,
+        "sum_ms": 231.583277,
+        "events": 32688
+      },
+      "all_kernel": {
+        "union_ms": 4928.6603,
+        "sum_ms": 5289.119279,
+        "events": 534135
+      },
+      "math_kernel": {
+        "union_ms": 3680.103331,
+        "sum_ms": 3859.951887,
+        "events": 490551
+      }
+    },
+    "cpu": {
+      "decode.verify": {
+        "ms": 5691.710734,
+        "events": 227
+      },
+      "decode.commit_emit": {
+        "ms": 81.797182,
+        "events": 227
+      },
+      "decode.mtp": {
+        "ms": 383.184872,
+        "events": 227
+      },
+      "decode.adapt_join": {
+        "ms": 1076.699773,
+        "events": 57
+      },
+      "other_ms": 896.405166999999
+    },
+    "copies": {
+      "H2D": {
+        "count": 1943,
+        "bytes": 2695625728,
+        "sum_ms": 229.733387,
+        "union_ms": 229.733387,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 229.733387
+      },
+      "D2H": {
+        "count": 1724,
+        "bytes": 2458982400,
+        "sum_ms": 191.027871,
+        "union_ms": 191.027871,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 191.027871
+      },
+      "D2D": {
+        "count": 39,
+        "bytes": 1597440,
+        "sum_ms": 0.04006,
+        "union_ms": 0.04006,
+        "overlap_math_ms": 0.0,
+        "not_overlapped_with_math_ms": 0.04006
+      }
+    },
+    "gpu_any_union_ms": 5349.461618,
+    "gpu_no_activity_ms": 2780.3361099999993,
+    "sync_roles": {
+      "waitA": {
+        "union_ms": 154.927562,
+        "events": 10896
+      },
+      "waitB": {
+        "union_ms": 41.100465,
+        "events": 10896
+      },
+      "waitCPU": {
+        "union_ms": 35.55525,
+        "events": 10896
+      }
+    }
+  }
+]

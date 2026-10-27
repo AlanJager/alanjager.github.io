@@ -1,0 +1,263 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{max-width:1100px;margin:48px auto;padding:0 24px;font:17px/1.8 system-ui;background:#fcfbf8;color:#263b42}h1,h2{line-height:1.4}img{max-width:100%}table{display:block;overflow:auto;border-collapse:collapse;font-size:14px}td,th{padding:8px;border-bottom:1px solid #ccd8d7;white-space:nowrap}a{color:#176d65}</style><p><a href="../../index.html">返回博客稿</a></p><h1>3090 上的 Strata decode：专家计算、搬运、等待与 MTP</h1>
+<p>本轮把正常速度测试、CUDA 图逐节点采样、图级采样和引擎分段计时分开记录。较明确的开销来自映射主机权重的 GPU 搬运，以及专家缓存交换的复制、等待与提交；MTP 草稿本身占主线程 decode 时间约 5–6%。参数调整得到小幅收益，尚未得到稳定的大幅提速。</p>
+<h2>环境与测法</h2>
+<p>RTX 3090 24GiB / 350W，Xeon Platinum 8260 / 32 vCPU，系统可见约62.76GiB RAM，PCIe Gen3×16；580.126.09 / CUDA12.8。GPU维持软件恢复的原始性能选择寄存器状态。Strata0.1.43，原引擎SHA256 <code>560cb9df5cbc3fa3fa59a7c749fed7514935ed245e6fd85db75d1f79baa37944</code>，源码按既有固定提交 <code>7695859aa13afb248bdb4d36f9b2e95707db079d</code>。</p>
+<p>固定两个短输入：连续Python源码、中文数据库手册，实际prompt为71/70 token，每请求生成512 token。32K/int8KV、MTP4、7个专家线程、PCIe份额1、CPU prefill份额0、尾部跳过关闭、prefill2048，无前缀/对话缓存；每次独立启动恢复同一专家画像，预热两份512-token回答，再做两轮测量。它们用于速率与路径分析，本轮未新增编码正确率评分。</p>
+<p>正常原引擎的专家缓存为13432槽/18.00GiB。Nsight与标记构建会占额外显存，实际缓存容量见各组environment.json；它们用于归因，速度收益采用无采样的原引擎对照。</p>
+<p>Nsight Systems2024.6.2；逐节点采样的decode耗时较采样关闭时增加约23%至38%。NVTX构建仅增加请求、verify、commit/emit、MTP、adapt_join标记，独立链接，原源码与原引擎保持。后续图级采样用于核对较低采样开销和请求收尾。</p>
+<h2>先分开两个时间层次</h2>
+<p>主线程的verify包含GPU计算、搬运及等待；GPU事件是它内部的活动。下面两张表分别解释墙钟时间与GPU活动，不能跨表求和。</p>
+<table>
+<thead>
+<tr>
+<th>逐节点采样，512 token</th>
+<th style="text-align: right;">代码</th>
+<th style="text-align: right;">中文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主模型验证</td>
+<td style="text-align: right;">4.217s</td>
+<td style="text-align: right;">5.692s</td>
+</tr>
+<tr>
+<td>提交与输出</td>
+<td style="text-align: right;">0.073s</td>
+<td style="text-align: right;">0.082s</td>
+</tr>
+<tr>
+<td>MTP草稿</td>
+<td style="text-align: right;">0.331s</td>
+<td style="text-align: right;">0.383s</td>
+</tr>
+<tr>
+<td>等待交换线程结束</td>
+<td style="text-align: right;">0.160s</td>
+<td style="text-align: right;">1.077s</td>
+</tr>
+<tr>
+<td>其他控制逻辑</td>
+<td style="text-align: right;">0.409s</td>
+<td style="text-align: right;">0.896s</td>
+</tr>
+<tr>
+<td>decode合计</td>
+<td style="text-align: right;">5.190s</td>
+<td style="text-align: right;">8.130s</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="主线程阶段" src="decode-cpu-stages.png" /></p>
+<p>“等待交换线程结束”来自源代码中对adapt_thr的join标记；其他控制逻辑还包括下一窗口准备、pending交换提交与lookup等，未全部归入缓存交换。CPU端GPU-reach wait嵌在verify里，其数值包含GPU推进过程。</p>
+<table>
+<thead>
+<tr>
+<th>同一采样运行内的GPU活动，区间并集</th>
+<th style="text-align: right;">代码</th>
+<th style="text-align: right;">中文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路由专家gate/up/down kernel</td>
+<td style="text-align: right;">0.663s</td>
+<td style="text-align: right;">0.783s</td>
+</tr>
+<tr>
+<td>HC混合kernel</td>
+<td style="text-align: right;">0.671s</td>
+<td style="text-align: right;">0.807s</td>
+</tr>
+<tr>
+<td>Attention、dense及其他（含共享专家通用投影）</td>
+<td style="text-align: right;">1.527s</td>
+<td style="text-align: right;">1.868s</td>
+</tr>
+<tr>
+<td>MTP内GPU kernel</td>
+<td style="text-align: right;">0.255s</td>
+<td style="text-align: right;">0.297s</td>
+</tr>
+<tr>
+<td>映射权重的GPU搬运kernel</td>
+<td style="text-align: right;">0.599s</td>
+<td style="text-align: right;">1.198s</td>
+</tr>
+<tr>
+<td>flag自旋kernel</td>
+<td style="text-align: right;">0.179s</td>
+<td style="text-align: right;">0.232s</td>
+</tr>
+</tbody>
+</table>
+<p>不同GPU类别可并发，类别区间并集也不构成严格的墙钟时间分割。HC来自fused_gr.cu，负责Hyper-Connection读/混合；共享专家的矩阵投影复用通用MMVQ，未仅凭kernel名字硬拆。引擎独立分段计时中，shared+quant约1.10ms/window（代码）、1.08ms/window（中文），仅作辅助参考；该模式关闭部分融合和共享专家并行。</p>
+<h2>PCIe同时有两条路径</h2>
+<p>默认auto在本构建中选pcie_mode=2。CPU发布主机映射地址，GPU在verify流上执行fetch_blobs，把未驻留专家搬到暂存区，再计算。CUDA复制引擎的H2D/D2H记录另含缓存热冷交换等活动，因此仅看cudaMemcpy会漏掉GPU kernel发起的PCIe读。</p>
+<table>
+<thead>
+<tr>
+<th>decode区间内复制引擎</th>
+<th style="text-align: right;">代码</th>
+<th style="text-align: right;">中文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H2D字节量</td>
+<td style="text-align: right;">1.222GB</td>
+<td style="text-align: right;">2.696GB</td>
+</tr>
+<tr>
+<td>H2D区间并集耗时</td>
+<td style="text-align: right;">0.104s</td>
+<td style="text-align: right;">0.230s</td>
+</tr>
+<tr>
+<td>D2H字节量</td>
+<td style="text-align: right;">1.125GB</td>
+<td style="text-align: right;">2.459GB</td>
+</tr>
+<tr>
+<td>D2H区间并集耗时</td>
+<td style="text-align: right;">0.088s</td>
+<td style="text-align: right;">0.191s</td>
+</tr>
+</tbody>
+</table>
+<p>这些是decode范围内的复制记录，已排除前面的prompt；仍不等于PCIe全部字节量。resident_stage_swaps先把将被逐出的专家从GPU读回RAM缓冲，等该轮读回完成，再安排热专家入GPU；apply_pending提交更新。当前采样中这些复制未与已记录的数学kernel重叠，诊断局部如下。</p>
+<p><img alt="中文时间线" src="decode-timeline-1.png" /></p>
+<p><img alt="代码时间线" src="decode-timeline-0.png" /></p>
+<h2>纯flag等待与waitB分段</h2>
+<p>按每个verify图的48个层子图、每层三个等待节点的源码顺序，区分waitA、waitB和waitCPU；每图要求完整144个节点，分类校验见sync-classification.json。</p>
+<table>
+<thead>
+<tr>
+<th>等待kernel的GPU区间并集</th>
+<th style="text-align: right;">代码</th>
+<th style="text-align: right;">中文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>waitA</td>
+<td style="text-align: right;">118.7ms</td>
+<td style="text-align: right;">154.9ms</td>
+</tr>
+<tr>
+<td>waitB</td>
+<td style="text-align: right;">32.9ms</td>
+<td style="text-align: right;">41.1ms</td>
+</tr>
+<tr>
+<td>waitCPU</td>
+<td style="text-align: right;">27.8ms</td>
+<td style="text-align: right;">35.6ms</td>
+</tr>
+</tbody>
+</table>
+<p>verify.cpp在waitB后执行fetch_blobs，随后才记分段stamp21。因此内置“waitB”区间包含搬专家的kernel；中文分段约5.55ms/window，不能全部解释成flag自旋。Nsight直接记录的waitB kernel合计约41ms，搬运kernel则约1.20秒。</p>
+<h2>无采样对照：实际收益多大</h2>
+<p>第一轮kernel/DMA/direct筛选期间有标记构建，成绩单列为初筛。最终主要比较编译完成后的kernel→DMA及DMA→kernel反向顺序，各配置两个独立启动、每种输入共四次请求。交换周期16和resident overlap各一次启动、两轮，样本较少。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th style="text-align: right;">代码decode token/s</th>
+<th style="text-align: right;">中文decode token/s</th>
+<th style="text-align: right;">代码客户端TPOT ms</th>
+<th style="text-align: right;">中文客户端TPOT ms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kernel，周期4（两个启动）</td>
+<td style="text-align: right;">121.10</td>
+<td style="text-align: right;">85.85</td>
+<td style="text-align: right;">8.25</td>
+<td style="text-align: right;">11.65</td>
+</tr>
+<tr>
+<td>DMA，周期4（两个启动）</td>
+<td style="text-align: right;">124.30</td>
+<td style="text-align: right;">87.55</td>
+<td style="text-align: right;">8.03</td>
+<td style="text-align: right;">11.43</td>
+</tr>
+<tr>
+<td>kernel，周期16（一个启动）</td>
+<td style="text-align: right;">120.35</td>
+<td style="text-align: right;">87.55</td>
+<td style="text-align: right;">8.33</td>
+<td style="text-align: right;">11.43</td>
+</tr>
+<tr>
+<td>kernel，周期4 + resident overlap（一个启动）</td>
+<td style="text-align: right;">124.45</td>
+<td style="text-align: right;">87.45</td>
+<td style="text-align: right;">9.13</td>
+<td style="text-align: right;">11.44</td>
+</tr>
+</tbody>
+</table>
+<p>引擎decode token/s来自predicted_ms；客户端TPOT统一用(E2E−TTFT)/(512−1)，含最后内容到SSE结束的等待。DMA首个独立对照约+4%，反向顺序则接近持平；合并中位数约代码+2.6%、中文+2.0%，重复范围有重叠。它是小幅候选。</p>
+<p>周期16的代码首轮113.4、次轮127.3 token/s，热度追踪变慢后有明显冷热取舍。resident overlap把其他控制逻辑从约3–5ms/window压到约0.7–1.1，但verify阶段的逐层等待增多，净收益只有几个百分点。其一次代码请求在最后内容后还有约1.14秒才结束；原始事件保留，不能仅按引擎token/s采用。</p>
+<p>上述正常对照的两份512-token内容哈希逐一一致，见request-audit.json。这里验证的是这两份输出一致，本轮未新增通用代码评分。</p>
+<h2>最后一轮：图级采样与尾部等待</h2>
+<table>
+<thead>
+<tr>
+<th>图级采样</th>
+<th style="text-align: right;">decode ms</th>
+<th style="text-align: right;">MTP ms</th>
+<th style="text-align: right;">交换线程join ms</th>
+<th style="text-align: right;">最后内容到结束 ms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>trace-r1-decode-0</td>
+<td style="text-align: right;">4379.1</td>
+<td style="text-align: right;">289.0</td>
+<td style="text-align: right;">188.5</td>
+<td style="text-align: right;">0.5</td>
+</tr>
+<tr>
+<td>trace-r1-decode-2</td>
+<td style="text-align: right;">6447.2</td>
+<td style="text-align: right;">338.7</td>
+<td style="text-align: right;">628.3</td>
+<td style="text-align: right;">0.6</td>
+</tr>
+<tr>
+<td>trace-r2-decode-0</td>
+<td style="text-align: right;">4574.2</td>
+<td style="text-align: right;">283.8</td>
+<td style="text-align: right;">428.4</td>
+<td style="text-align: right;">0.7</td>
+</tr>
+<tr>
+<td>trace-r2-decode-2</td>
+<td style="text-align: right;">6815.4</td>
+<td style="text-align: right;">337.0</td>
+<td style="text-align: right;">626.7</td>
+<td style="text-align: right;">93.6</td>
+</tr>
+</tbody>
+</table>
+<p>图级采样仍有开销，且工具的显存占用改变少量缓存槽；它用于核对阶段与收尾，未纳入无采样速度排名。四次图级采样未重现1.14秒尾部等待：三次最后内容至结束约0.5–0.7ms，一次约93.6ms。后一条收尾区间内的CUDA EventSynchronize只有约0.29ms，余下时间尚不能归为GPU同步；原始客户端事件与CUDA API时间戳均保留。</p>
+<h2>优化结论与下一步</h2>
+<ol>
+<li>本轮没有找到稳定的大幅decode提速开关；日常服务继续使用原配置。DMA是可继续验证的小幅候选。</li>
+<li>更具体的源码优化点是resident_stage_swaps读回/同步、apply_pending提交，以及交换与逐层计算的衔接。现有resident overlap已隐藏部分主循环外等待，但也把等待推入verify，净收益应按客户端完成时间验收。</li>
+<li>GPU权重搬运、量化专家、HC及通用投影占较多活动时间。解锁增加的FP16/BF16 Tensor GEMM吞吐并非这些路径的统一加速比，后续kernel优化应依据具体算子、访存与分组形状测量。</li>
+<li>MTP草稿自身约占主线程decode的5–6%，每窗口约产出2.3–2.8 token；它还改变主模型的批量形状。优先处理权重数据流和交换等待，再评价更大MTP窗口。</li>
+</ol>
+<p>注意：这是短上下文、单请求、固定512-token负载。正常测量与诊断各自保留；初筛、采样与辅助分段未混入最终性能提升百分比。较长编码上下文、不同任务和并发仍需独立验证。本轮未采Nsight Compute硬件计数器，当前能定位时间开销，尚未判定每个kernel是DRAM带宽、指令吞吐还是occupancy达到上限。</p>
+<h2>证据与复现</h2>
+<ul>
+<li><a href="bench-requests.csv">逐请求与CPU分段CSV</a>、<a href="bench-summary.json">无采样汇总</a>、<a href="request-audit.json">请求核验</a>。</li>
+<li><a href="analysis-nvtx/summary.json">CUDA事件分类</a>、<a href="analysis-nvtx/kernel-top.csv">逐kernel记录</a>、<a href="analysis-nvtx/cpu-ranges.csv">CPU范围</a>、<a href="analysis-nvtx/sync-classification.json">flag分类校验</a>。</li>
+<li>本页提供脱敏汇总与图表，原始采样和完整运行日志留在实验归档中。</li>
+<li><a href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/src/core/verify.cpp#L1570-L1640">GPU搬运与合并源码</a>、<a href="https://github.com/Niko1221/Strata/blob/7695859aa13afb248bdb4d36f9b2e95707db079d/src/program/generate.cpp#L275-L320">缓存交换实现</a>、<a href="https://docs.nvidia.com/nsight-systems/UserGuide/">Nsight采集说明</a>。</li>
+</ul>

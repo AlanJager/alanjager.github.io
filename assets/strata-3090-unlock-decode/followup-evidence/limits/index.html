@@ -1,0 +1,364 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{max-width:1100px;margin:48px auto;padding:0 24px;font:17px/1.8 system-ui;background:#fcfbf8;color:#263b42}h1,h2{line-height:1.4}img{max-width:100%}table{display:block;overflow:auto;border-collapse:collapse;font-size:14px}td,th{padding:8px;border-bottom:1px solid #ccd8d7;white-space:nowrap}a{color:#176d65}</style><p><a href="../../index.html">返回博客稿</a></p><h1>Strata：恢复性能寄存器后与解锁端对照</h1>
+<p>恢复端使用本卡最初日志中的 SS0=0x02200115、SS1=0x4；PLM仍开放。FP16/BF16矩阵吞吐已恢复原基线，六组完整输出哈希与原始未解锁端一致。本次衡量性能选择寄存器恢复前后的速度差，恢复端并非完整物理冷启动。</p>
+<p>同一IQ2_XS、Strata0.1.43/同引擎SHA、同350W、PCIe Gen3×16、同输入及专家画像；关闭前缀/对话缓存、尾部跳过和CPU prefill分担。每种输入/请求组合两轮；配置间速度差与解锁收益分别计算。</p>
+<h2>Prefill</h2>
+<p>每输入只生成1 token。吞吐列为引擎prompt阶段中位数；提速=解锁/恢复−1，TTFT缩短=1−解锁/恢复。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th style="text-align: right;">输入 token</th>
+<th style="text-align: right;">恢复 token/s</th>
+<th style="text-align: right;">解锁 token/s</th>
+<th style="text-align: right;">提速</th>
+<th style="text-align: right;">恢复 TTFT s</th>
+<th style="text-align: right;">解锁 TTFT s</th>
+<th style="text-align: right;">TTFT缩短</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pf2048</td>
+<td style="text-align: right;">1007</td>
+<td style="text-align: right;">769.6</td>
+<td style="text-align: right;">798.0</td>
+<td style="text-align: right;">+3.7%</td>
+<td style="text-align: right;">1.330</td>
+<td style="text-align: right;">1.283</td>
+<td style="text-align: right;">+3.5%</td>
+</tr>
+<tr>
+<td>pf2048</td>
+<td style="text-align: right;">4089</td>
+<td style="text-align: right;">1299.2</td>
+<td style="text-align: right;">1330.4</td>
+<td style="text-align: right;">+2.4%</td>
+<td style="text-align: right;">3.171</td>
+<td style="text-align: right;">3.098</td>
+<td style="text-align: right;">+2.3%</td>
+</tr>
+<tr>
+<td>pf2048</td>
+<td style="text-align: right;">16401</td>
+<td style="text-align: right;">1297.3</td>
+<td style="text-align: right;">1333.4</td>
+<td style="text-align: right;">+2.8%</td>
+<td style="text-align: right;">12.675</td>
+<td style="text-align: right;">12.334</td>
+<td style="text-align: right;">+2.7%</td>
+</tr>
+<tr>
+<td>pf2048</td>
+<td style="text-align: right;">28667</td>
+<td style="text-align: right;">1315.9</td>
+<td style="text-align: right;">1355.9</td>
+<td style="text-align: right;">+3.0%</td>
+<td style="text-align: right;">21.824</td>
+<td style="text-align: right;">21.181</td>
+<td style="text-align: right;">+2.9%</td>
+</tr>
+<tr>
+<td>pf18432</td>
+<td style="text-align: right;">1007</td>
+<td style="text-align: right;">767.0</td>
+<td style="text-align: right;">797.0</td>
+<td style="text-align: right;">+3.9%</td>
+<td style="text-align: right;">1.334</td>
+<td style="text-align: right;">1.285</td>
+<td style="text-align: right;">+3.7%</td>
+</tr>
+<tr>
+<td>pf18432</td>
+<td style="text-align: right;">4089</td>
+<td style="text-align: right;">1829.0</td>
+<td style="text-align: right;">1993.3</td>
+<td style="text-align: right;">+9.0%</td>
+<td style="text-align: right;">2.259</td>
+<td style="text-align: right;">2.075</td>
+<td style="text-align: right;">+8.1%</td>
+</tr>
+<tr>
+<td>pf18432</td>
+<td style="text-align: right;">16401</td>
+<td style="text-align: right;">2565.9</td>
+<td style="text-align: right;">2922.5</td>
+<td style="text-align: right;">+13.9%</td>
+<td style="text-align: right;">6.425</td>
+<td style="text-align: right;">5.646</td>
+<td style="text-align: right;">+12.1%</td>
+</tr>
+<tr>
+<td>pf18432</td>
+<td style="text-align: right;">28667</td>
+<td style="text-align: right;">2543.4</td>
+<td style="text-align: right;">2883.2</td>
+<td style="text-align: right;">+13.4%</td>
+<td style="text-align: right;">11.311</td>
+<td style="text-align: right;">9.983</td>
+<td style="text-align: right;">+11.7%</td>
+</tr>
+<tr>
+<td>pf32768</td>
+<td style="text-align: right;">1007</td>
+<td style="text-align: right;">763.5</td>
+<td style="text-align: right;">791.6</td>
+<td style="text-align: right;">+3.7%</td>
+<td style="text-align: right;">1.341</td>
+<td style="text-align: right;">1.294</td>
+<td style="text-align: right;">+3.5%</td>
+</tr>
+<tr>
+<td>pf32768</td>
+<td style="text-align: right;">4089</td>
+<td style="text-align: right;">1823.8</td>
+<td style="text-align: right;">1981.2</td>
+<td style="text-align: right;">+8.6%</td>
+<td style="text-align: right;">2.267</td>
+<td style="text-align: right;">2.088</td>
+<td style="text-align: right;">+7.9%</td>
+</tr>
+<tr>
+<td>pf32768</td>
+<td style="text-align: right;">16401</td>
+<td style="text-align: right;">2571.9</td>
+<td style="text-align: right;">2917.9</td>
+<td style="text-align: right;">+13.4%</td>
+<td style="text-align: right;">6.414</td>
+<td style="text-align: right;">5.656</td>
+<td style="text-align: right;">+11.8%</td>
+</tr>
+<tr>
+<td>pf32768</td>
+<td style="text-align: right;">28667</td>
+<td style="text-align: right;">2690.0</td>
+<td style="text-align: right;">3047.5</td>
+<td style="text-align: right;">+13.3%</td>
+<td style="text-align: right;">10.697</td>
+<td style="text-align: right;">9.448</td>
+<td style="text-align: right;">+11.7%</td>
+</tr>
+<tr>
+<td>pf32768-fp16</td>
+<td style="text-align: right;">1007</td>
+<td style="text-align: right;">715.6</td>
+<td style="text-align: right;">753.4</td>
+<td style="text-align: right;">+5.3%</td>
+<td style="text-align: right;">1.429</td>
+<td style="text-align: right;">1.358</td>
+<td style="text-align: right;">+4.9%</td>
+</tr>
+<tr>
+<td>pf32768-fp16</td>
+<td style="text-align: right;">4089</td>
+<td style="text-align: right;">1569.9</td>
+<td style="text-align: right;">1749.8</td>
+<td style="text-align: right;">+11.5%</td>
+<td style="text-align: right;">2.629</td>
+<td style="text-align: right;">2.361</td>
+<td style="text-align: right;">+10.2%</td>
+</tr>
+<tr>
+<td>pf32768-fp16</td>
+<td style="text-align: right;">16401</td>
+<td style="text-align: right;">2300.2</td>
+<td style="text-align: right;">2738.8</td>
+<td style="text-align: right;">+19.1%</td>
+<td style="text-align: right;">7.164</td>
+<td style="text-align: right;">6.022</td>
+<td style="text-align: right;">+15.9%</td>
+</tr>
+<tr>
+<td>pf32768-fp16</td>
+<td style="text-align: right;">28667</td>
+<td style="text-align: right;">2479.6</td>
+<td style="text-align: right;">2961.1</td>
+<td style="text-align: right;">+19.4%</td>
+<td style="text-align: right;">11.602</td>
+<td style="text-align: right;">9.725</td>
+<td style="text-align: right;">+16.2%</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="28K prefill 同配置对照" src="prefill-compare.png" /></p>
+<h2>Decode与并发</h2>
+<p>每批同样四个请求，各输出1024 token；同类/混合各两批。整批吞吐含准入和客户端排队；TPOT为每请求(E2E−TTFT)/(N−1)的中位数。中央解码窗口另见summary.json。</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>组合</th>
+<th style="text-align: right;">恢复整批 token/s</th>
+<th style="text-align: right;">解锁整批 token/s</th>
+<th style="text-align: right;">吞吐提速</th>
+<th style="text-align: right;">恢复 TPOT ms</th>
+<th style="text-align: right;">解锁 TPOT ms</th>
+<th style="text-align: right;">TPOT缩短</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>decode-solo</td>
+<td>shared</td>
+<td style="text-align: right;">130.03</td>
+<td style="text-align: right;">121.92</td>
+<td style="text-align: right;">-6.2%</td>
+<td style="text-align: right;">6.93</td>
+<td style="text-align: right;">7.28</td>
+<td style="text-align: right;">-5.0%</td>
+</tr>
+<tr>
+<td>decode-solo</td>
+<td>mixed</td>
+<td style="text-align: right;">78.81</td>
+<td style="text-align: right;">75.32</td>
+<td style="text-align: right;">-4.4%</td>
+<td style="text-align: right;">11.57</td>
+<td style="text-align: right;">12.30</td>
+<td style="text-align: right;">-6.4%</td>
+</tr>
+<tr>
+<td>decode-solo-spec8</td>
+<td>shared</td>
+<td style="text-align: right;">111.58</td>
+<td style="text-align: right;">111.76</td>
+<td style="text-align: right;">+0.2%</td>
+<td style="text-align: right;">8.03</td>
+<td style="text-align: right;">7.89</td>
+<td style="text-align: right;">+1.8%</td>
+</tr>
+<tr>
+<td>decode-solo-spec8</td>
+<td>mixed</td>
+<td style="text-align: right;">74.88</td>
+<td style="text-align: right;">73.01</td>
+<td style="text-align: right;">-2.5%</td>
+<td style="text-align: right;">11.91</td>
+<td style="text-align: right;">11.27</td>
+<td style="text-align: right;">+5.3%</td>
+</tr>
+<tr>
+<td>decode-solo-fullcache</td>
+<td>shared</td>
+<td style="text-align: right;">131.98</td>
+<td style="text-align: right;">130.59</td>
+<td style="text-align: right;">-1.1%</td>
+<td style="text-align: right;">6.78</td>
+<td style="text-align: right;">6.85</td>
+<td style="text-align: right;">-1.0%</td>
+</tr>
+<tr>
+<td>decode-solo-fullcache</td>
+<td>mixed</td>
+<td style="text-align: right;">89.63</td>
+<td style="text-align: right;">86.94</td>
+<td style="text-align: right;">-3.0%</td>
+<td style="text-align: right;">9.79</td>
+<td style="text-align: right;">10.09</td>
+<td style="text-align: right;">-3.1%</td>
+</tr>
+<tr>
+<td>decode-solo-fullcache-spec8</td>
+<td>shared</td>
+<td style="text-align: right;">116.06</td>
+<td style="text-align: right;">123.32</td>
+<td style="text-align: right;">+6.3%</td>
+<td style="text-align: right;">7.74</td>
+<td style="text-align: right;">7.61</td>
+<td style="text-align: right;">+1.7%</td>
+</tr>
+<tr>
+<td>decode-solo-fullcache-spec8</td>
+<td>mixed</td>
+<td style="text-align: right;">83.20</td>
+<td style="text-align: right;">81.69</td>
+<td style="text-align: right;">-1.8%</td>
+<td style="text-align: right;">10.67</td>
+<td style="text-align: right;">10.61</td>
+<td style="text-align: right;">+0.6%</td>
+</tr>
+<tr>
+<td>decode-two</td>
+<td>shared</td>
+<td style="text-align: right;">100.17</td>
+<td style="text-align: right;">102.31</td>
+<td style="text-align: right;">+2.1%</td>
+<td style="text-align: right;">19.50</td>
+<td style="text-align: right;">18.84</td>
+<td style="text-align: right;">+3.4%</td>
+</tr>
+<tr>
+<td>decode-two</td>
+<td>mixed</td>
+<td style="text-align: right;">68.60</td>
+<td style="text-align: right;">65.31</td>
+<td style="text-align: right;">-4.8%</td>
+<td style="text-align: right;">28.05</td>
+<td style="text-align: right;">28.95</td>
+<td style="text-align: right;">-3.2%</td>
+</tr>
+<tr>
+<td>decode-two-mtp</td>
+<td>shared</td>
+<td style="text-align: right;">109.18</td>
+<td style="text-align: right;">111.75</td>
+<td style="text-align: right;">+2.4%</td>
+<td style="text-align: right;">17.28</td>
+<td style="text-align: right;">17.39</td>
+<td style="text-align: right;">-0.7%</td>
+</tr>
+<tr>
+<td>decode-two-mtp</td>
+<td>mixed</td>
+<td style="text-align: right;">74.07</td>
+<td style="text-align: right;">74.63</td>
+<td style="text-align: right;">+0.8%</td>
+<td style="text-align: right;">26.45</td>
+<td style="text-align: right;">24.40</td>
+<td style="text-align: right;">+7.8%</td>
+</tr>
+<tr>
+<td>decode-four</td>
+<td>shared</td>
+<td style="text-align: right;">127.55</td>
+<td style="text-align: right;">128.40</td>
+<td style="text-align: right;">+0.7%</td>
+<td style="text-align: right;">29.61</td>
+<td style="text-align: right;">29.30</td>
+<td style="text-align: right;">+1.1%</td>
+</tr>
+<tr>
+<td>decode-four</td>
+<td>mixed</td>
+<td style="text-align: right;">74.07</td>
+<td style="text-align: right;">72.22</td>
+<td style="text-align: right;">-2.5%</td>
+<td style="text-align: right;">52.07</td>
+<td style="text-align: right;">53.53</td>
+<td style="text-align: right;">-2.8%</td>
+</tr>
+<tr>
+<td>decode-four-mtp</td>
+<td>shared</td>
+<td style="text-align: right;">122.05</td>
+<td style="text-align: right;">123.01</td>
+<td style="text-align: right;">+0.8%</td>
+<td style="text-align: right;">30.94</td>
+<td style="text-align: right;">30.93</td>
+<td style="text-align: right;">+0.0%</td>
+</tr>
+<tr>
+<td>decode-four-mtp</td>
+<td>mixed</td>
+<td style="text-align: right;">75.89</td>
+<td style="text-align: right;">73.77</td>
+<td style="text-align: right;">-2.8%</td>
+<td style="text-align: right;">48.58</td>
+<td style="text-align: right;">49.92</td>
+<td style="text-align: right;">-2.8%</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Decode 同配置对照" src="decode-compare.png" /></p>
+<h2>观测与范围</h2>
+<p>固定缓存decode各组实际11546个native槽、15843MiB；单流auto缓存另列。18432 MMQ两端均有6072/6072个借出槽在RAM中备份，23.16GiB专家内存全锁页；FP16 32768两端均9126/9126、27.24GiB全锁页。MMQ auto:32768借出10652槽，解锁端覆盖10598、恢复端10592，RAM边缘存在6槽差异，因此以18432组作为更干净的大分块对照；raw文件保留。两端按先后顺序运行，重复次数有限，几个百分点的差异需结合范围和资源采样解释。</p>
+<p><a href="requests.csv">逐请求CSV</a>、<a href="stock-resource-windows.csv">恢复端资源窗口</a>、<a href="unlocked-resource-windows.csv">解锁端资源窗口</a>。</p>

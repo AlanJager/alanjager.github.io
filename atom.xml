@@ -6,7 +6,7 @@
   <link href="https://hanayo.cn/atom.xml" rel="self"/>
   
   <link href="https://hanayo.cn/"/>
-  <updated>2026-10-15T13:00:00.000Z</updated>
+  <updated>2026-10-27T07:00:00.000Z</updated>
   <id>https://hanayo.cn/</id>
   
   <author>
@@ -17,6 +17,34 @@
   <generator uri="https://hexo.io/">Hexo</generator>
 
   <entry>
+    <title>3090 解锁后调 Strata：算力、搬运与任务验收</title>
+    <link href="https://hanayo.cn/2026/10/27/strata-3090-unlock-decode/"/>
+    <id>https://hanayo.cn/2026/10/27/strata-3090-unlock-decode/</id>
+    <published>2026-10-27T07:00:00.000Z</published>
+    <updated>2026-10-27T07:00:00.000Z</updated>
+    
+    
+    <summary type="html">同一张3090对照矩阵算力、prefill和decode的解锁收益，再拆分专家搬运、MTP与缓存交换，记录框架调优结果及后续研究问题。</summary>
+    
+    
+    
+    <category term="ai-inference" scheme="https://hanayo.cn/categories/ai-inference/"/>
+    
+    
+    <category term="llm" scheme="https://hanayo.cn/tags/llm/"/>
+    
+    <category term="strata" scheme="https://hanayo.cn/tags/strata/"/>
+    
+    <category term="qwen" scheme="https://hanayo.cn/tags/qwen/"/>
+    
+    <category term="moe" scheme="https://hanayo.cn/tags/moe/"/>
+    
+    <category term="inference" scheme="https://hanayo.cn/tags/inference/"/>
+    
+    <category term="gpu" scheme="https://hanayo.cn/tags/gpu/"/>
+    
+  </entry>
+<entry>
     <title>3090 跑 Qwen 写代码：内存加到 64GiB 之后，时间花在哪里</title>
     <link href="https://hanayo.cn/2026/10/15/strata-3090-memory-coding/"/>
     <id>https://hanayo.cn/2026/10/15/strata-3090-memory-coding/</id>

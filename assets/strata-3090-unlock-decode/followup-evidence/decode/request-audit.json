@@ -1,0 +1,16 @@
+{
+  "http_sse_length_cache_pass": true,
+  "requests": 82,
+  "measured": 56,
+  "warmups": 26,
+  "normal_content_hashes": {
+    "decode-0": {
+      "requests": 12,
+      "sha256": "dea7a688570ddb35c7ff8abf165f9d9122effc6752b6f3b0aa4d3751057d73cc"
+    },
+    "decode-2": {
+      "requests": 12,
+      "sha256": "3ba037f3a62b6e489f9811a6f889916dc36b187d10ec0ac111294ab030bf6e09"
+    }
+  }
+}

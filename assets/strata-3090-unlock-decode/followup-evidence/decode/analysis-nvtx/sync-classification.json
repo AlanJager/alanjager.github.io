@@ -1,0 +1,4 @@
+{
+  "method": "source order waitA/waitB/waitCPU within each layer subgraph; require 144 waits, 48 internal stream IDs, three waits each",
+  "unclassified": []
+}

@@ -1,0 +1,662 @@
+{
+  "adapt16": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 120.35,
+        "min": 113.4,
+        "max": 127.3
+      },
+      "decode_ms": {
+        "median": 4268.4,
+        "min": 4022.5,
+        "max": 4514.3
+      },
+      "client_tpot_ms": {
+        "median": 8.328042421722328,
+        "min": 7.847877757337964,
+        "max": 8.808207086106693
+      },
+      "verify_ms_window": {
+        "median": 18.91,
+        "min": 17.71,
+        "max": 20.11
+      },
+      "mtp_ms_window": {
+        "median": 1.585,
+        "min": 1.58,
+        "max": 1.59
+      },
+      "other_ms_window": {
+        "median": 3.09,
+        "min": 2.9300000000000006,
+        "max": 3.249999999999999
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 87.55,
+        "min": 86.0,
+        "max": 89.1
+      },
+      "decode_ms": {
+        "median": 5851.65,
+        "min": 5747.3,
+        "max": 5956.0
+      },
+      "client_tpot_ms": {
+        "median": 11.433158713306726,
+        "min": 11.234732289628719,
+        "max": 11.631585136984734
+      },
+      "verify_ms_window": {
+        "median": 20.950000000000003,
+        "min": 20.42,
+        "max": 21.48
+      },
+      "mtp_ms_window": {
+        "median": 1.44,
+        "min": 1.44,
+        "max": 1.44
+      },
+      "other_ms_window": {
+        "median": 3.3,
+        "min": 3.2900000000000014,
+        "max": 3.3099999999999983
+      }
+    }
+  },
+  "confirm-dma": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 125.44999999999999,
+        "min": 124.6,
+        "max": 126.3
+      },
+      "decode_ms": {
+        "median": 4081.55,
+        "min": 4053.1,
+        "max": 4110.0
+      },
+      "client_tpot_ms": {
+        "median": 7.959594551860066,
+        "min": 7.903750835617996,
+        "max": 8.015438268102136
+      },
+      "verify_ms_window": {
+        "median": 17.865000000000002,
+        "min": 17.72,
+        "max": 18.01
+      },
+      "mtp_ms_window": {
+        "median": 1.54,
+        "min": 1.53,
+        "max": 1.55
+      },
+      "other_ms_window": {
+        "median": 2.9999999999999987,
+        "min": 2.87,
+        "max": 3.1299999999999972
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 88.25,
+        "min": 87.9,
+        "max": 88.6
+      },
+      "decode_ms": {
+        "median": 5800.7,
+        "min": 5775.7,
+        "max": 5825.7
+      },
+      "client_tpot_ms": {
+        "median": 11.329684864971899,
+        "min": 11.280417827790906,
+        "max": 11.378951902152894
+      },
+      "verify_ms_window": {
+        "median": 19.255,
+        "min": 19.22,
+        "max": 19.29
+      },
+      "mtp_ms_window": {
+        "median": 1.4449999999999998,
+        "min": 1.44,
+        "max": 1.45
+      },
+      "other_ms_window": {
+        "median": 4.7700000000000005,
+        "min": 4.75,
+        "max": 4.790000000000001
+      }
+    }
+  },
+  "confirm-kernel": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 120.6,
+        "min": 120.2,
+        "max": 121.0
+      },
+      "decode_ms": {
+        "median": 4244.799999999999,
+        "min": 4231.7,
+        "max": 4257.9
+      },
+      "client_tpot_ms": {
+        "median": 8.279183501956474,
+        "min": 8.254166598826291,
+        "max": 8.30420040508666
+      },
+      "verify_ms_window": {
+        "median": 18.634999999999998,
+        "min": 18.61,
+        "max": 18.66
+      },
+      "mtp_ms_window": {
+        "median": 1.59,
+        "min": 1.59,
+        "max": 1.59
+      },
+      "other_ms_window": {
+        "median": 3.1350000000000007,
+        "min": 3.1000000000000014,
+        "max": 3.17
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 85.0,
+        "min": 84.4,
+        "max": 85.6
+      },
+      "decode_ms": {
+        "median": 6024.799999999999,
+        "min": 5983.2,
+        "max": 6066.4
+      },
+      "client_tpot_ms": {
+        "median": 11.768171538161223,
+        "min": 11.686772317026845,
+        "max": 11.849570759295602
+      },
+      "verify_ms_window": {
+        "median": 20.09,
+        "min": 20.02,
+        "max": 20.16
+      },
+      "mtp_ms_window": {
+        "median": 1.4449999999999998,
+        "min": 1.44,
+        "max": 1.45
+      },
+      "other_ms_window": {
+        "median": 4.969999999999999,
+        "min": 4.849999999999999,
+        "max": 5.09
+      }
+    }
+  },
+  "mode-direct": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 108.69999999999999,
+        "min": 108.1,
+        "max": 109.3
+      },
+      "decode_ms": {
+        "median": 4708.6,
+        "min": 4682.3,
+        "max": 4734.9
+      },
+      "client_tpot_ms": {
+        "median": 9.184647845401711,
+        "min": 9.13366115264135,
+        "max": 9.235634538162072
+      },
+      "verify_ms_window": {
+        "median": 19.46,
+        "min": 19.18,
+        "max": 19.74
+      },
+      "mtp_ms_window": {
+        "median": 1.57,
+        "min": 1.55,
+        "max": 1.59
+      },
+      "other_ms_window": {
+        "median": 4.585000000000002,
+        "min": 4.210000000000002,
+        "max": 4.960000000000002
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 75.4,
+        "min": 74.9,
+        "max": 75.9
+      },
+      "decode_ms": {
+        "median": 6790.45,
+        "min": 6744.5,
+        "max": 6836.4
+      },
+      "client_tpot_ms": {
+        "median": 13.26560540802221,
+        "min": 13.175387632092034,
+        "max": 13.355823183952388
+      },
+      "verify_ms_window": {
+        "median": 21.675,
+        "min": 21.46,
+        "max": 21.89
+      },
+      "mtp_ms_window": {
+        "median": 1.44,
+        "min": 1.43,
+        "max": 1.45
+      },
+      "other_ms_window": {
+        "median": 6.744999999999999,
+        "min": 6.739999999999998,
+        "max": 6.749999999999999
+      }
+    }
+  },
+  "mode-dma": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 123.5,
+        "min": 122.6,
+        "max": 124.4
+      },
+      "decode_ms": {
+        "median": 4146.5,
+        "min": 4117.3,
+        "max": 4175.7
+      },
+      "client_tpot_ms": {
+        "median": 8.085334129158397,
+        "min": 8.027029990214535,
+        "max": 8.143638268102258
+      },
+      "verify_ms_window": {
+        "median": 18.06,
+        "min": 17.97,
+        "max": 18.15
+      },
+      "mtp_ms_window": {
+        "median": 1.56,
+        "min": 1.54,
+        "max": 1.58
+      },
+      "other_ms_window": {
+        "median": 3.265000000000001,
+        "min": 3.2100000000000017,
+        "max": 3.3200000000000003
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 85.9,
+        "min": 85.7,
+        "max": 86.1
+      },
+      "decode_ms": {
+        "median": 5957.950000000001,
+        "min": 5944.8,
+        "max": 5971.1
+      },
+      "client_tpot_ms": {
+        "median": 11.854313342465055,
+        "min": 11.61198045792666,
+        "max": 12.096646227003452
+      },
+      "verify_ms_window": {
+        "median": 19.485,
+        "min": 19.41,
+        "max": 19.56
+      },
+      "mtp_ms_window": {
+        "median": 1.44,
+        "min": 1.44,
+        "max": 1.44
+      },
+      "other_ms_window": {
+        "median": 5.165000000000002,
+        "min": 5.140000000000002,
+        "max": 5.190000000000001
+      }
+    }
+  },
+  "mode-kernel": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 122.85,
+        "min": 122.6,
+        "max": 123.1
+      },
+      "decode_ms": {
+        "median": 4167.65,
+        "min": 4158.8,
+        "max": 4176.5
+      },
+      "client_tpot_ms": {
+        "median": 8.128828740704826,
+        "min": 8.111517136987027,
+        "max": 8.146140344422626
+      },
+      "verify_ms_window": {
+        "median": 18.43,
+        "min": 18.43,
+        "max": 18.43
+      },
+      "mtp_ms_window": {
+        "median": 1.55,
+        "min": 1.55,
+        "max": 1.55
+      },
+      "other_ms_window": {
+        "median": 3.035000000000001,
+        "min": 2.980000000000002,
+        "max": 3.09
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 85.0,
+        "min": 84.9,
+        "max": 85.1
+      },
+      "decode_ms": {
+        "median": 6024.8,
+        "min": 6018.3,
+        "max": 6031.3
+      },
+      "client_tpot_ms": {
+        "median": 11.767748546967624,
+        "min": 11.754429046968458,
+        "max": 11.781068046966789
+      },
+      "verify_ms_window": {
+        "median": 20.08,
+        "min": 20.01,
+        "max": 20.15
+      },
+      "mtp_ms_window": {
+        "median": 1.4449999999999998,
+        "min": 1.44,
+        "max": 1.45
+      },
+      "other_ms_window": {
+        "median": 4.925000000000001,
+        "min": 4.91,
+        "max": 4.940000000000002
+      }
+    }
+  },
+  "resident-overlap": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 124.44999999999999,
+        "min": 124.1,
+        "max": 124.8
+      },
+      "decode_ms": {
+        "median": 4114.15,
+        "min": 4104.0,
+        "max": 4124.3
+      },
+      "client_tpot_ms": {
+        "median": 9.134943478472938,
+        "min": 8.043704857141922,
+        "max": 10.226182099803951
+      },
+      "verify_ms_window": {
+        "median": 20.415,
+        "min": 20.37,
+        "max": 20.46
+      },
+      "mtp_ms_window": {
+        "median": 1.55,
+        "min": 1.55,
+        "max": 1.55
+      },
+      "other_ms_window": {
+        "median": 0.7299999999999993,
+        "min": 0.7199999999999995,
+        "max": 0.7399999999999991
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 87.45,
+        "min": 87.4,
+        "max": 87.5
+      },
+      "decode_ms": {
+        "median": 5855.950000000001,
+        "min": 5853.6,
+        "max": 5858.3
+      },
+      "client_tpot_ms": {
+        "median": 11.437473117416229,
+        "min": 11.433122559687384,
+        "max": 11.441823675145075
+      },
+      "verify_ms_window": {
+        "median": 23.200000000000003,
+        "min": 23.19,
+        "max": 23.21
+      },
+      "mtp_ms_window": {
+        "median": 1.44,
+        "min": 1.44,
+        "max": 1.44
+      },
+      "other_ms_window": {
+        "median": 1.114999999999999,
+        "min": 1.1099999999999972,
+        "max": 1.120000000000001
+      }
+    }
+  },
+  "reverse-dma": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 121.95,
+        "min": 119.9,
+        "max": 124.0
+      },
+      "decode_ms": {
+        "median": 4200.3,
+        "min": 4129.3,
+        "max": 4271.3
+      },
+      "client_tpot_ms": {
+        "median": 8.191788419764755,
+        "min": 8.052942045008916,
+        "max": 8.330634794520597
+      },
+      "verify_ms_window": {
+        "median": 18.08,
+        "min": 17.99,
+        "max": 18.17
+      },
+      "mtp_ms_window": {
+        "median": 1.54,
+        "min": 1.54,
+        "max": 1.54
+      },
+      "other_ms_window": {
+        "median": 3.3699999999999988,
+        "min": 3.1400000000000006,
+        "max": 3.599999999999997
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 86.75,
+        "min": 86.3,
+        "max": 87.2
+      },
+      "decode_ms": {
+        "median": 5904.45,
+        "min": 5873.2,
+        "max": 5935.7
+      },
+      "client_tpot_ms": {
+        "median": 11.532781665363725,
+        "min": 11.471067972605356,
+        "max": 11.594495358122092
+      },
+      "verify_ms_window": {
+        "median": 19.275,
+        "min": 19.18,
+        "max": 19.37
+      },
+      "mtp_ms_window": {
+        "median": 1.43,
+        "min": 1.43,
+        "max": 1.43
+      },
+      "other_ms_window": {
+        "median": 5.209999999999998,
+        "min": 5.189999999999998,
+        "max": 5.229999999999999
+      }
+    }
+  },
+  "reverse-kernel": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 122.5,
+        "min": 121.2,
+        "max": 123.8
+      },
+      "decode_ms": {
+        "median": 4179.65,
+        "min": 4134.9,
+        "max": 4224.4
+      },
+      "client_tpot_ms": {
+        "median": 8.152276481411315,
+        "min": 8.065256596870642,
+        "max": 8.239296365951988
+      },
+      "verify_ms_window": {
+        "median": 18.425,
+        "min": 18.25,
+        "max": 18.6
+      },
+      "mtp_ms_window": {
+        "median": 1.565,
+        "min": 1.54,
+        "max": 1.59
+      },
+      "other_ms_window": {
+        "median": 2.819999999999999,
+        "min": 2.7799999999999985,
+        "max": 2.8599999999999994
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 86.4,
+        "min": 86.1,
+        "max": 86.7
+      },
+      "decode_ms": {
+        "median": 5925.0,
+        "min": 5902.1,
+        "max": 5947.9
+      },
+      "client_tpot_ms": {
+        "median": 11.572216869862757,
+        "min": 11.527357136986971,
+        "max": 11.617076602738543
+      },
+      "verify_ms_window": {
+        "median": 19.86,
+        "min": 19.81,
+        "max": 19.91
+      },
+      "mtp_ms_window": {
+        "median": 1.44,
+        "min": 1.44,
+        "max": 1.44
+      },
+      "other_ms_window": {
+        "median": 4.715000000000001,
+        "min": 4.709999999999999,
+        "max": 4.720000000000002
+      }
+    }
+  },
+  "verify-profile": {
+    "decode-0": {
+      "decode_tps": {
+        "median": 117.35,
+        "min": 116.7,
+        "max": 118.0
+      },
+      "decode_ms": {
+        "median": 4364.3,
+        "min": 4340.0,
+        "max": 4388.6
+      },
+      "client_tpot_ms": {
+        "median": 8.510951449119275,
+        "min": 8.463371857145182,
+        "max": 8.558531041093367
+      },
+      "verify_ms_window": {
+        "median": 19.564999999999998,
+        "min": 19.47,
+        "max": 19.66
+      },
+      "mtp_ms_window": {
+        "median": 1.5350000000000001,
+        "min": 1.53,
+        "max": 1.54
+      },
+      "other_ms_window": {
+        "median": 2.9999999999999996,
+        "min": 2.96,
+        "max": 3.039999999999999
+      }
+    },
+    "decode-2": {
+      "decode_tps": {
+        "median": 82.05,
+        "min": 81.1,
+        "max": 83.0
+      },
+      "decode_ms": {
+        "median": 6243.25,
+        "min": 6170.3,
+        "max": 6316.2
+      },
+      "client_tpot_ms": {
+        "median": 12.254169770057857,
+        "min": 12.051121420743002,
+        "max": 12.457218119372712
+      },
+      "verify_ms_window": {
+        "median": 21.034999999999997,
+        "min": 20.99,
+        "max": 21.08
+      },
+      "mtp_ms_window": {
+        "median": 1.43,
+        "min": 1.43,
+        "max": 1.43
+      },
+      "other_ms_window": {
+        "median": 4.935000000000002,
+        "min": 4.720000000000002,
+        "max": 5.150000000000002
+      }
+    }
+  }
+}
